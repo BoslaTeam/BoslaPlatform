@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BoslaPlatform.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260531121937_Init")]
+    [Migration("20260531143609_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -1956,7 +1956,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
                         .IsRequired();
 
                     b.HasOne("BoslaPlatform.Domain.Entities.User", "VerifiedByUser")
-                        .WithMany()
+                        .WithMany("VerifiedSpecialists")
                         .HasForeignKey("VerifiedBy")
                         .OnDelete(DeleteBehavior.NoAction);
 
@@ -2146,6 +2146,8 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.Navigation("UserExpertise");
 
                     b.Navigation("UserIndustries");
+
+                    b.Navigation("VerifiedSpecialists");
 
                     b.Navigation("VideoSessionParticipants");
                 });
