@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\BoslaPlatform.Infrastructure\BoslaPlatform.Infrastructure.csproj" />
     <ProjectReference Include="..\BoslaPlatform.Service\BoslaPlatform.Application.csproj" />
+    <ProjectReference Include="..\BoslaPlatform.Shared\BoslaPlatform.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>
