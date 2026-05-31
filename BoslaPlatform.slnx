@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="BoslaPlatform.API/BoslaPlatform.API.csproj" />
+    <Project Path="BoslaPlatform.Domain/BoslaPlatform.Domain.csproj" />
+    <Project Path="BoslaPlatform.Infrastructure/BoslaPlatform.Infrastructure.csproj" />
+    <Project Path="BoslaPlatform.Service/BoslaPlatform.Application.csproj" />
+    <Project Path="BoslaPlatform.Shared/BoslaPlatform.Shared.csproj" />
+  </Folder>
+  <Folder Name="/tests/" />
+</Solution>
