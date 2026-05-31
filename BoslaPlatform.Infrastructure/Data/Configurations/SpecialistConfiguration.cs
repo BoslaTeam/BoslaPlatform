@@ -1,4 +1,4 @@
-﻿using BoslaPlatform.Domain.Models.Profile;
+using BoslaPlatform.Domain.Models.Profile;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -8,6 +8,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
     {
         public override void Configure(EntityTypeBuilder<Specialist> builder)
         {
+            base.Configure(builder);
             builder.Property(s => s.ExperienceLevel).HasConversion<string>().HasMaxLength(20).IsRequired();
             builder.Property(s => s.HourlyRate).HasPrecision(10, 2).IsRequired();
             builder.Property(s => s.MinBookingNoticeHours).HasDefaultValue(24);
@@ -21,8 +22,10 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
 
             builder.HasOne(s => s.VerifiedByUser).WithMany().HasForeignKey(s => s.VerifiedBy)
                     .OnDelete(DeleteBehavior.NoAction);
-            builder.HasOne(s => s.User).WithOne().HasForeignKey<Specialist>(s => s.UserId)
-                    .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne(s => s.User)
+                .WithOne(u => u.Specialist)
+                .HasForeignKey<Specialist>(s => s.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
 
         }
     }

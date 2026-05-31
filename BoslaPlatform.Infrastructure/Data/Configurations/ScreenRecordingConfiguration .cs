@@ -8,6 +8,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
     {
         public override void Configure(EntityTypeBuilder<ScreenRecording> builder)
         {
+            base.Configure(builder);
             builder.Property(sr => sr.Url).HasMaxLength(500).IsRequired();
             builder.Property(sr => sr.Status).HasConversion<string>().HasMaxLength(30).IsRequired();
             builder.Property(sr => sr.AccessControl).HasConversion<string>().HasMaxLength(20).IsRequired();

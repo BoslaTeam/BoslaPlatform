@@ -1,4 +1,4 @@
-﻿using BoslaPlatform.Domain.Models.Booking;
+using BoslaPlatform.Domain.Models.Booking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -8,6 +8,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
     {
         public override void Configure(EntityTypeBuilder<Appointment> builder)
         {
+            base.Configure(builder);
             builder.Property(a => a.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
             builder.Property(a => a.SessionTopic).HasMaxLength(500);
             builder.Property(a => a.Notes).HasMaxLength(2000);
@@ -20,8 +21,10 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
                 .IsUnique().HasFilter("[Status] != 'Cancelled'");
             builder.HasIndex(nameof(Appointment.SpecialistId), nameof(Appointment.Start));
 
-            builder.HasOne(a => a.User).WithMany().HasForeignKey(a => a.UserId)
-          .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne(a => a.User)
+                .WithMany(u => u.Appointments)
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

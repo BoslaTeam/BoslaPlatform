@@ -8,6 +8,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
     {
         public override void Configure(EntityTypeBuilder<Availability> builder)
         {
+            base.Configure(builder);
             builder.HasKey(a => a.Id);
 
             builder.HasOne(a => a.Specialist).WithMany(s => s.Availabilities)

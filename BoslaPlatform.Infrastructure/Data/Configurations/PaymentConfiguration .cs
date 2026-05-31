@@ -8,6 +8,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
     {
         public override void Configure(EntityTypeBuilder<Payment> builder)
         {
+            base.Configure(builder);
             builder.Property(p => p.Amount).HasPrecision(10, 2).IsRequired();
             builder.Property(p => p.Currency).HasMaxLength(10).HasDefaultValue("USD");
             builder.Property(p => p.Status).HasConversion<string>().HasMaxLength(20).IsRequired();

@@ -8,7 +8,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
     {
         public override void Configure(EntityTypeBuilder<Message> builder)
         {
-            builder.HasKey(m => m.Id);
+            base.Configure(builder);
             builder.Property(m => m.MessageText).IsRequired();
 
             builder.HasOne(m => m.Conversation).WithMany(c => c.Messages)

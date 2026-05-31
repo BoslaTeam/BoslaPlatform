@@ -9,6 +9,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
     {
         public override void Configure(EntityTypeBuilder<Expertise> builder)
         {
+            base.Configure(builder);
             builder.Property(e => e.Name).HasMaxLength(200).IsRequired();
             builder.HasIndex(e => e.Name).IsUnique();
         }

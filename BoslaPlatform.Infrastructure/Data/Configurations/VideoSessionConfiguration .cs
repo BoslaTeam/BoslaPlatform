@@ -8,6 +8,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
     {
         public override void Configure(EntityTypeBuilder<VideoSession> builder)
         {
+            base.Configure(builder);
             builder.Property(v => v.Type).HasConversion<string>().HasMaxLength(20).IsRequired();
             builder.Property(v => v.AgoraChannelName).HasMaxLength(100).IsRequired();
             builder.Property(v => v.AgoraAppId).HasMaxLength(100).IsRequired();

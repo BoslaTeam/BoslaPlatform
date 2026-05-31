@@ -8,6 +8,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
     {
         public override void Configure(EntityTypeBuilder<SearchInteraction> builder)
         {
+            base.Configure(builder);
             builder.Property(si => si.RawQuery).HasMaxLength(1000).IsRequired();
 
             builder.HasOne(si => si.ClickedSpecialist).WithMany().HasForeignKey(si => si.ClickedSpecialistId)

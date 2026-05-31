@@ -8,6 +8,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
     {
         public override void Configure(EntityTypeBuilder<AuditLog> builder)
         {
+            base.Configure(builder);
             builder.Property(a => a.EntityType).HasMaxLength(100).IsRequired();
             builder.Property(a => a.EntityId).HasMaxLength(100).IsRequired();
             builder.Property(a => a.Action).HasConversion<string>().HasMaxLength(50).IsRequired();
@@ -15,7 +16,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
 
 
             builder.HasIndex(a => new { a.EntityType, a.EntityId });
-            builder.HasOne(a => a.ChangedByUser).WithMany().HasForeignKey(a => a.ChangedByUser)
+            builder.HasOne(a => a.ChangedByUser).WithMany().HasForeignKey(a => a.LastModifiedBy)
           .OnDelete(DeleteBehavior.NoAction);
         }
     }

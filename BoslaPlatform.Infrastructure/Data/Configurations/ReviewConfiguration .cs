@@ -8,6 +8,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
     {
         public override void Configure(EntityTypeBuilder<Review> builder)
         {
+            base.Configure(builder);
             builder.Property(r => r.Comment).HasMaxLength(2000);
             builder.HasCheckConstraint("CK_Reviews_Rating", "[Rating] BETWEEN 1 AND 5");
 

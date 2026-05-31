@@ -9,6 +9,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
     {
         public override void Configure(EntityTypeBuilder<SessionTranscript> builder)
         {
+            base.Configure(builder);
             builder.Property(st => st.Language).HasMaxLength(10).IsRequired();
 
             builder.HasOne(st => st.VideoSession).WithOne()

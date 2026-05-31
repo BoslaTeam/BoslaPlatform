@@ -9,6 +9,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
     {
         public override void Configure(EntityTypeBuilder<SessionSummary> builder)
         {
+            base.Configure(builder);
             builder.Property(ss => ss.LlmProvider).HasMaxLength(50).IsRequired();
             builder.Property(ss => ss.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
 

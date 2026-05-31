@@ -1,4 +1,4 @@
-﻿using BoslaPlatform.Domain.Models.Junctions;
+using BoslaPlatform.Domain.Models.Junctions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -12,7 +12,9 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
             builder.HasKey(ui => new { ui.UserId, ui.IndustryId });
             builder.HasOne(ui => ui.Industry).WithMany(i => i.UserIndustries)
                 .HasForeignKey(ui => ui.IndustryId).OnDelete(DeleteBehavior.Cascade);
-            builder.HasOne(ui => ui.User).WithMany().HasForeignKey(ui => ui.UserId)
+            builder.HasOne(ui => ui.User)
+                .WithMany(u => u.UserIndustries)
+                .HasForeignKey(ui => ui.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         }
     }

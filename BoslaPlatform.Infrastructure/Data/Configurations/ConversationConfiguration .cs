@@ -8,6 +8,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
     {
         public override void Configure(EntityTypeBuilder<Conversation> builder)
         {
+            base.Configure(builder);
             builder.Property(c => c.Type).HasConversion<string>().HasMaxLength(20).IsRequired();
             builder.Property(c => c.Title).HasMaxLength(200);
         }
