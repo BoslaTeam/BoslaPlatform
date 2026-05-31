@@ -1,4 +1,5 @@
 ﻿using BoslaPlatform.Domain.Common;
+using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Identity;
 using System;
@@ -18,5 +19,7 @@ namespace BoslaPlatform.Domain.Models.Conversations
         // Navigation
         public Conversation Conversation { get; set; } = null!;
         public Appointment? Appointment { get; set; }
+        public User Sender { get; set; }
+
     }
 }

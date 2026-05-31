@@ -1,4 +1,5 @@
 ﻿using BoslaPlatform.Domain.Common;
+using BoslaPlatform.Domain.Entities;
 
 namespace BoslaPlatform.Domain.Models.Identity
 {
@@ -17,6 +18,8 @@ namespace BoslaPlatform.Domain.Models.Identity
             RevokedAt = DateTime.UtcNow;
         }
         public bool IsActive => !IsRevoked && DateTime.UtcNow <= ExpiresOnUtc;
+        public User User { get; set; }
+
 
 
     }

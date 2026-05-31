@@ -10,10 +10,6 @@ namespace BoslaPlatform.Domain.Common
         public IReadOnlyCollection<DomainEvent> DomainEvents => _domainEvents.AsReadOnly();
 
         protected BaseEntity() { }
-        protected BaseEntity(Guid id)
-        {
-            Id = id == Guid.Empty ? Guid.NewGuid() : id;
-        }
         public void AddDomainEvent(DomainEvent domainEvent)
         {
             _domainEvents.Add(domainEvent);

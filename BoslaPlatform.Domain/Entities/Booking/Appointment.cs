@@ -1,4 +1,5 @@
 ﻿using BoslaPlatform.Domain.Common;
+using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Models.Identity;
 using BoslaPlatform.Domain.Models.Profile;
@@ -27,6 +28,7 @@ namespace BoslaPlatform.Domain.Models.Booking
 
         // Navigation
         public Specialist Specialist { get; set; } = null!;
+        public User User { get; set; }
         public Payment? Payment { get; set; }
         public Review? Review { get; set; }
         public ScreenRecording? ScreenRecording { get; set; }

@@ -1,4 +1,5 @@
 ﻿using BoslaPlatform.Domain.Common;
+using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Identity;
@@ -32,5 +33,7 @@ namespace BoslaPlatform.Domain.Models.Profile
         public ICollection<SpecialistSkill> SpecialistSkills { get; set; } = [];
         public ICollection<SpecialistTool> SpecialistTools { get; set; } = [];
         public SpecialistEmbedding? Embedding { get; set; }
+        public User User { get; set; } = null!;
+        public User? VerifiedByUser { get; set; }
     }
 }
