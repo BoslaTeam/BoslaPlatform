@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
-namespace BoslaPlatform.Infrastructure.Data.Identity
+namespace BoslaPlatform.Infrastructure.Data
 {
     public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>,IAppDbContext
     {

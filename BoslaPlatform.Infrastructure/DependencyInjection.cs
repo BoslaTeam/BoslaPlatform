@@ -4,13 +4,14 @@ using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Infrastructure.Data;
 using BoslaPlatform.Infrastructure.Data.Identity;
 using BoslaPlatform.Infrastructure.Data.Interceptors;
+using BoslaPlatform.Infrastructure.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using Microsoft.EntityFrameworkCore;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -32,6 +33,8 @@ public static class DependencyInjection
 
         services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
         services.AddScoped<ApplicationDbContextInitialiser>();
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<ITokenService, TokenService>();
 
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
@@ -39,7 +42,7 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString);
         });
         services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
-
+        services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
         services.AddAuthentication(options =>
         {
             options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -68,6 +71,12 @@ public static class DependencyInjection
             options.Password.RequireDigit = true;
             options.Password.RequireNonAlphanumeric = false;
             options.Password.RequiredUniqueChars = 1;
+            options.Lockout.MaxFailedAccessAttempts = 5;
+
+            options.Lockout.DefaultLockoutTimeSpan =
+                TimeSpan.FromMinutes(15);
+
+            options.Lockout.AllowedForNewUsers = true;
         })
         .AddEntityFrameworkStores<AppDbContext>();
         return services;

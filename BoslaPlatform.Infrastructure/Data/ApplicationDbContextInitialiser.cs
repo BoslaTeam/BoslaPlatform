@@ -1,6 +1,5 @@
 ﻿using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Enums;
-using BoslaPlatform.Infrastructure.Data.Identity;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

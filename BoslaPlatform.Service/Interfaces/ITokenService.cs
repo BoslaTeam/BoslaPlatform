@@ -10,7 +10,7 @@ namespace BoslaPlatform.Application.Interfaces
         Task<Result<TokenResponse>> CreateTokenAsync(User user, CancellationToken ct = default);
         Result<ClaimsPrincipal> GetPrincipalFromExpiredToken(string token);
         Task<Result<TokenResponse>> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default);
-        Task RevokeTokenAsync(string refreshToken, CancellationToken ct = default);
+        Task<Result> RevokeTokenAsync(string refreshToken, CancellationToken ct = default);
 
     }
 

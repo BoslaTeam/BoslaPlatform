@@ -1,4 +1,5 @@
-﻿using BoslaPlatform.API.Middleware;
+﻿using Asp.Versioning;
+using BoslaPlatform.API.Middleware;
 using BoslaPlatform.API.Services;
 using BoslaPlatform.Application.Interfaces;
 
@@ -12,7 +13,8 @@ public static class DependencyInjection
         services.AddIdentityInfrastructure()
             .AddCustomProblemDetails()
             .AddEndpointsApiExplorer()
-            .AddSwaggerGen();
+            .AddSwaggerGen()
+            .AddCustomApiVersioning();
         return services;
     }
 
@@ -37,7 +39,19 @@ public static class DependencyInjection
         services.AddExceptionHandler<GlobalExceptionHandler>();
         return services;
     }
+    public static IServiceCollection AddCustomApiVersioning(this IServiceCollection services)
+    {
+        services.AddApiVersioning(options =>
+        {
+            options.DefaultApiVersion = new ApiVersion(1);
+            options.AssumeDefaultVersionWhenUnspecified = true;
+            options.ReportApiVersions = true;
+            options.ApiVersionReader = new UrlSegmentApiVersionReader();
+        }).AddMvc();
 
+
+        return services;
+    }
 
     public static IApplicationBuilder UseCoreMiddlewares(this IApplicationBuilder app, IConfiguration configuration)
     {

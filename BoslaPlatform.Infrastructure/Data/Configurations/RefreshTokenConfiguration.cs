@@ -10,7 +10,6 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
         {
             base.Configure(builder);
             builder.Property(rt => rt.Token).HasMaxLength(500).IsRequired();
-            builder.Property(rt => rt.IsRevoked).HasDefaultValue(false);
             builder.Property(rt => rt.CreatedByIp).HasMaxLength(50);
             builder.HasIndex(rt => rt.Token).IsUnique();
 
