@@ -1,4 +1,5 @@
 ﻿using BoslaPlatform.Domain.Common;
+using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Models.Identity;
 
@@ -15,5 +16,7 @@ namespace BoslaPlatform.Domain.Models.Video
 
         // Navigation
         public VideoSession VideoSession { get; set; } = null!;
+        public User User { get; set; }
+
     }
 }

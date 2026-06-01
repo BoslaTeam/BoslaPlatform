@@ -1,4 +1,5 @@
 ﻿using BoslaPlatform.Domain.Common;
+using BoslaPlatform.Domain.Entities;
 
 namespace BoslaPlatform.Domain.Models.Booking
 {
@@ -11,5 +12,7 @@ namespace BoslaPlatform.Domain.Models.Booking
 
         // Navigation
         public Appointment Appointment { get; set; } = null!;
+        public User User { get; set; }
+
     }
 }

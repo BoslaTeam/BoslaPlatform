@@ -1,4 +1,5 @@
 ﻿using BoslaPlatform.Domain.Common;
+using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Models.Identity;
 
@@ -13,5 +14,7 @@ namespace BoslaPlatform.Domain.Models.Conversations
 
         // Navigation
         public Conversation Conversation { get; set; } = null!;
+        public User User { get; set; }
+
     }
 }

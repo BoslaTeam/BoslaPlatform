@@ -3,7 +3,7 @@ using BoslaPlatform.Domain.Models.Junctions;
 
 namespace BoslaPlatform.Domain.Models.Lookup
 {
-    public class Tool:Entity
+    public class Tool:BaseEntity
     {
         public string Name { get; set; } = string.Empty;
         public ICollection<SpecialistTool> SpecialistTools { get; set; } = [];

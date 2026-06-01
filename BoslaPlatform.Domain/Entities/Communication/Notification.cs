@@ -1,4 +1,5 @@
 ﻿using BoslaPlatform.Domain.Common;
+using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Enums;
 
 namespace BoslaPlatform.Domain.Models.Communication
@@ -10,5 +11,7 @@ namespace BoslaPlatform.Domain.Models.Communication
         public string Message { get; set; } = string.Empty;
         public NotificationType Type { get; set; }
         public bool IsRead { get; set; } = false;
+        public User User { get; set; }
+
     }
 }
