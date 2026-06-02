@@ -25,4 +25,10 @@
     <ProjectReference Include="..\BoslaPlatform.Service\BoslaPlatform.Application.csproj" />
   </ItemGroup>
 
+	<ItemGroup>
+	  <Folder Include="BackgroundJobs\" />
+	  <Folder Include="Observability\" />
+	  <Folder Include="Services\" />
+	</ItemGroup>
+
 </Project>

@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 
-namespace BoslaPlatform.API.Middleware
+namespace BoslaPlatform.API.Common.Middleware
 {
     public class PerformanceMiddleware
     {

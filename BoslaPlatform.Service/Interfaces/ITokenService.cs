@@ -1,6 +1,5 @@
 ﻿using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Shared;
-using BoslaPlatform.Shared.Dtos.Auth;
 using System.Security.Claims;
 
 namespace BoslaPlatform.Application.Interfaces

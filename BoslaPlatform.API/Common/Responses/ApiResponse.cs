@@ -1,6 +1,6 @@
 ﻿using BoslaPlatform.Shared;
 
-namespace BoslaPlatform.API
+namespace BoslaPlatform.API.Common.Responses
 {
     public sealed class ApiResponse<T>
     {

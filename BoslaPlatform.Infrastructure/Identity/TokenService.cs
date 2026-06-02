@@ -3,7 +3,6 @@ using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Models.Identity;
 using BoslaPlatform.Infrastructure.Settings;
 using BoslaPlatform.Shared;
-using BoslaPlatform.Shared.Dtos.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -12,8 +11,9 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
+using BoslaPlatform.Application;
 
-namespace BoslaPlatform.Infrastructure.Data.Identity
+namespace BoslaPlatform.Infrastructure.Identity
 {
     public class TokenService : ITokenService
     {

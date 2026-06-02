@@ -7,13 +7,23 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Behaviours\**" />
+    <Compile Remove="Validators\**" />
+    <EmbeddedResource Remove="Behaviours\**" />
+    <EmbeddedResource Remove="Validators\**" />
+    <None Remove="Behaviours\**" />
+    <None Remove="Validators\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\BoslaPlatform.Domain\BoslaPlatform.Domain.csproj" />
     <ProjectReference Include="..\BoslaPlatform.Shared\BoslaPlatform.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Behaviours\" />
-    <Folder Include="Validators\" />
+    <Folder Include="Features\Authentication\Validators\" />
+    <Folder Include="EventHandlers\" />
+    <Folder Include="Mappings\" />
     <Folder Include="Services\" />
   </ItemGroup>
 

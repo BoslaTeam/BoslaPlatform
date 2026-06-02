@@ -1,6 +1,7 @@
-﻿using BoslaPlatform.Shared;
+﻿using BoslaPlatform.API.Common.Responses;
+using BoslaPlatform.Shared;
 
-namespace BoslaPlatform.API.Extensions
+namespace BoslaPlatform.API.Common.Extensions
 {
     public static class ResultExtensions
     {

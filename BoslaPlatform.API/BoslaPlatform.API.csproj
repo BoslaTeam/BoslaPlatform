@@ -27,4 +27,9 @@
     <ProjectReference Include="..\BoslaPlatform.Shared\BoslaPlatform.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Common\Filters\" />
+    <Folder Include="Services\" />
+  </ItemGroup>
+
 </Project>

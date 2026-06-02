@@ -1,5 +1,4 @@
 ﻿using BoslaPlatform.Shared;
-using BoslaPlatform.Shared.Dtos.Auth;
 
 namespace BoslaPlatform.Application.Interfaces
 {

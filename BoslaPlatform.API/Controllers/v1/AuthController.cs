@@ -1,7 +1,8 @@
 ﻿using Asp.Versioning;
-using BoslaPlatform.API.Extensions;
+using BoslaPlatform.API.Common.Extensions;
+using BoslaPlatform.API.Common.Responses;
+using BoslaPlatform.Application;
 using BoslaPlatform.Application.Interfaces;
-using BoslaPlatform.Shared.Dtos.Auth;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BoslaPlatform.API.Controllers.v1

@@ -2,8 +2,8 @@
 using BoslaPlatform.Application.Interfaces;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Infrastructure.Data;
-using BoslaPlatform.Infrastructure.Data.Identity;
 using BoslaPlatform.Infrastructure.Data.Interceptors;
+using BoslaPlatform.Infrastructure.Identity;
 using BoslaPlatform.Infrastructure.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;

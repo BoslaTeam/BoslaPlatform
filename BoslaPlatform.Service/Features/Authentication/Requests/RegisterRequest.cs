@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace BoslaPlatform.Shared.Dtos.Auth
+namespace BoslaPlatform.Application
 {
     public sealed class RegisterRequest
     {

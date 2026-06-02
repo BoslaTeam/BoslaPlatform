@@ -1,7 +1,8 @@
 ﻿using Asp.Versioning;
-using BoslaPlatform.API.Middleware;
-using BoslaPlatform.API.Services;
+using BoslaPlatform.API.Common.Exceptions;
+using BoslaPlatform.API.Common.Middleware;
 using BoslaPlatform.Application.Interfaces;
+using BoslaPlatform.Infrastructure.Identity;
 
 namespace Microsoft.Extensions.DependencyInjection;
 

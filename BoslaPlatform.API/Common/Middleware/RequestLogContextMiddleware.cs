@@ -1,6 +1,6 @@
 ﻿using Serilog.Context;
 
-namespace BoslaPlatform.API.Middleware
+namespace BoslaPlatform.API.Common.Middleware
 {
     public class RequestLogContextMiddleware
     {

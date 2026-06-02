@@ -1,4 +1,4 @@
-﻿namespace BoslaPlatform.Shared.Dtos.Auth
+﻿namespace BoslaPlatform.Application
 {
     public class TokenResponse
     {

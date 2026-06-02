@@ -1,4 +1,4 @@
-﻿namespace BoslaPlatform.API
+﻿namespace BoslaPlatform.Shared
 {
     public sealed class PaginationMetadata
     {

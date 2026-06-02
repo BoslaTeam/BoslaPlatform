@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
-namespace BoslaPlatform.API.Middleware
+namespace BoslaPlatform.API.Common.Exceptions
 {
     public class GlobalExceptionHandler(IProblemDetailsService problemDetailsService) : IExceptionHandler
     {

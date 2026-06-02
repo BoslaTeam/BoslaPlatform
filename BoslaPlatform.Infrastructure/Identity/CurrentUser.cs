@@ -1,7 +1,8 @@
 ﻿using BoslaPlatform.Application.Interfaces;
+using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 
-namespace BoslaPlatform.API.Services
+namespace BoslaPlatform.Infrastructure.Identity
 {
     public class CurrentUser : IUser
     {

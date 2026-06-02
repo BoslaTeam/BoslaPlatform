@@ -1,11 +1,11 @@
-﻿using BoslaPlatform.Application.Interfaces;
+﻿using BoslaPlatform.Application;
+using BoslaPlatform.Application.Interfaces;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Shared;
-using BoslaPlatform.Shared.Dtos.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
-namespace BoslaPlatform.Infrastructure.Data.Identity
+namespace BoslaPlatform.Infrastructure.Identity
 {
     public class AuthService : IAuthService
     {

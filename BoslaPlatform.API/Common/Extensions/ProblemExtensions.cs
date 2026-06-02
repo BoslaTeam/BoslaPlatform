@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using IResult = Microsoft.AspNetCore.Http.IResult;
 
-namespace BoslaPlatform.API.Extensions
+namespace BoslaPlatform.API.Common.Extensions
 {
     public static class ProblemExtensions
     {
