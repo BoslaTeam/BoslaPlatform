@@ -6,7 +6,7 @@ using BoslaPlatform.Domain.Models.Identity;
 using BoslaPlatform.Domain.Models.Lookup;
 using BoslaPlatform.Domain.Models.Profile;
 using Microsoft.EntityFrameworkCore;
-namespace BoslaPlatform.Application.Interfaces
+namespace BoslaPlatform.Application.Interfaces.Persistence
 
 {
     public interface IAppDbContext

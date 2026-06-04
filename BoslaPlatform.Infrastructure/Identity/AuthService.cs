@@ -1,5 +1,5 @@
 ﻿using BoslaPlatform.Application;
-using BoslaPlatform.Application.Interfaces;
+using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Shared;
 using Microsoft.AspNetCore.Identity;

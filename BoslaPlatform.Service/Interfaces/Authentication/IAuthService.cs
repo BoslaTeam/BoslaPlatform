@@ -1,6 +1,6 @@
 ﻿using BoslaPlatform.Shared;
 
-namespace BoslaPlatform.Application.Interfaces
+namespace BoslaPlatform.Application.Interfaces.Authentication
 {
     public interface IAuthService
     {

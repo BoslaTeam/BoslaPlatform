@@ -1,5 +1,4 @@
-﻿using BoslaPlatform.Application.Interfaces;
-using BoslaPlatform.Domain.Entities;
+﻿using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Models.Identity;
 using BoslaPlatform.Infrastructure.Settings;
 using BoslaPlatform.Shared;
@@ -12,6 +11,8 @@ using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
 using BoslaPlatform.Application;
+using BoslaPlatform.Application.Interfaces.Authentication;
+using BoslaPlatform.Application.Interfaces.Persistence;
 
 namespace BoslaPlatform.Infrastructure.Identity
 {

@@ -1,5 +1,6 @@
 ﻿using BoslaPlatform.Application;
-using BoslaPlatform.Application.Interfaces;
+using BoslaPlatform.Application.Interfaces.Authentication;
+using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Infrastructure.Data;
 using BoslaPlatform.Infrastructure.Data.Interceptors;

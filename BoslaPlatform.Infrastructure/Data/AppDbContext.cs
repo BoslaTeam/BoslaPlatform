@@ -1,4 +1,4 @@
-﻿using BoslaPlatform.Application.Interfaces;
+﻿using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Models;
 using BoslaPlatform.Domain.Models.Booking;

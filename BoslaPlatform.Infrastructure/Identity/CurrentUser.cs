@@ -1,4 +1,4 @@
-﻿using BoslaPlatform.Application.Interfaces;
+﻿using BoslaPlatform.Application.Interfaces.Authentication;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 

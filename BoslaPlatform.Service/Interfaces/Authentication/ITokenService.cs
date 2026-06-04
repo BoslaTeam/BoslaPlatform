@@ -2,7 +2,7 @@
 using BoslaPlatform.Shared;
 using System.Security.Claims;
 
-namespace BoslaPlatform.Application.Interfaces
+namespace BoslaPlatform.Application.Interfaces.Authentication
 {
     public interface ITokenService
     {

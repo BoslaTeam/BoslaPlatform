@@ -2,7 +2,7 @@
 using BoslaPlatform.API.Common.Extensions;
 using BoslaPlatform.API.Common.Responses;
 using BoslaPlatform.Application;
-using BoslaPlatform.Application.Interfaces;
+using BoslaPlatform.Application.Interfaces.Authentication;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BoslaPlatform.API.Controllers.v1

@@ -1,4 +1,4 @@
-﻿using BoslaPlatform.Application.Interfaces;
+﻿using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Domain.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
