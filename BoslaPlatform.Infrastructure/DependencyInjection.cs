@@ -1,4 +1,4 @@
-﻿using BoslaPlatform.Application;
+using BoslaPlatform.Application;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Domain.Entities;
@@ -36,6 +36,8 @@ public static class DependencyInjection
         services.AddScoped<ApplicationDbContextInitialiser>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<BoslaPlatform.Application.Features.Users.Services.IUserService, UserService>();
+        services.AddScoped<BoslaPlatform.Application.Features.Notifications.Services.INotificationService, BoslaPlatform.Infrastructure.Communication.NotificationService>();
 
         services.AddDbContext<AppDbContext>((sp, options) =>
         {

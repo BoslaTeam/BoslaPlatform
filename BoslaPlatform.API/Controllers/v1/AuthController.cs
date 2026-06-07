@@ -1,4 +1,4 @@
-﻿using Asp.Versioning;
+using Asp.Versioning;
 using BoslaPlatform.API.Common.Extensions;
 using BoslaPlatform.API.Common.Responses;
 using BoslaPlatform.Application;
@@ -60,6 +60,48 @@ namespace BoslaPlatform.API.Controllers.v1
                 errors => errors.ToProblem());
         }
 
+        [HttpPost("refresh")]
+        [ProducesResponseType(typeof(ApiResponse<TokenResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        public async Task<IResult> RefreshToken([FromBody] RefreshTokenRequest request, CancellationToken ct)
+        {
+            var result = await _authService.RefreshTokenAsync(request, ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<TokenResponse>.SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        [HttpPost("logout")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IResult> Logout(CancellationToken ct)
+        {
+            var result = await _authService.LogoutAsync(ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<bool>.SuccessResponse(value, "Logged out successfully.")),
+                errors => errors.ToProblem());
+        }
+
+        [HttpPost("forgot-password")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IResult> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken ct)
+        {
+            var result = await _authService.ForgotPasswordAsync(request, ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<bool>.SuccessResponse(value, "If an account exists, a reset token has been sent.")),
+                errors => errors.ToProblem());
+        }
+
+        [HttpPost("reset-password")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        public async Task<IResult> ResetPassword([FromBody] ResetPasswordRequest request, CancellationToken ct)
+        {
+            var result = await _authService.ResetPasswordAsync(request, ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<bool>.SuccessResponse(value, "Password reset successfully.")),
+                errors => errors.ToProblem());
+        }
     }
 
 }

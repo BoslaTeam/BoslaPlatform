@@ -26,7 +26,7 @@ if (app.Environment.IsDevelopment())
         options.DisplayRequestDuration();
         options.EnableFilter();
     });
-    //await app.InitialiseDatabaseAsync();
+  //  await app.InitialiseDatabaseAsync();
 }
 app.UseCoreMiddlewares(builder.Configuration);
 

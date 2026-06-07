@@ -1,4 +1,4 @@
-﻿using BoslaPlatform.Application;
+using BoslaPlatform.Application;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Shared;
@@ -105,7 +105,42 @@ namespace BoslaPlatform.Infrastructure.Identity
             await _userManager.AddToRoleAsync(user, request.Role);
 
             return await _tokenService.CreateTokenAsync(user, ct);
+        }
 
+        public async Task<Result<TokenResponse>> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default)
+        {
+            return await _tokenService.RefreshTokenAsync(request, ct);
+        }
+
+        public async Task<Result<bool>> LogoutAsync(CancellationToken ct = default)
+        {
+            await _signInManager.SignOutAsync();
+            return Result<bool>.Success(true);
+        }
+
+        public async Task<Result<bool>> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken ct = default)
+        {
+            var user = await _userManager.FindByEmailAsync(request.Email);
+            if (user == null || !user.IsActive)
+                return Result<bool>.Success(true); // Don't reveal that the user does not exist
+
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            // TODO: Send email with the token (IEmailService)
+            
+            return Result<bool>.Success(true);
+        }
+
+        public async Task<Result<bool>> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken ct = default)
+        {
+            var user = await _userManager.FindByEmailAsync(request.Email);
+            if (user == null)
+                return Error.NotFound(description: "User not found.");
+
+            var result = await _userManager.ResetPasswordAsync(user, request.Token, request.NewPassword);
+            if (!result.Succeeded)
+                return result.Errors.Select(e => Error.Create(ErrorKind.Validation, e.Code, e.Description)).ToList();
+
+            return Result<bool>.Success(true);
         }
     }
 
