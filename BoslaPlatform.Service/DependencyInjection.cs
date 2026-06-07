@@ -1,11 +1,18 @@
 ﻿
+using BoslaPlatform.Application.Features.Conversations.Mappings;
+using BoslaPlatform.Application.Interfaces.Conversation;
+using BoslaPlatform.Application.Services.Communications;
+
 namespace Microsoft.Extensions.DependencyInjection;
 
 public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        // Register presentation services here
+        services.AddScoped<IConversationService, ConversationService>();
+        services.AddScoped<IMessageService, MessageService>();
+
+        services.AddAutoMapper(cfg =>{}, typeof(ConversationMappingProfile).Assembly);
         return services;
     }
 }

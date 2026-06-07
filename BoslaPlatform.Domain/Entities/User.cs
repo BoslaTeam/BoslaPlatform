@@ -1,7 +1,6 @@
 ﻿using BoslaPlatform.Domain.Common;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Communication;
-using BoslaPlatform.Domain.Models.Conversations;
 using BoslaPlatform.Domain.Models.Identity;
 using BoslaPlatform.Domain.Models.Junctions;
 using BoslaPlatform.Domain.Models.Profile;

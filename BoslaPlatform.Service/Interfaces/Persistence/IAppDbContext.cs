@@ -1,7 +1,6 @@
 ﻿using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Communication;
-using BoslaPlatform.Domain.Models.Conversations;
 using BoslaPlatform.Domain.Models.Identity;
 using BoslaPlatform.Domain.Models.Lookup;
 using BoslaPlatform.Domain.Models.Profile;
@@ -32,8 +31,8 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
 
         DbSet<Appointment> Appointments { get; }
         DbSet<Payment> Payments { get; }
-        DbSet<Conversation> Conversations { get; }
-
+        DbSet<BoslaPlatform.Domain.Models.Communication.Conversation> Conversations { get; }
+        DbSet<ConversationParticipant> ConversationParticipants { get; }
         DbSet<Message> Messages { get; }
 
         DbSet<Notification> Notifications { get; }

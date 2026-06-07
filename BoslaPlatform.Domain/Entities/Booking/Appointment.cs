@@ -28,7 +28,7 @@ namespace BoslaPlatform.Domain.Models.Booking
 
         // Navigation
         public Specialist Specialist { get; set; } = null!;
-        public User User { get; set; }
+        public User User { get; set; } = null!;
         public Payment? Payment { get; set; }
         public Review? Review { get; set; }
         public ScreenRecording? ScreenRecording { get; set; }
