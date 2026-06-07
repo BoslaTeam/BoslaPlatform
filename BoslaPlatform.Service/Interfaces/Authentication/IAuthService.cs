@@ -1,4 +1,4 @@
-﻿using BoslaPlatform.Shared;
+using BoslaPlatform.Shared;
 
 namespace BoslaPlatform.Application.Interfaces.Authentication
 {
@@ -10,6 +10,21 @@ namespace BoslaPlatform.Application.Interfaces.Authentication
 
         Task<Result<TokenResponse>> RegisterAsync(
             RegisterRequest request,
+            CancellationToken ct = default);
+
+        Task<Result<TokenResponse>> RefreshTokenAsync(
+            RefreshTokenRequest request,
+            CancellationToken ct = default);
+
+        Task<Result<bool>> LogoutAsync(
+            CancellationToken ct = default);
+
+        Task<Result<bool>> ForgotPasswordAsync(
+            ForgotPasswordRequest request,
+            CancellationToken ct = default);
+
+        Task<Result<bool>> ResetPasswordAsync(
+            ResetPasswordRequest request,
             CancellationToken ct = default);
     }
 }
