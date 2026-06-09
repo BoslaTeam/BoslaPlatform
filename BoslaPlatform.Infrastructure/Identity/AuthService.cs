@@ -13,17 +13,20 @@ namespace BoslaPlatform.Infrastructure.Identity
         private readonly UserManager<User> _userManager;
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly SignInManager<User> _signInManager;
+        private readonly IUser _currentUser;
 
         public AuthService(
             ITokenService tokenService,
             UserManager<User> userManager,
             RoleManager<IdentityRole<Guid>> roleManager,
-            SignInManager<User> signInManager)
+            SignInManager<User> signInManager,
+            IUser currentUser)
         {
             _tokenService = tokenService;
             _userManager = userManager;
             _roleManager = roleManager;
             _signInManager = signInManager;
+            _currentUser = currentUser;
         }
         public async Task<Result<TokenResponse>> LoginAsync(LoginRequest request, CancellationToken ct = default)
         {
@@ -115,6 +118,13 @@ namespace BoslaPlatform.Infrastructure.Identity
         public async Task<Result<bool>> LogoutAsync(CancellationToken ct = default)
         {
             await _signInManager.SignOutAsync();
+
+            // Revoke all active refresh tokens for the current user
+            if (_currentUser.Id.HasValue)
+            {
+                await _tokenService.RevokeAllUserTokensAsync(_currentUser.Id.Value, ct);
+            }
+
             return Result<bool>.Success(true);
         }
 
