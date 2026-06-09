@@ -81,7 +81,8 @@ public static class DependencyInjection
 
             options.Lockout.AllowedForNewUsers = true;
         })
-        .AddEntityFrameworkStores<AppDbContext>();
+        .AddEntityFrameworkStores<AppDbContext>()
+        .AddDefaultTokenProviders();
         return services;
     }
 }

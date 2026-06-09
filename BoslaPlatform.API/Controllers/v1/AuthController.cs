@@ -3,6 +3,7 @@ using BoslaPlatform.API.Common.Extensions;
 using BoslaPlatform.API.Common.Responses;
 using BoslaPlatform.Application;
 using BoslaPlatform.Application.Interfaces.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BoslaPlatform.API.Controllers.v1
@@ -72,6 +73,7 @@ namespace BoslaPlatform.API.Controllers.v1
         }
 
         [HttpPost("logout")]
+        [Authorize]
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
         public async Task<IResult> Logout(CancellationToken ct)
         {
