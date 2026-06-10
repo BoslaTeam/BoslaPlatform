@@ -60,7 +60,7 @@ namespace BoslaPlatform.Infrastructure.Identity
                 Audience = _jwtSettings.Value.Audience,
                 SigningCredentials = new SigningCredentials(
                     new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Value.SecretKey)),
-                    SecurityAlgorithms.HmacSha256Signature),
+                    SecurityAlgorithms.HmacSha256),
             };
 
             var tokenHandler = new JwtSecurityTokenHandler();
@@ -68,7 +68,7 @@ namespace BoslaPlatform.Infrastructure.Identity
             var accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(descriptor));
 
             // Revoke old refresh tokens
-            var activeTokens = await _dbContext.RefreshTokens.Where(rt => rt.UserId == user.Id && rt.RevokedAt == null & rt.ExpiresOnUtc > DateTime.UtcNow).ToListAsync(ct);
+            var activeTokens = await _dbContext.RefreshTokens.Where(rt => rt.UserId == user.Id && rt.RevokedAt == null && rt.ExpiresOnUtc > DateTime.UtcNow).ToListAsync(ct);
 
             foreach (var old in activeTokens)
             {
@@ -121,7 +121,7 @@ namespace BoslaPlatform.Infrastructure.Identity
                     return Error.Unauthorized(description: "Invalid token.");
                 }
                 // Check the signing algorithm
-                if (!jwtToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256Signature, StringComparison.OrdinalIgnoreCase))
+                if (!jwtToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.OrdinalIgnoreCase))
                 {
                     return Error.Unauthorized(description: "Invalid token algorithm.");
                 }
