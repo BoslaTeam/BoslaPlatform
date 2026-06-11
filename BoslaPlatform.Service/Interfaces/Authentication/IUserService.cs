@@ -2,7 +2,7 @@ using BoslaPlatform.Shared;
 using BoslaPlatform.Application.Features.Users.DTOs;
 using BoslaPlatform.Application.Features.Users.Requests;
 
-namespace BoslaPlatform.Application.Features.Users.Services
+namespace BoslaPlatform.Application.Interfaces.Authentication
 {
     public interface IUserService
     {

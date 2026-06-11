@@ -36,7 +36,7 @@ public static class DependencyInjection
         services.AddScoped<ApplicationDbContextInitialiser>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITokenService, TokenService>();
-        services.AddScoped<BoslaPlatform.Application.Features.Users.Services.IUserService, UserService>();
+        services.AddScoped<IUserService, UserService>();
         services.AddScoped<BoslaPlatform.Application.Features.Notifications.Services.INotificationService, BoslaPlatform.Infrastructure.Communication.NotificationService>();
 
         services.AddDbContext<AppDbContext>((sp, options) =>
@@ -46,6 +46,24 @@ public static class DependencyInjection
         });
         services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
         services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
+        services.AddIdentity<User, IdentityRole<Guid>>(options =>
+        {
+            options.Password.RequiredLength = 8;
+            options.Password.RequireLowercase = true;
+            options.Password.RequireUppercase = true;
+            options.Password.RequireDigit = true;
+            options.Password.RequireNonAlphanumeric = false;
+            options.Password.RequiredUniqueChars = 1;
+            options.Lockout.MaxFailedAccessAttempts = 5;
+
+            options.Lockout.DefaultLockoutTimeSpan =
+                TimeSpan.FromMinutes(15);
+
+            options.Lockout.AllowedForNewUsers = true;
+        })
+.AddEntityFrameworkStores<AppDbContext>()
+.AddDefaultTokenProviders();
+
         services.AddAuthentication(options =>
         {
             options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -64,25 +82,9 @@ public static class DependencyInjection
                 ValidAudience = jwtSettings["Audience"],
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!)),
             };
+            
         });
         services.AddAuthorization();
-        services.AddIdentity<User, IdentityRole<Guid>>(options =>
-        {
-            options.Password.RequiredLength = 8;
-            options.Password.RequireLowercase = true;
-            options.Password.RequireUppercase = true;
-            options.Password.RequireDigit = true;
-            options.Password.RequireNonAlphanumeric = false;
-            options.Password.RequiredUniqueChars = 1;
-            options.Lockout.MaxFailedAccessAttempts = 5;
-
-            options.Lockout.DefaultLockoutTimeSpan =
-                TimeSpan.FromMinutes(15);
-
-            options.Lockout.AllowedForNewUsers = true;
-        })
-        .AddEntityFrameworkStores<AppDbContext>()
-        .AddDefaultTokenProviders();
         return services;
     }
 }

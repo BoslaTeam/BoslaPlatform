@@ -2,6 +2,7 @@ using BoslaPlatform.Application;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Shared;
+using BoslaPlatform.Shared.Constants;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -43,35 +44,49 @@ namespace BoslaPlatform.Infrastructure.Identity
                     description: "Your account is disabled.");
             }
 
-            var passwordValid =
-                await _userManager.CheckPasswordAsync(
-                    user,
-                    request.Password);
-
-            if (!passwordValid)
-            {
-                return Error.Unauthorized(
-                    description: "Invalid email or password.");
-            }
-
             //if (!user.EmailConfirmed)
             //{
             //    return Error.Forbidden(
             //        description: "Please confirm your email first.");
             //}
-            if (_userManager.SupportsUserLockout &&
-            await _userManager.IsLockedOutAsync(user))
-            {
+
+            var signInResult =
+                await _signInManager.CheckPasswordSignInAsync(
+                    user,
+                    request.Password, lockoutOnFailure: true);
+
+            if (signInResult.IsLockedOut)
                 return Error.Forbidden(
                     description: "Your account is locked.");
+            if (!signInResult.Succeeded)
+            {
+                return Error.Unauthorized(
+                    description: "Invalid email or password.");
             }
-
             return await _tokenService
                 .CreateTokenAsync(user, ct);
         }
 
         public async Task<Result<TokenResponse>> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
         {
+            var allowedRoles = new[]
+                        {
+                            Roles.User,
+                            Roles.Specialist
+                        };
+
+            if (!allowedRoles.Contains(request.Role.ToLower()))
+            {
+                return Error.Validation(
+                    "Role.Invalid",
+                    "Invalid role selection.");
+            }
+            var roleExists = await _roleManager.RoleExistsAsync(request.Role);
+
+            if (!roleExists)
+                return Error.NotFound(
+                    description: $"Role '{request.Role}' does not exist.");
+
             var exists = await _userManager.Users
                         .AnyAsync(u => u.Email == request.Email, ct);
 
@@ -84,7 +99,7 @@ namespace BoslaPlatform.Infrastructure.Identity
             var user = new User
             {
                 Email = request.Email,
-                UserName = request.Email.Split("@")[0],
+                UserName = request.Email,
                 Country = request.Country,
                 Gender = request.Gender,
                 Name = request.Name,
@@ -98,32 +113,33 @@ namespace BoslaPlatform.Infrastructure.Identity
                 return result.Errors.Select(e => Error.Create(ErrorKind.Validation, e.Code, e.Description)).ToList();
             }
 
-            var roleExists = await _roleManager.RoleExistsAsync(request.Role);
+            var roleResult = await _userManager.AddToRoleAsync(user, request.Role);
 
-            if (!roleExists)
-                return Error.NotFound(
-                    description: $"Role '{request.Role}' does not exist.");
+            if (!roleResult.Succeeded)
+            {
+                await _userManager.DeleteAsync(user);
+                return roleResult.Errors.Select(e => Error.Create(ErrorKind.Validation, e.Code, e.Description)).ToList();
+            }
 
-
-            await _userManager.AddToRoleAsync(user, request.Role);
 
             return await _tokenService.CreateTokenAsync(user, ct);
         }
 
-        public async Task<Result<TokenResponse>> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default)
+        public async Task<Result<TokenResponse>> RefreshTokenAsync(RefreshTokenRequest request,
+            CancellationToken ct = default)
         {
             return await _tokenService.RefreshTokenAsync(request, ct);
         }
 
         public async Task<Result<bool>> LogoutAsync(CancellationToken ct = default)
         {
-            await _signInManager.SignOutAsync();
-
             // Revoke all active refresh tokens for the current user
-            if (_currentUser.Id.HasValue)
+            if (!_currentUser.Id.HasValue)
             {
-                await _tokenService.RevokeAllUserTokensAsync(_currentUser.Id.Value, ct);
+                return Result<bool>.Success(true);
+                
             }
+            await _tokenService.RevokeAllUserTokensAsync(_currentUser.Id.Value, ct);
 
             return Result<bool>.Success(true);
         }
@@ -136,7 +152,7 @@ namespace BoslaPlatform.Infrastructure.Identity
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
             // TODO: Send email with the token (IEmailService)
-            
+
             return Result<bool>.Success(true);
         }
 
@@ -144,7 +160,10 @@ namespace BoslaPlatform.Infrastructure.Identity
         {
             var user = await _userManager.FindByEmailAsync(request.Email);
             if (user == null)
-                return Error.NotFound(description: "User not found.");
+            {
+                return Error.Validation(
+                        description: "Invalid reset request.");
+            }
 
             var result = await _userManager.ResetPasswordAsync(user, request.Token, request.NewPassword);
             if (!result.Succeeded)
@@ -152,6 +171,7 @@ namespace BoslaPlatform.Infrastructure.Identity
 
             return Result<bool>.Success(true);
         }
+
     }
 
 }
