@@ -75,7 +75,7 @@ namespace BoslaPlatform.Infrastructure.Identity
                             Roles.Specialist
                         };
 
-            if (!allowedRoles.Contains(request.Role))
+            if (!allowedRoles.Contains(request.Role.ToLower()))
             {
                 return Error.Validation(
                     "Role.Invalid",
