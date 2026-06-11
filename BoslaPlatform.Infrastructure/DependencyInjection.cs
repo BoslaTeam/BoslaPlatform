@@ -36,7 +36,7 @@ public static class DependencyInjection
         services.AddScoped<ApplicationDbContextInitialiser>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITokenService, TokenService>();
-        services.AddScoped<BoslaPlatform.Application.Features.Users.Services.IUserService, UserService>();
+        services.AddScoped<IUserService, UserService>();
         services.AddScoped<BoslaPlatform.Application.Features.Notifications.Services.INotificationService, BoslaPlatform.Infrastructure.Communication.NotificationService>();
 
         services.AddDbContext<AppDbContext>((sp, options) =>
