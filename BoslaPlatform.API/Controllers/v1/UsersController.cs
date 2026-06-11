@@ -3,7 +3,7 @@ using BoslaPlatform.API.Common.Extensions;
 using BoslaPlatform.API.Common.Responses;
 using BoslaPlatform.Application.Features.Users.DTOs;
 using BoslaPlatform.Application.Features.Users.Requests;
-using BoslaPlatform.Application.Features.Users.Services;
+using BoslaPlatform.Application.Interfaces.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
