@@ -13,8 +13,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Events\" />
     <Folder Include="Errors\" />
+    <Folder Include="Events\Specialists\" />
   </ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="MediatR" Version="12.5.0" />

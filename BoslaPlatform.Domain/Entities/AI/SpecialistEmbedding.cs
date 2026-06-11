@@ -1,5 +1,5 @@
 ﻿using BoslaPlatform.Domain.Common;
-using BoslaPlatform.Domain.Models.Profile;
+using BoslaPlatform.Domain.Entities.Profile;
 using System;
 using System.Collections.Generic;
 using System.Linq;

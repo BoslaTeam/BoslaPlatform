@@ -1,4 +1,5 @@
 ﻿using BoslaPlatform.Domain.Common;
+using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Communication;
 using BoslaPlatform.Domain.Models.Conversations;
@@ -12,7 +13,7 @@ namespace BoslaPlatform.Domain.Entities
 {
     public class User : IdentityUser<Guid>,IAuditableEntity
     {
-        public string Name { get; set; }
+        public required string Name { get; set; }
         public string? Title { get; set; }
         public string? Bio { get; set; }
         public string? ProfileImageUrl { get; set; }

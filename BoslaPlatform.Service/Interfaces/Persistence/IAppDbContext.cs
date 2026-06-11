@@ -1,4 +1,5 @@
 ﻿using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Communication;
 using BoslaPlatform.Domain.Models.Conversations;
@@ -6,8 +7,8 @@ using BoslaPlatform.Domain.Models.Identity;
 using BoslaPlatform.Domain.Models.Lookup;
 using BoslaPlatform.Domain.Models.Profile;
 using Microsoft.EntityFrameworkCore;
-namespace BoslaPlatform.Application.Interfaces.Persistence
 
+namespace BoslaPlatform.Application.Interfaces.Persistence
 {
     public interface IAppDbContext
     {

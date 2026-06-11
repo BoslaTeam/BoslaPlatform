@@ -1,7 +1,7 @@
 ﻿using BoslaPlatform.Domain.Common;
 using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Models.Identity;
-using BoslaPlatform.Domain.Models.Profile;
 
 namespace BoslaPlatform.Domain.Models.Booking
 {

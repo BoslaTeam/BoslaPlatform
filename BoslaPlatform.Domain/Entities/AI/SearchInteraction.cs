@@ -1,6 +1,6 @@
 ﻿using BoslaPlatform.Domain.Common;
 using BoslaPlatform.Domain.Entities;
-using BoslaPlatform.Domain.Models.Profile;
+using BoslaPlatform.Domain.Entities.Profile;
 
 namespace BoslaPlatform.Domain.Models
 {

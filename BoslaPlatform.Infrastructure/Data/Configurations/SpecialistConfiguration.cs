@@ -1,7 +1,7 @@
+using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Models;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Junctions;
-using BoslaPlatform.Domain.Models.Profile;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -31,11 +31,14 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
                 .HasForeignKey<Specialist>(s => s.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            builder.HasIndex(s => s.UserId)
+                .IsUnique();
+
             // VerifiedByUser Relationship (Many-to-One, no inverse navigation collection on User)
             builder.HasOne(s => s.VerifiedByUser)
-                .WithMany()
-                .HasForeignKey(s => s.VerifiedBy)
-                .OnDelete(DeleteBehavior.NoAction);
+                    .WithMany(u => u.VerifiedSpecialists)
+                    .HasForeignKey(s => s.VerifiedBy)
+                    .OnDelete(DeleteBehavior.NoAction);
 
             // Note: The 1-to-1 relationship with SpecialistEmbedding is configured on the dependent side (SpecialistEmbedding) in SpecialistEmbeddingConfiguration.cs.
 
@@ -79,11 +82,6 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
                 .WithOne(st => st.Specialist)
                 .HasForeignKey(st => st.SpecialistId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            builder.HasOne(s => s.VerifiedByUser)
-                    .WithMany(u => u.VerifiedSpecialists)
-                    .HasForeignKey(s => s.VerifiedBy)
-                    .OnDelete(DeleteBehavior.NoAction);
         }
     }
 }

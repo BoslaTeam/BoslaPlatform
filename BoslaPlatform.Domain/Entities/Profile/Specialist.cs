@@ -1,13 +1,13 @@
 ﻿using BoslaPlatform.Domain.Common;
-using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Enums;
+using BoslaPlatform.Domain.Models;
 using BoslaPlatform.Domain.Models.Booking;
-using BoslaPlatform.Domain.Models.Identity;
 using BoslaPlatform.Domain.Models.Junctions;
+using BoslaPlatform.Domain.Models.Profile;
 
-namespace BoslaPlatform.Domain.Models.Profile
+namespace BoslaPlatform.Domain.Entities.Profile
 {
-    public class Specialist:AuditableEntity
+    public class Specialist : AuditableEntity
     {
         public Guid UserId { get; set; }
         public int ExperienceYears { get; set; }
@@ -35,5 +35,24 @@ namespace BoslaPlatform.Domain.Models.Profile
         public SpecialistEmbedding? Embedding { get; set; }
         public User User { get; set; } = null!;
         public User? VerifiedByUser { get; set; }
+
+
+        public static Specialist Create(
+        Guid userId,
+        int experienceYears,
+        ExperienceLevel experienceLevel,
+        decimal hourlyRate,
+        string? bookingPolicy)
+        {
+            return new Specialist
+            {
+                UserId = userId,
+                ExperienceYears = experienceYears,
+                ExperienceLevel = experienceLevel,
+                HourlyRate = hourlyRate,
+                BookingPolicy = bookingPolicy,
+                VerificationStatus = VerificationStatus.Pending
+            };
+        }
     }
 }
