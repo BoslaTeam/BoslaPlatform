@@ -1,9 +1,11 @@
 using BoslaPlatform.Application;
+using BoslaPlatform.Application.Features.Notifications.Services;
 using BoslaPlatform.Application.Features.Specialists.Services;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Application.Interfaces.Specialists;
 using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Infrastructure.Communication;
 using BoslaPlatform.Infrastructure.Data;
 using BoslaPlatform.Infrastructure.Data.Interceptors;
 using BoslaPlatform.Infrastructure.Identity;
@@ -20,7 +22,7 @@ namespace Microsoft.Extensions.DependencyInjection;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services,IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         // Register infrastructure services here
         // e.g., services.AddScoped<IMyService, MyService>();
@@ -39,8 +41,8 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<ISpecialistService, SpecialistService>();
-        services.AddScoped<BoslaPlatform.Application.Features.Users.Services.IUserService, UserService>();
-        services.AddScoped<BoslaPlatform.Application.Features.Notifications.Services.INotificationService, BoslaPlatform.Infrastructure.Communication.NotificationService>();
+        services.AddScoped<IUserService, UserService>();
+        services.AddScoped<INotificationService, NotificationService>();
 
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
@@ -64,8 +66,9 @@ public static class DependencyInjection
 
             options.Lockout.AllowedForNewUsers = true;
         })
-.AddEntityFrameworkStores<AppDbContext>()
-.AddDefaultTokenProviders();
+            .AddEntityFrameworkStores<AppDbContext>()
+            .AddDefaultTokenProviders();
+
         services.AddAuthentication(options =>
         {
             options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -84,7 +87,7 @@ public static class DependencyInjection
                 ValidAudience = jwtSettings["Audience"],
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!)),
             };
-            
+
         });
         services.AddAuthorization();
 
