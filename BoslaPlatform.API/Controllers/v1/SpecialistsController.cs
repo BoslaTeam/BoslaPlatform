@@ -1,6 +1,7 @@
 ﻿using Asp.Versioning;
 using BoslaPlatform.API.Common.Extensions;
 using BoslaPlatform.API.Common.Responses;
+using BoslaPlatform.Application.Features.Specialists.DTOs;
 using BoslaPlatform.Application.Features.Specialists.Request;
 using BoslaPlatform.Application.Features.Specialists.Response;
 using BoslaPlatform.Application.Interfaces.Specialists;
@@ -30,8 +31,34 @@ namespace BoslaPlatform.API.Controllers.v1
             return result.Match(
                 value => Results.Ok(
                     ApiResponse<SpecialistOnboardResponse>.SuccessResponse(
-                        value,
-                        "Specialist onboarded successfully.")),
+                        value, "Specialist onboarded successfully.")),
+                errors => errors.ToProblem());
+        }
+
+        [HttpGet("me")]
+        [ProducesResponseType(typeof(ApiResponse<SpecialistProfileDto>),StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        public async Task<IResult> GetMyProfile(CancellationToken ct)
+        {
+            var result = await specialistService.GetMyProfileAsync(ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<SpecialistProfileDto>.SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        [HttpPut("me")]
+        [ProducesResponseType(typeof(ApiResponse<SpecialistProfileDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        public async Task<IResult> Update([FromBody] UpdateSpecialistRequest request, CancellationToken ct)
+        {
+            var result = await specialistService.UpdateAsync(request, ct);
+
+            return result.Match(value => Results.Ok(
+                    ApiResponse<SpecialistProfileDto>
+                        .SuccessResponse(value, "Profile updated successfully.")),
                 errors => errors.ToProblem());
         }
     }

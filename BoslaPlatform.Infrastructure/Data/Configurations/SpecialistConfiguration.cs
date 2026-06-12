@@ -1,7 +1,4 @@
 using BoslaPlatform.Domain.Entities.Profile;
-using BoslaPlatform.Domain.Models;
-using BoslaPlatform.Domain.Models.Booking;
-using BoslaPlatform.Domain.Models.Junctions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

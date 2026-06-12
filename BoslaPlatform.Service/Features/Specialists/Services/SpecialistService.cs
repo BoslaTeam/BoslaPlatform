@@ -1,4 +1,5 @@
-﻿using BoslaPlatform.Application.Features.Specialists.Request;
+﻿using BoslaPlatform.Application.Features.Specialists.DTOs;
+using BoslaPlatform.Application.Features.Specialists.Request;
 using BoslaPlatform.Application.Features.Specialists.Response;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Persistence;
@@ -58,6 +59,78 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
             return Result<SpecialistOnboardResponse>.Success(
                 new SpecialistOnboardResponse(specialist.Id, specialist.VerificationStatus)
+            );
+        }
+
+        public async Task<Result<SpecialistProfileDto>> GetMyProfileAsync(CancellationToken ct = default)
+        {
+            if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
+                return Error.Unauthorized(
+                    description: "User is not authenticated.");
+
+            var specialist = await context.Specialists
+                .Include(x => x.User)
+                .FirstOrDefaultAsync(
+                    x => x.UserId == currentUser.Id.Value,ct);
+
+            if (specialist is null)
+                return Error.NotFound(description: "Specialist profile not found.");
+
+            return MapToProfileDto(specialist);
+        }
+
+
+        public async Task<Result<SpecialistProfileDto>> UpdateAsync(UpdateSpecialistRequest request, CancellationToken ct = default)
+        {
+            if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
+                return Error.Unauthorized(description: "User is not authenticated.");
+
+            var specialist = await context.Specialists
+                .Include(x => x.User)
+                .FirstOrDefaultAsync(x => x.UserId == currentUser.Id.Value, ct);
+
+            if (specialist is null)
+                return Error.NotFound(description: "Specialist profile not found.");
+
+
+            specialist.UpdateProfile(
+                request.ExperienceYears,
+                request.ExperienceLevel,
+                request.HourlyRate,
+                request.IntroVideoUrl,
+                request.BookingPolicy);
+
+            await context.SaveChangesAsync(ct);
+
+            return MapToProfileDto(specialist);
+        }
+
+
+        // Helpr Method
+        private Result<SpecialistProfileDto> MapToProfileDto(Specialist specialist)
+        {
+            return new SpecialistProfileDto(
+                specialist.Id,
+                specialist.UserId,
+                specialist.User.Email ?? string.Empty,
+                specialist.User.Name,
+                specialist.User.Title,
+                specialist.User.Bio,
+                specialist.User.ProfileImageUrl,
+                specialist.User.Country,
+                specialist.User.Gender,
+                specialist.User.PreferredLanguage,
+                specialist.ExperienceYears,
+                specialist.ExperienceLevel,
+                specialist.HourlyRate,
+                specialist.IntroVideoUrl,
+                specialist.VerificationStatus,
+                specialist.BookingPolicy,
+                specialist.MinBookingNoticeHours,
+                specialist.MaxSessionsPerDay,
+                specialist.MaxSessionsPerWeek,
+                specialist.CancellationDeadlineHours,
+                specialist.CancellationFeePercent
             );
         }
     }

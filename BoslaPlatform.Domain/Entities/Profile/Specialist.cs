@@ -1,5 +1,6 @@
 ﻿using BoslaPlatform.Domain.Common;
 using BoslaPlatform.Domain.Enums;
+using BoslaPlatform.Domain.Events.Specialists;
 using BoslaPlatform.Domain.Models;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Junctions;
@@ -38,11 +39,11 @@ namespace BoslaPlatform.Domain.Entities.Profile
 
 
         public static Specialist Create(
-        Guid userId,
-        int experienceYears,
-        ExperienceLevel experienceLevel,
-        decimal hourlyRate,
-        string? bookingPolicy)
+            Guid userId,
+            int experienceYears,
+            ExperienceLevel experienceLevel,
+            decimal hourlyRate,
+            string? bookingPolicy)
         {
             return new Specialist
             {
@@ -53,6 +54,33 @@ namespace BoslaPlatform.Domain.Entities.Profile
                 BookingPolicy = bookingPolicy,
                 VerificationStatus = VerificationStatus.Pending
             };
+        }
+
+        public void UpdateProfile(
+            int experienceYears,
+            ExperienceLevel experienceLevel,
+            decimal hourlyRate,
+            string? introVideoUrl,
+            string? bookingPolicy)
+        {
+            var hasChanges =
+                ExperienceYears != experienceYears ||
+                ExperienceLevel != experienceLevel ||
+                HourlyRate != hourlyRate ||
+                IntroVideoUrl != introVideoUrl ||
+                BookingPolicy != bookingPolicy;
+
+            if (!hasChanges)
+                return;
+
+            ExperienceYears = experienceYears;
+            ExperienceLevel = experienceLevel;
+            HourlyRate = hourlyRate;
+            IntroVideoUrl = introVideoUrl;
+            BookingPolicy = bookingPolicy;
+
+            AddDomainEvent(
+                new SpecialistProfileUpdatedEvent(Id));
         }
     }
 }

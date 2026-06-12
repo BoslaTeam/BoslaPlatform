@@ -2,14 +2,7 @@
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Enums;
-using BoslaPlatform.Domain.Models.Identity;
 using BoslaPlatform.Domain.Models.Video;
-using BoslaPlatform.Domain.ValueObjects;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BoslaPlatform.Domain.Models.Booking
 {

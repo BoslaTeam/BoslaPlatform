@@ -4,9 +4,9 @@ using FluentValidation;
 
 namespace BoslaPlatform.Application.Features.Specialists.Validators
 {
-    public class SpecialistOnboardRequestValidator : AbstractValidator<SpecialistOnboardRequest>
+    public sealed class UpdateSpecialistRequestValidator : AbstractValidator<UpdateSpecialistRequest>
     {
-        public SpecialistOnboardRequestValidator()
+        public UpdateSpecialistRequestValidator()
         {
             RuleFor(x => x.ExperienceYears)
                 .GreaterThanOrEqualTo(0)
@@ -15,8 +15,8 @@ namespace BoslaPlatform.Application.Features.Specialists.Validators
             RuleFor(x => x.HourlyRate)
                 .GreaterThan(0);
 
-            RuleFor(x => x.BookingPolicy)
-                .MaximumLength(2000);
+            RuleFor(x => x.IntroVideoUrl)
+                .MaximumLength(500);
 
             RuleFor(x => x)
                 .Must(BeConsistentExperienceLevel)
@@ -24,7 +24,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Validators
         }
 
         private static bool BeConsistentExperienceLevel(
-            SpecialistOnboardRequest request)
+            UpdateSpecialistRequest request)
         {
             return request.ExperienceLevel switch
             {
