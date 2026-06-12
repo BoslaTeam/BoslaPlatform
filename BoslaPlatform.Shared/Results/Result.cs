@@ -28,6 +28,12 @@
 
         public static Result Failure(List<Error> errors)
             => new(false, errors);
+
+        public static implicit operator Result(Error error)
+            => Failure(error);
+
+        public static implicit operator Result(List<Error> errors)
+            => Failure(errors);
     }
 
     public sealed class Result<TValue>

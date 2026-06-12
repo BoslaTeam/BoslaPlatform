@@ -1,5 +1,4 @@
-﻿using BoslaPlatform.Application.Features.Specialists.DTOs;
-using BoslaPlatform.Application.Features.Specialists.Request;
+﻿using BoslaPlatform.Application.Features.Specialists.Request;
 using BoslaPlatform.Application.Features.Specialists.Response;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Persistence;
@@ -7,6 +6,7 @@ using BoslaPlatform.Application.Interfaces.Specialists;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Enums;
+using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Shared;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +18,8 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         IUser currentUser,
         UserManager<User> userManager) : ISpecialistService
     {
+        #region Onboard & Profile Methods
+
         public async Task<Result<SpecialistOnboardResponse>> OnboardAsync(SpecialistOnboardRequest request, CancellationToken ct = default)
         {
             if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
@@ -62,25 +64,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             );
         }
 
-        public async Task<Result<SpecialistProfileDto>> GetMyProfileAsync(CancellationToken ct = default)
-        {
-            if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
-                return Error.Unauthorized(
-                    description: "User is not authenticated.");
-
-            var specialist = await context.Specialists
-                .Include(x => x.User)
-                .FirstOrDefaultAsync(
-                    x => x.UserId == currentUser.Id.Value,ct);
-
-            if (specialist is null)
-                return Error.NotFound(description: "Specialist profile not found.");
-
-            return MapToProfileDto(specialist);
-        }
-
-
-        public async Task<Result<SpecialistProfileDto>> UpdateAsync(UpdateSpecialistRequest request, CancellationToken ct = default)
+        public async Task<Result<SpecialistProfileResponse>> GetMyProfileAsync(CancellationToken ct = default)
         {
             if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
                 return Error.Unauthorized(description: "User is not authenticated.");
@@ -92,6 +76,20 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             if (specialist is null)
                 return Error.NotFound(description: "Specialist profile not found.");
 
+            return MapToProfileDto(specialist);
+        }
+
+        public async Task<Result<SpecialistProfileResponse>> UpdateAsync(UpdateSpecialistRequest request, CancellationToken ct = default)
+        {
+            if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
+                return Error.Unauthorized(description: "User is not authenticated.");
+
+            var specialist = await context.Specialists
+                .Include(x => x.User)
+                .FirstOrDefaultAsync(x => x.UserId == currentUser.Id.Value, ct);
+
+            if (specialist is null)
+                return Error.NotFound(description: "Specialist profile not found.");
 
             specialist.UpdateProfile(
                 request.ExperienceYears,
@@ -105,11 +103,123 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             return MapToProfileDto(specialist);
         }
 
+        #endregion
 
-        // Helpr Method
-        private Result<SpecialistProfileDto> MapToProfileDto(Specialist specialist)
+        #region Availability Methods
+
+        public async Task<Result<List<AvailabilityResponse>>> GetMyAvailabilityAsync(CancellationToken ct = default)
         {
-            return new SpecialistProfileDto(
+            if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
+                return Error.Unauthorized(
+                    description: "User is not authenticated.");
+
+            var specialist = await GetCurrentSpecialistAsync(ct);
+
+            if (specialist is null)
+                return Error.NotFound(description: "Specialist profile not found.");
+
+            var availability = await context.AvailabilitySlots
+                    .Where(x => x.SpecialistId == specialist.Id)
+                    .OrderBy(x => x.Start)
+                    .Select(x => new AvailabilityResponse(
+                        x.Id,
+                        x.Start,
+                        x.End))
+                    .ToListAsync(ct);
+
+            return availability;
+        }
+
+        public async Task<Result<Guid>> AddAvailabilityAsync(AddAvailabilityRequest request, CancellationToken ct = default)
+        {
+            if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
+                return Error.Unauthorized(description: "User is not authenticated.");
+
+            var specialist = await GetCurrentSpecialistAsync(ct);
+
+            if (specialist is null)
+                return Error.NotFound(description: "Specialist profile not found.");
+
+            if (request.Start.Offset != TimeSpan.Zero || request.End.Offset != TimeSpan.Zero)
+                return Error.Validation(description: "Availability dates must be UTC.");
+
+            var hasOverlap = await context.AvailabilitySlots
+                    .AnyAsync(
+                        x => x.SpecialistId == specialist.Id &&
+                             request.Start < x.End &&
+                             request.End > x.Start,
+                        ct);
+
+            if (hasOverlap)
+                return Error.Conflict(description:"Availability slot overlaps with an existing slot.");
+
+            var availability =
+                Availability.Create(
+                    specialist.Id,
+                    request.Start,
+                    request.End);
+
+            await context.AvailabilitySlots
+                .AddAsync(availability, ct);
+
+            await context.SaveChangesAsync(ct);
+
+            return availability.Id;
+        }
+
+        public async Task<Result> DeleteAvailabilityAsync(Guid availabilityId, CancellationToken ct = default)
+        {
+            if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
+                return Error.Unauthorized(description: "User is not authenticated.");
+
+            var specialistId = await context.Specialists
+                .Where(x => x.UserId == currentUser.Id.Value)
+                .Select(x => x.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (specialistId == Guid.Empty)
+            {
+                return Error.NotFound(description: "Specialist profile not found.");
+            }
+
+            var availability = await context.AvailabilitySlots
+                    .FirstOrDefaultAsync(
+                        x => x.Id == availabilityId &&
+                             x.SpecialistId == specialistId,
+                        ct);
+
+            if (availability is null)
+            {
+                return Error.NotFound(
+                        description: "Availability slot not found.");
+            }
+
+            context.AvailabilitySlots
+                .Remove(availability);
+
+            await context.SaveChangesAsync(ct);
+
+            return Result.Success();
+        }
+
+        #endregion
+
+        #region Helpers
+
+        private async Task<Specialist?> GetCurrentSpecialistAsync(CancellationToken ct)
+        {
+            if (!currentUser.Id.HasValue)
+                return null;
+
+            return await context.Specialists
+                .FirstOrDefaultAsync(
+                    x => x.UserId == currentUser.Id.Value,
+                    ct);
+        }
+
+        private Result<SpecialistProfileResponse> MapToProfileDto(Specialist specialist)
+        {
+            return new SpecialistProfileResponse(
                 specialist.Id,
                 specialist.UserId,
                 specialist.User.Email ?? string.Empty,
@@ -133,5 +243,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 specialist.CancellationFeePercent
             );
         }
+
+        #endregion
     }
 }

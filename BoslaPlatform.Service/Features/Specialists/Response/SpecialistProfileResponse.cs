@@ -1,8 +1,8 @@
 ﻿using BoslaPlatform.Domain.Enums;
 
-namespace BoslaPlatform.Application.Features.Specialists.DTOs
+namespace BoslaPlatform.Application.Features.Specialists.Response
 {
-    public sealed record SpecialistProfileDto(
+    public sealed record SpecialistProfileResponse(
     Guid SpecialistId,
     Guid UserId,
     string Email,
