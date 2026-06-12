@@ -1,6 +1,5 @@
 using BoslaPlatform.Application.Features.Users.DTOs;
 using BoslaPlatform.Application.Features.Users.Requests;
-using BoslaPlatform.Application.Features.Users.Services;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Models.Profile;
