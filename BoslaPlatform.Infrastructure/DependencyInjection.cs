@@ -37,11 +37,12 @@ namespace Microsoft.Extensions.DependencyInjection
             });
 
             services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
+            services.AddScoped<ISaveChangesInterceptor, DomainEventsInterceptor>();
             services.AddScoped<ApplicationDbContextInitialiser>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<ITokenService, TokenService>();
-            services.AddScoped<ISpecialistService, SpecialistService>();
             services.AddScoped<IUserService, UserService>();
+            services.AddScoped<ISpecialistService, SpecialistService>();
             services.AddScoped<INotificationService, NotificationService>();
 
             services.AddDbContext<AppDbContext>((sp, options) =>
