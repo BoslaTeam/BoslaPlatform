@@ -33,6 +33,8 @@ public static class DependencyInjection
         });
 
         services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
+        services.AddScoped<ISaveChangesInterceptor,DomainEventsInterceptor>();
+
         services.AddScoped<ApplicationDbContextInitialiser>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITokenService, TokenService>();
