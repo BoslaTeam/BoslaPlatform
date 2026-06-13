@@ -17,5 +17,9 @@ namespace BoslaPlatform.Application.Interfaces.Specialists
         Task<Result<Guid>> AddAvailabilityAsync(AddAvailabilityRequest request, CancellationToken ct = default);
 
         Task<Result> DeleteAvailabilityAsync(Guid availabilityId, CancellationToken ct = default);
+
+        Task<Result> AddExpertiseAsync(AddExpertiseRequest request, CancellationToken ct = default);
+
+        Task<Result> DeleteExpertiseAsync(Guid expertiseId, CancellationToken ct = default);
     }
 }

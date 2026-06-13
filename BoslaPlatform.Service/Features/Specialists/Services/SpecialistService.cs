@@ -6,7 +6,9 @@ using BoslaPlatform.Application.Interfaces.Specialists;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Enums;
+using BoslaPlatform.Domain.Events.Specialists;
 using BoslaPlatform.Domain.Models.Booking;
+using BoslaPlatform.Domain.Models.Junctions;
 using BoslaPlatform.Shared;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -196,6 +198,82 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
             context.AvailabilitySlots
                 .Remove(availability);
+
+            await context.SaveChangesAsync(ct);
+
+            return Result.Success();
+        }
+
+        #endregion
+
+        #region Expertise Methods
+
+        public async Task<Result> AddExpertiseAsync(AddExpertiseRequest request, CancellationToken ct = default)
+        {
+            if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
+                return Error.Unauthorized(description: "User is not authenticated.");
+
+            var specialist = await GetCurrentSpecialistAsync(ct);
+
+            if (specialist is null)
+                return Error.NotFound(description: "Specialist profile not found.");
+
+            var expertiseExists = await context.Expertises
+                    .AnyAsync(x => x.Id == request.ExpertiseId, ct);
+
+            if (!expertiseExists)
+            {
+                return Error.NotFound(
+                    description: "Expertise not found.");
+            }
+
+            var alreadyAssigned =
+                await context.SpecialistExpertise
+                    .AnyAsync(
+                        x => x.SpecialistId == specialist.Id && x.ExpertiseId == request.ExpertiseId,
+                        ct);
+
+            if (alreadyAssigned)
+                return Error.Conflict(description: "Expertise already assigned.");
+
+            var specialistExpertise = new SpecialistExpertise
+                {
+                    SpecialistId = specialist.Id,
+                    ExpertiseId = request.ExpertiseId
+                };
+
+            await context.SpecialistExpertise
+                .AddAsync(specialistExpertise, ct);
+
+            specialist.AddDomainEvent(new SpecialistProfileUpdatedEvent(specialist.Id));
+
+            await context.SaveChangesAsync(ct);
+
+            return Result.Success();
+        }
+
+        public async Task<Result> DeleteExpertiseAsync(Guid expertiseId,CancellationToken ct = default)
+        {
+            if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
+                return Error.Unauthorized(description: "User is not authenticated.");
+
+            var specialist = await GetCurrentSpecialistAsync(ct);
+
+            if (specialist is null)
+                return Error.NotFound(description: "Specialist profile not found.");
+
+            var specialistExpertise = await context.SpecialistExpertise
+                    .FirstOrDefaultAsync(
+                        x => x.SpecialistId == specialist.Id && x.ExpertiseId == expertiseId,
+                        ct);
+
+            if (specialistExpertise is null)
+                return Error.NotFound(description: "Expertise assignment not found.");
+
+            context.SpecialistExpertise
+                .Remove(specialistExpertise);
+
+            specialist.AddDomainEvent(new SpecialistProfileUpdatedEvent(specialist.Id));
 
             await context.SaveChangesAsync(ct);
 

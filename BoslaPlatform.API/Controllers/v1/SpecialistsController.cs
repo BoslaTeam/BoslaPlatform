@@ -18,6 +18,8 @@ namespace BoslaPlatform.API.Controllers.v1
     public class SpecialistsController(
         ISpecialistService specialistService) : ControllerBase
     {
+        #region Onboard & Profile 
+
         [HttpPost("onboard")]
         [ProducesResponseType(typeof(ApiResponse<SpecialistOnboardResponse>), StatusCodes.Status200OK)]
         public async Task<IResult> Onboard([FromBody] SpecialistOnboardRequest request, CancellationToken ct)
@@ -33,7 +35,7 @@ namespace BoslaPlatform.API.Controllers.v1
 
         [HttpGet("me")]
         [Authorize(Roles = nameof(UserRole.Specialist))]
-        [ProducesResponseType(typeof(ApiResponse<SpecialistProfileResponse>),StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<SpecialistProfileResponse>), StatusCodes.Status200OK)]
         public async Task<IResult> GetMyProfile(CancellationToken ct)
         {
             var result = await specialistService.GetMyProfileAsync(ct);
@@ -57,6 +59,11 @@ namespace BoslaPlatform.API.Controllers.v1
                 errors => errors.ToProblem());
         }
 
+        #endregion
+
+
+        #region Availability
+
         [HttpGet("me/availability")]
         [Authorize(Roles = nameof(UserRole.Specialist))]
         [ProducesResponseType(typeof(ApiResponse<List<AvailabilityResponse>>), StatusCodes.Status200OK)]
@@ -74,7 +81,7 @@ namespace BoslaPlatform.API.Controllers.v1
         [HttpPost("me/availability")]
         [Authorize(Roles = nameof(UserRole.Specialist))]
         [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
-        public async Task<IResult> AddAvailability( [FromBody] AddAvailabilityRequest request, CancellationToken ct)
+        public async Task<IResult> AddAvailability([FromBody] AddAvailabilityRequest request, CancellationToken ct)
         {
             var result = await specialistService
                     .AddAvailabilityAsync(request, ct);
@@ -89,16 +96,44 @@ namespace BoslaPlatform.API.Controllers.v1
         [Authorize(Roles = nameof(UserRole.Specialist))]
         public async Task<IResult> DeleteAvailability(Guid id, CancellationToken ct)
         {
-            var result = await specialistService
-                    .DeleteAvailabilityAsync(id, ct);
+            var result = await specialistService.DeleteAvailabilityAsync(id, ct);
 
             if (result.IsSuccess)
-            {
-                return Results.Ok(
-                    ApiResponse.SuccessResponse("Availability deleted successfully."));
-            }
+                return Results.Ok(ApiResponse.SuccessResponse("Availability deleted successfully."));
 
             return result.Errors.ToProblem();
         }
+
+        #endregion
+
+        #region Expertise
+
+        [HttpPost("me/expertise")]
+        [Authorize(Roles = nameof(UserRole.Specialist))]
+        public async Task<IResult> AddExpertise([FromBody] AddExpertiseRequest request, CancellationToken ct)
+        {
+            var result = await specialistService
+                    .AddExpertiseAsync(request, ct);
+
+            if (result.IsSuccess)
+                return Results.Ok(ApiResponse.SuccessResponse("Expertise added successfully."));
+
+            return result.Errors.ToProblem();
+        }
+
+        [HttpDelete("me/expertise/{id:guid}")]
+        [Authorize(Roles = nameof(UserRole.Specialist))]
+        public async Task<IResult> DeleteExpertise(Guid id,CancellationToken ct)
+        {
+            var result = await specialistService
+                    .DeleteExpertiseAsync(id, ct);
+
+            if (result.IsSuccess)
+                return Results.Ok(ApiResponse.SuccessResponse("Expertise deleted successfully."));
+
+            return result.Errors.ToProblem();
+        }
+
+        #endregion
     }
 }

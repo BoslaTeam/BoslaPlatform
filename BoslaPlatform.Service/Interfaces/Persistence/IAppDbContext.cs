@@ -4,6 +4,7 @@ using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Communication;
 using BoslaPlatform.Domain.Models.Conversations;
 using BoslaPlatform.Domain.Models.Identity;
+using BoslaPlatform.Domain.Models.Junctions;
 using BoslaPlatform.Domain.Models.Lookup;
 using BoslaPlatform.Domain.Models.Profile;
 using Microsoft.EntityFrameworkCore;
@@ -33,8 +34,12 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
 
         DbSet<Expertise> Expertises { get; }
 
+        DbSet<SpecialistExpertise> SpecialistExpertise { get; }
+
         DbSet<Appointment> Appointments { get; }
+
         DbSet<Payment> Payments { get; }
+
         DbSet<Conversation> Conversations { get; }
 
         DbSet<Message> Messages { get; }
@@ -42,6 +47,7 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
         DbSet<Notification> Notifications { get; }
 
         DbSet<Review> Reviews { get; }
+
         DbSet<TEntity> Set<TEntity>()
             where TEntity : class;
 

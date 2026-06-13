@@ -1,5 +1,4 @@
 ﻿using BoslaPlatform.Domain.Entities;
-using BoslaPlatform.Domain.Models.Identity;
 using BoslaPlatform.Domain.Models.Lookup;
 
 namespace BoslaPlatform.Domain.Models.Junctions
