@@ -1,6 +1,9 @@
 using BoslaPlatform.Application;
+using BoslaPlatform.Application.Features.Lookup.Services;
+using BoslaPlatform.Application.Features.Specialists.Services;
+using BoslaPlatform.Application.Interfaces.Lookup;
+using BoslaPlatform.Application.Interfaces.Specialists;
 using FluentValidation;
-using System.Reflection;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -10,6 +13,10 @@ public static class DependencyInjection
     {
         //services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
         services.AddValidatorsFromAssemblyContaining<ApplicationAssemblyReference>();
+
+        services.AddScoped<ISpecialistService, SpecialistService>();
+        services.AddScoped<ILookupService, LookupService>();
+
         return services;
     }
 }

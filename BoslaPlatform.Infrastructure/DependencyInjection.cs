@@ -42,7 +42,6 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUserService, UserService>();
-            services.AddScoped<ISpecialistService, SpecialistService>();
             services.AddScoped<INotificationService, NotificationService>();
 
             services.AddDbContext<AppDbContext>((sp, options) =>
