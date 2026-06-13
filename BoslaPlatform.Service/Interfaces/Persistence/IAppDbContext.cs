@@ -34,6 +34,8 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
 
         DbSet<Expertise> Expertises { get; }
 
+        DbSet<Tool> Tools { get; }
+
         DbSet<SpecialistExpertise> SpecialistExpertise { get; }
 
         DbSet<Appointment> Appointments { get; }

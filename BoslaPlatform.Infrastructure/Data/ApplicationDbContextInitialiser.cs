@@ -1,5 +1,6 @@
 ﻿using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Enums;
+using BoslaPlatform.Domain.Models.Lookup;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -9,24 +10,22 @@ using Microsoft.Extensions.Logging;
 namespace BoslaPlatform.Infrastructure.Data
 {
     public class ApplicationDbContextInitialiser(
-    ILogger<ApplicationDbContextInitialiser> logger,
-    AppDbContext context, UserManager<User> userManager,
-    RoleManager<IdentityRole<Guid>> roleManager)
+        ILogger<ApplicationDbContextInitialiser> logger,
+        AppDbContext context,
+        UserManager<User> userManager,
+        RoleManager<IdentityRole<Guid>> roleManager)
     {
-        private readonly ILogger<ApplicationDbContextInitialiser> _logger = logger;
-        private readonly AppDbContext _context = context;
-        private readonly UserManager<User> _userManager = userManager;
-        private readonly RoleManager<IdentityRole<Guid>> _roleManager = roleManager;
+        private const string DefaultPassword = "0105140@Ma";
 
         public async Task InitialiseAsync()
         {
             try
             {
-                await _context.Database.MigrateAsync();
+                await context.Database.MigrateAsync();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "An error occurred while initialising the database.");
+                logger.LogError(ex, "An error occurred while initialising the database.");
                 throw;
             }
         }
@@ -39,146 +38,151 @@ namespace BoslaPlatform.Infrastructure.Data
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "An error occurred while seeding the database.");
+                logger.LogError(ex, "An error occurred while seeding the database.");
                 throw;
             }
         }
+
         public async Task TrySeedAsync()
         {
-            var adminRoleName = nameof(UserRole.Admin);
-            if (!await _roleManager.RoleExistsAsync(adminRoleName))
-            {
-                var roleResult = await _roleManager.CreateAsync(
-                     new IdentityRole<Guid>
-                     {
-                         Name = adminRoleName,
-                     });
-                if (!roleResult.Succeeded)
-                {
-                    var errors = string.Join(", ", roleResult.Errors.Select(x => x.Description));
+            await SeedRolesAsync();
 
-                    throw new Exception(errors);
-                }
-            }
-            var specialistRoleName = nameof(UserRole.Specialist);
-            if (!await _roleManager.RoleExistsAsync(specialistRoleName))
-            {
-                var roleResult = await _roleManager.CreateAsync(
-                    new IdentityRole<Guid>
-                    {
-                        Name = specialistRoleName,
-                    });
+            await SeedDefaultUsersAsync();
 
-                if (!roleResult.Succeeded)
-                {
-                    var errors = string.Join(", ", roleResult.Errors.Select(x => x.Description));
-
-                    throw new Exception(errors);
-                }
-            }
-            var userRoleName = nameof(UserRole.User);
-            if (!await _roleManager.RoleExistsAsync(userRoleName))
-            {
-                var roleResult = await _roleManager.CreateAsync(
-                    new IdentityRole<Guid>
-                    {
-                        Name = userRoleName,
-                    });
-
-                if (!roleResult.Succeeded)
-                {
-                    var errors = string.Join(", ", roleResult.Errors.Select(x => x.Description));
-
-                    throw new Exception(errors);
-                }
-            }
-            var defaultPassword = "0105140@Ma";
-
-            var Admin = new User
-            {
-                Email = "admin@localhost",
-                UserName = "admin@localhost",
-                EmailConfirmed = true,
-                Name = "admin",
-
-            };
-
-            if (_userManager.Users.All(u => u.Email != Admin.Email))
-            {
-                var result = await _userManager.CreateAsync(Admin, defaultPassword);
-                if (!result.Succeeded)
-                {
-                    var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                    throw new Exception(errors);
-                }
-
-                if (!string.IsNullOrWhiteSpace(Admin.Name))
-                {
-                    await _userManager.AddToRolesAsync(Admin, [adminRoleName]);
-                }
-            }
-            var specialist = new User
-            {
-                Email = "specialist@localhost",
-                UserName = "specialist@localhost",
-                EmailConfirmed = true,
-                Name = "specialist",
-            };
-
-            if (_userManager.Users.All(u => u.Email != specialist.Email))
-            {
-                var result = await _userManager.CreateAsync(specialist, defaultPassword);
-                if (!result.Succeeded)
-                {
-                    var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                    throw new Exception(errors);
-                }
-
-                if (!string.IsNullOrWhiteSpace(specialist.Name))
-                {
-                    await _userManager.AddToRolesAsync(specialist, [specialistRoleName]);
-                }
-            }
-
-            var user = new User
-            {
-                Email = "user@localhost",
-                UserName = "user@localhost",
-                EmailConfirmed = true,
-                Name = "user"
-            };
-
-            if (_userManager.Users.All(u => u.Email != user.Email))
-            {
-                var result = await _userManager.CreateAsync(user, defaultPassword);
-                if (!result.Succeeded)
-                {
-                    var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                    throw new Exception(errors);
-                }
-
-                if (!string.IsNullOrWhiteSpace(user.Name))
-                {
-                    await _userManager.AddToRolesAsync(user, [userRoleName]);
-                }
-            }
-            await _context.SaveChangesAsync();
+            await SeedLookupDataAsync();
         }
 
+        private async Task SeedRolesAsync()
+        {
+            var roles = new[] { nameof(UserRole.Admin), nameof(UserRole.Specialist), nameof(UserRole.User) };
 
+            foreach (var roleName in roles)
+            {
+                if (!await roleManager.RoleExistsAsync(roleName))
+                {
+                    var roleResult = await roleManager.CreateAsync(new IdentityRole<Guid> { Name = roleName });
+                    if (!roleResult.Succeeded)
+                    {
+                        var errors = string.Join(", ", roleResult.Errors.Select(x => x.Description));
+                        throw new Exception($"Failed to create role '{roleName}': {errors}");
+                    }
+                }
+            }
+        }
+
+        private async Task SeedDefaultUsersAsync()
+        {
+            var defaultUsers = new[]
+            {
+                (Email: "admin@localhost", Name: "admin", Role: nameof(UserRole.Admin)),
+                (Email: "specialist@localhost", Name: "specialist", Role: nameof(UserRole.Specialist)),
+                (Email: "user@localhost", Name: "user", Role: nameof(UserRole.User))
+            };
+
+            foreach (var userData in defaultUsers)
+            {
+                if (await userManager.FindByEmailAsync(userData.Email) is null)
+                {
+                    var newUser = new User
+                    {
+                        Email = userData.Email,
+                        UserName = userData.Email,
+                        EmailConfirmed = true,
+                        Name = userData.Name
+                    };
+
+                    var result = await userManager.CreateAsync(newUser, DefaultPassword);
+                    if (!result.Succeeded)
+                    {
+                        var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                        throw new Exception($"Failed to create user '{userData.Email}': {errors}");
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(newUser.Name))
+                    {
+                        await userManager.AddToRolesAsync(newUser, [userData.Role]);
+                    }
+                }
+            }
+        }
+
+        private async Task SeedLookupDataAsync()
+        {
+            var hasChanges = false;
+
+            if (!await context.Expertises.AnyAsync())
+            {
+                await context.Expertises.AddRangeAsync([
+                    new() { Name = "Backend Development" },
+                    new() { Name = "Frontend Development" },
+                    new() { Name = "Mobile Development" },
+                    new() { Name = "DevOps" },
+                    new() { Name = "Cloud Computing" },
+                    new() { Name = "Data Science" },
+                    new() { Name = "Machine Learning" },
+                    new() { Name = "Cybersecurity" }
+                ]);
+                hasChanges = true;
+            }
+
+            if (!await context.Industries.AnyAsync())
+            {
+                await context.Industries.AddRangeAsync([
+                    new() { Name = "Healthcare" },
+                    new() { Name = "Finance" },
+                    new() { Name = "Education" },
+                    new() { Name = "E-Commerce" },
+                    new() { Name = "Real Estate" },
+                    new() { Name = "Telecommunications" }
+                ]);
+                hasChanges = true;
+            }
+
+            if (!await context.Skills.AnyAsync())
+            {
+                await context.Skills.AddRangeAsync([
+                    new() { Name = "C#" },
+                    new() { Name = ".NET" },
+                    new() { Name = "ASP.NET Core" },
+                    new() { Name = "Angular" },
+                    new() { Name = "React" },
+                    new() { Name = "SQL Server" },
+                    new() { Name = "Docker" },
+                    new() { Name = "Kubernetes" }
+                ]);
+                hasChanges = true;
+            }
+
+            if (!await context.Tools.AnyAsync())
+            {
+                await context.Tools.AddRangeAsync([
+                    new() { Name = "Visual Studio" },
+                    new() { Name = "VS Code" },
+                    new() { Name = "Postman" },
+                    new() { Name = "GitHub" },
+                    new() { Name = "Azure DevOps" },
+                    new() { Name = "Jira" },
+                    new() { Name = "Figma" }
+                ]);
+                hasChanges = true;
+            }
+
+            if (hasChanges)
+            {
+                await context.SaveChangesAsync();
+            }
+        }
     }
+
     public static class InitialiserExtensions
     {
         public static async Task InitialiseDatabaseAsync(this WebApplication app)
         {
             using var scope = app.Services.CreateScope();
-
             var initialiser = scope.ServiceProvider.GetRequiredService<ApplicationDbContextInitialiser>();
 
             await initialiser.InitialiseAsync();
-
             await initialiser.SeedAsync();
         }
     }
-
 }
