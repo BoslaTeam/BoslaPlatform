@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Net.Http;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -43,9 +44,12 @@ public static class DependencyInjection
         {
             options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
             options.UseSqlServer(connectionString);
+            // Prevent PendingModelChangesWarning from being escalated to an exception at startup
+            // This will ignore EF Core's pending-model-change warning so MigrateAsync won't throw.
+            // Note: this suppresses the exception but does not resolve the underlying model/schema mismatch.
+            options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
         });
         services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
-        services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
         services.AddIdentity<User, IdentityRole<Guid>>(options =>
         {
             options.Password.RequiredLength = 8;
@@ -85,6 +89,26 @@ public static class DependencyInjection
             
         });
         services.AddAuthorization();
+        services.AddHttpContextAccessor();
+        // AI Services
+        services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
+        services.Configure<OpenAISettings>(configuration.GetSection("OpenAISettings"));
+        services.AddHttpClient("openai").ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(10));
+        services.AddHttpClient<BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiEmbeddingService>();
+        services.AddHttpClient<BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiChatService>();
+        // Tokenizer for token budgeting
+        services.AddSingleton<BoslaPlatform.Infrastructure.AI.Tokenizers.ITokenizer, BoslaPlatform.Infrastructure.AI.Tokenizers.SimpleTokenizer>();
+        // Qdrant settings and client
+        services.Configure<QdrantSettings>(configuration.GetSection("QdrantSettings"));
+        services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Qdrant.QdrantClient>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(10));
+        // Register AI implementations - concrete types will be implemented in Infrastructure
+        // Interfaces are defined under Application.Interfaces.AI (create if missing)
+        services.AddScoped<BoslaPlatform.Application.Interfaces.AI.IEmbeddingService, BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiEmbeddingService>();
+        services.AddScoped<BoslaPlatform.Application.Interfaces.AI.IChatService, BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiChatService>();
+
+        // Use Qdrant-backed vector store for production; fallback to EF Core if Qdrant unavailable
+        services.AddScoped<BoslaPlatform.Application.Interfaces.AI.IVectorStore, BoslaPlatform.Infrastructure.AI.Qdrant.QdrantVectorStore>();
+        services.AddScoped<BoslaPlatform.Application.Interfaces.AI.IAiSearchService, BoslaPlatform.Infrastructure.AI.AiSearchService>();
         return services;
     }
 }

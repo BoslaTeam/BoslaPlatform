@@ -12,6 +12,7 @@ namespace BoslaPlatform.Domain.Models
         public string? ExtractedIntent { get; set; }
         public string? ResultSpecialistIds { get; set; }
         public Guid? ClickedSpecialistId { get; set; }
+        public bool? WasHelpful { get; set; }
 
         public Specialist? ClickedSpecialist { get; set; }
 

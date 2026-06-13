@@ -23,6 +23,23 @@ namespace BoslaPlatform.Infrastructure.Data
             try
             {
                 await _context.Database.MigrateAsync();
+                // Ensure Qdrant collection exists if Qdrant client is registered
+                try
+                {
+                    var sp = _context.GetInfrastructureServiceProvider();
+                    if (sp != null)
+                    {
+                        var qClient = sp.GetService(typeof(BoslaPlatform.Infrastructure.AI.Qdrant.QdrantClient)) as BoslaPlatform.Infrastructure.AI.Qdrant.QdrantClient;
+                        if (qClient != null)
+                        {
+                            await qClient.EnsureCollectionAsync();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Qdrant collection ensure failed; continuing startup.");
+                }
             }
             catch (Exception ex)
             {
@@ -176,8 +193,22 @@ namespace BoslaPlatform.Infrastructure.Data
             var initialiser = scope.ServiceProvider.GetRequiredService<ApplicationDbContextInitialiser>();
 
             await initialiser.InitialiseAsync();
-
             await initialiser.SeedAsync();
+
+            // After seeding, attempt a Qdrant backfill (best-effort)
+            try
+            {
+                var backfill = scope.ServiceProvider.GetService<BoslaPlatform.Infrastructure.BackgroundJobs.QdrantBackfillJob>();
+                if (backfill != null)
+                {
+                    await backfill.RunAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                var logger = scope.ServiceProvider.GetService<Microsoft.Extensions.Logging.ILogger<ApplicationDbContextInitialiser>>();
+                logger?.LogWarning(ex, "Qdrant backfill failed; continuing startup.");
+            }
         }
     }
 
