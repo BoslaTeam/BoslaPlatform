@@ -21,6 +21,7 @@
     <Folder Include="Features\Authentication\Mappings\" />
     <Folder Include="Features\Authentication\Validators\" />
     <Folder Include="EventHandlers\" />
+    <Folder Include="Features\Specialists\Mappings\" />
     <Folder Include="Features\Users\Services\" />
     <Folder Include="Mappings\" />
     <Folder Include="Services\" />

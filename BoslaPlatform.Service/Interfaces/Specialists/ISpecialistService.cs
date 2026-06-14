@@ -1,4 +1,5 @@
-﻿using BoslaPlatform.Application.Features.Specialists.Request;
+﻿using BoslaPlatform.Application.Features.Specialists.DTOs;
+using BoslaPlatform.Application.Features.Specialists.Request;
 using BoslaPlatform.Application.Features.Specialists.Response;
 using BoslaPlatform.Shared;
 
@@ -21,5 +22,16 @@ namespace BoslaPlatform.Application.Interfaces.Specialists
         Task<Result> AddExpertiseAsync(AddExpertiseRequest request, CancellationToken ct = default);
 
         Task<Result> DeleteExpertiseAsync(Guid expertiseId, CancellationToken ct = default);
+
+        Task<Result<bool>> UpdateCancellationPolicyAsync(UpdateCancellationPolicyRequest request,CancellationToken ct = default);
+        Task<Result<bool>> UpdateBookingPolicyAsync(UpdateBookingPolicyRequest request,CancellationToken ct);
+
+        Task<Result<IReadOnlyList<ExperienceDto>>> GetExperienceAsync(CancellationToken ct);
+
+
+        Task<Result<Guid>> AddExperienceAsync( AddExperienceRequestDTO request,CancellationToken ct);
+   
+    
+
     }
 }

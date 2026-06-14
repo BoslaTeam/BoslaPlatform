@@ -25,6 +25,15 @@ namespace BoslaPlatform.Domain.Entities.Profile
         public decimal CancellationFeePercent { get; set; } = 0;
         public string? BookingPolicy { get; set; }
 
+
+
+        public int CancellationNoticeHours { get; set; }
+
+        public bool AllowCancellation { get; set; }
+
+        public string? CancellationPolicy { get; set; }
+
+
         public ICollection<Appointment> Appointments { get; set; } = [];
         public ICollection<Availability> Availabilities { get; set; } = [];
         public ICollection<Review> Reviews { get; set; } = [];

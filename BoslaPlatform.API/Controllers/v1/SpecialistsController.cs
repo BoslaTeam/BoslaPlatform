@@ -1,8 +1,10 @@
 ﻿using Asp.Versioning;
 using BoslaPlatform.API.Common.Extensions;
 using BoslaPlatform.API.Common.Responses;
+using BoslaPlatform.Application.Features.Specialists.DTOs;
 using BoslaPlatform.Application.Features.Specialists.Request;
 using BoslaPlatform.Application.Features.Specialists.Response;
+using BoslaPlatform.Application.Features.Specialists.Services;
 using BoslaPlatform.Application.Interfaces.Specialists;
 using BoslaPlatform.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -135,5 +137,77 @@ namespace BoslaPlatform.API.Controllers.v1
         }
 
         #endregion
+
+
+        [HttpPut("me/cancellation-policy")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        public async Task<IResult> UpdateCancellationPolicy(
+            [FromBody] UpdateCancellationPolicyRequest request,
+            CancellationToken ct)
+        {
+            var result = await specialistService
+                .UpdateCancellationPolicyAsync(request, ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<bool>.SuccessResponse(
+                        value,
+                        "Cancellation policy updated successfully.")),
+                errors => errors.ToProblem());
+        }
+
+
+        [HttpPut("me/booking-policy")]
+
+        public async Task<IResult> UpdateBookingPolicy(
+
+       UpdateBookingPolicyRequest request,
+
+       CancellationToken ct)
+
+        {
+
+            var result = await specialistService.UpdateBookingPolicyAsync(request, ct);
+
+            return result.Match(
+                value => Results.Ok(ApiResponse<bool>.SuccessResponse(value)),
+                errors => errors.ToProblem());
+
+        }
+
+
+
+        [HttpGet("me/experience")]
+        public async Task<IResult> GetExperience(CancellationToken ct)
+        {
+            var result = await specialistService
+                .GetExperienceAsync(ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<ExperienceDto>>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+
+
+        [HttpPost("me/experience")]
+        public async Task<IResult> AddExperience(AddExperienceRequestDTO request,CancellationToken ct)
+        {
+            var result =
+                await specialistService
+                    .AddExperienceAsync(request, ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<Guid>.SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
     }
 }
+//Khaled$123
+//    KH@gmail.com

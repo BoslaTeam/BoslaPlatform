@@ -1,4 +1,5 @@
-﻿using BoslaPlatform.Application.Features.Specialists.Request;
+﻿using BoslaPlatform.Application.Features.Specialists.DTOs;
+using BoslaPlatform.Application.Features.Specialists.Request;
 using BoslaPlatform.Application.Features.Specialists.Response;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Persistence;
@@ -9,6 +10,7 @@ using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Events.Specialists;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Junctions;
+using BoslaPlatform.Domain.Models.Profile;
 using BoslaPlatform.Shared;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -323,5 +325,136 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         }
 
         #endregion
+
+
+
+        #region cancellation-policy
+
+        public async Task<Result<bool>> UpdateCancellationPolicyAsync(
+            UpdateCancellationPolicyRequest request,
+            CancellationToken ct = default)
+        {
+            var specialist = await context.Specialists
+                .FirstOrDefaultAsync(
+                    x => x.UserId == currentUser.Id,
+                    ct);
+
+            if (specialist is null)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist not found.");
+            }
+
+            specialist.CancellationNoticeHours =
+                request.CancellationNoticeHours;
+
+            specialist.AllowCancellation =
+                request.AllowCancellation;
+
+            specialist.CancellationPolicy =
+                request.CancellationPolicy;
+
+            await context.SaveChangesAsync(ct);
+
+            return true;
+        }
+
+        #endregion
+
+        #region booking-policy
+        public async Task<Result<bool>> UpdateBookingPolicyAsync(
+        UpdateBookingPolicyRequest request,
+        CancellationToken ct)
+        {
+            var specialist = await context.Specialists
+                .FirstOrDefaultAsync(x => x.UserId == currentUser.Id, ct);
+
+            if (specialist is null)
+                return Error.NotFound("Specialist.NotFound", "Specialist not found");
+
+            specialist.BookingPolicy = request.BookingPolicy;
+            specialist.MinBookingNoticeHours = request.MinBookingNoticeHours;
+            specialist.MaxSessionsPerDay = request.MaxSessionsPerDay;
+            specialist.MaxSessionsPerWeek = request.MaxSessionsPerWeek;
+
+            await context.SaveChangesAsync(ct);
+
+            return true;
+        }
+        #endregion
+
+        #region Getexperience
+        public async Task<Result<IReadOnlyList<ExperienceDto>>> GetExperienceAsync(CancellationToken ct)
+        {
+            var specialist = await context.Specialists
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    x => x.UserId == currentUser.Id,
+                    ct);
+
+            if (specialist is null)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist not found.");
+            }
+
+            var experiences = await context.SpecialistExperiences
+                .AsNoTracking()
+                .Where(x => x.SpecialistId == specialist.Id)
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .Select(x => new ExperienceDto
+                {
+                    Id = x.Id,
+                    CompanyName = x.CompanyName,
+                    JobTitle = x.JobTitle,
+                    Description = x.Description,
+                    FromDate = x.FromDate,
+                    ToDate = x.ToDate
+                })
+                .ToListAsync(ct);
+
+            return experiences;
+        }
+
+        #endregion
+
+        #region AddExperience
+        public async Task<Result<Guid>> AddExperienceAsync( AddExperienceRequestDTO request, CancellationToken ct)
+        {
+            var specialist = await context.Specialists
+                .FirstOrDefaultAsync(
+                    x => x.UserId == currentUser.Id,
+                    ct);
+
+            if (specialist is null)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist not found.");
+            }
+
+            var experience = new SpecialistExperience
+            {
+                SpecialistId = specialist.Id,
+                JobTitle = request.JobTitle,
+                CompanyName = request.CompanyName,
+                FromDate = request.FromDate,
+                ToDate = request.ToDate,
+                Description = request.Description
+            };
+
+            await context.SpecialistExperiences
+                .AddAsync(experience, ct);
+
+            await context.SaveChangesAsync(ct);
+
+            return experience.Id;
+        }
+        #endregion
+
+
+
     }
 }

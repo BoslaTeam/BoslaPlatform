@@ -79,6 +79,9 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
                 .WithOne(st => st.Specialist)
                 .HasForeignKey(st => st.SpecialistId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Property(x => x.CancellationPolicy)
+                .HasMaxLength(2000);
         }
     }
 }
