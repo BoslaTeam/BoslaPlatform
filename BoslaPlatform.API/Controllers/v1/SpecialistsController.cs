@@ -207,6 +207,37 @@ namespace BoslaPlatform.API.Controllers.v1
                     ApiResponse<Guid>.SuccessResponse(value)),
                 errors => errors.ToProblem());
         }
+
+
+        [HttpPut("me/experience/{id:guid}")]
+        public async Task<IResult> UpdateExperience( Guid id,UpdateExperienceRequest request, CancellationToken ct)
+        {
+            var result =
+                await specialistService.UpdateExperienceAsync( id,request,ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<bool>.SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+
+        [HttpDelete("me/experience/{id:guid}")]
+        public async Task<IResult> DeleteExperience(Guid id,CancellationToken ct)
+        {
+            var result = await specialistService
+                .DeleteExperienceAsync(id, ct);
+
+            if (result.IsSuccess)
+            {
+                return Results.Ok(
+                    ApiResponse.SuccessResponse(
+                        "Experience deleted successfully."));
+            }
+
+            return result.Errors.ToProblem();
+        }
+
     }
 }
 //Khaled$123

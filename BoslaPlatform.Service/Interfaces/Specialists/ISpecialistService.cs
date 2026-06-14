@@ -30,8 +30,16 @@ namespace BoslaPlatform.Application.Interfaces.Specialists
 
 
         Task<Result<Guid>> AddExperienceAsync( AddExperienceRequestDTO request,CancellationToken ct);
-   
+        Task<Result<bool>> UpdateExperienceAsync( Guid experienceId,UpdateExperienceRequest request, CancellationToken ct);
+
+        Task<Result> DeleteExperienceAsync(Guid experienceId, CancellationToken ct);
     
+   
+
+
+
+
+
 
     }
 }

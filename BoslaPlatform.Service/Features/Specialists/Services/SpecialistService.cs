@@ -456,5 +456,87 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
 
 
+
+
+
+        public async Task<Result<bool>> UpdateExperienceAsync(
+     Guid experienceId,
+     UpdateExperienceRequest request,
+     CancellationToken ct)
+        {
+            var specialist = await GetCurrentSpecialistAsync(ct);
+
+            if (specialist is null)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist not found.");
+            }
+
+            var experience = await context.SpecialistExperiences
+                .FirstOrDefaultAsync(
+                    x => x.Id == experienceId &&
+                         x.SpecialistId == specialist.Id,
+                    ct);
+
+            if (experience is null)
+            {
+                return Error.NotFound(
+                    "Experience.NotFound",
+                    "Experience not found.");
+            }
+
+            experience.CompanyName = request.CompanyName;
+            experience.JobTitle = request.JobTitle;
+            experience.Description = request.Description;
+            experience.FromDate = request.FromDate;
+            experience.ToDate = request.ToDate;
+
+            specialist.AddDomainEvent(
+                new SpecialistProfileUpdatedEvent(
+                    specialist.Id));
+
+            await context.SaveChangesAsync(ct);
+
+            return true;
+        }
+
+
+
+
+        public async Task<Result> DeleteExperienceAsync( Guid experienceId,CancellationToken ct)
+           {
+            var specialist = await GetCurrentSpecialistAsync(ct);
+
+            if (specialist is null)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist not found.");
+            }
+
+            var experience = await context.SpecialistExperiences
+                .FirstOrDefaultAsync(
+                    x => x.Id == experienceId &&
+                         x.SpecialistId == specialist.Id,
+                    ct);
+
+            if (experience is null)
+            {
+                return Error.NotFound(
+                    "Experience.NotFound",
+                    "Experience not found.");
+            }
+
+            context.SpecialistExperiences.Remove(experience);
+
+            specialist.AddDomainEvent(
+                new SpecialistProfileUpdatedEvent(
+                    specialist.Id));
+
+            await context.SaveChangesAsync(ct);
+
+            return Result.Success();
+        }
     }
 }
