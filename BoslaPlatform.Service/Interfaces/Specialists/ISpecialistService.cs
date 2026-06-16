@@ -33,9 +33,14 @@ namespace BoslaPlatform.Application.Interfaces.Specialists
         Task<Result<bool>> UpdateExperienceAsync( Guid experienceId,UpdateExperienceRequest request, CancellationToken ct);
 
         Task<Result> DeleteExperienceAsync(Guid experienceId, CancellationToken ct);
-    
-   
 
+
+
+        Task<Result> AddSkillAsync( AddSkillRequest request, CancellationToken ct);
+
+        Task<Result> DeleteSkillAsync(Guid skillId,CancellationToken ct);
+         
+         
 
 
 
