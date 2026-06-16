@@ -4,7 +4,6 @@ using BoslaPlatform.API.Common.Responses;
 using BoslaPlatform.Application.Features.Specialists.DTOs;
 using BoslaPlatform.Application.Features.Specialists.Request;
 using BoslaPlatform.Application.Features.Specialists.Response;
-using BoslaPlatform.Application.Features.Specialists.Services;
 using BoslaPlatform.Application.Interfaces.Specialists;
 using BoslaPlatform.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -71,12 +70,10 @@ namespace BoslaPlatform.API.Controllers.v1
         [ProducesResponseType(typeof(ApiResponse<List<AvailabilityResponse>>), StatusCodes.Status200OK)]
         public async Task<IResult> GetMyAvailability(CancellationToken ct)
         {
-            var result = await specialistService
-                    .GetMyAvailabilityAsync(ct);
+            var result = await specialistService.GetMyAvailabilityAsync(ct);
 
             return result.Match(
-                value => Results.Ok(
-                    ApiResponse<List<AvailabilityResponse>>.SuccessResponse(value)),
+                value => Results.Ok(ApiResponse<List<AvailabilityResponse>>.SuccessResponse(value)),
                 errors => errors.ToProblem());
         }
 
@@ -85,12 +82,10 @@ namespace BoslaPlatform.API.Controllers.v1
         [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
         public async Task<IResult> AddAvailability([FromBody] AddAvailabilityRequest request, CancellationToken ct)
         {
-            var result = await specialistService
-                    .AddAvailabilityAsync(request, ct);
+            var result = await specialistService.AddAvailabilityAsync(request, ct);
 
             return result.Match(
-                value => Results.Ok(
-                    ApiResponse<Guid>.SuccessResponse(value, "Availability created successfully.")),
+                value => Results.Ok(ApiResponse<Guid>.SuccessResponse(value, "Availability created successfully.")),
                 errors => errors.ToProblem());
         }
 
