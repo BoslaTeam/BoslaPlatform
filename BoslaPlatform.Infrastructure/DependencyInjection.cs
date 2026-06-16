@@ -6,6 +6,9 @@ using BoslaPlatform.Infrastructure.Data;
 using BoslaPlatform.Infrastructure.Data.Interceptors;
 using BoslaPlatform.Infrastructure.Identity;
 using BoslaPlatform.Infrastructure.Settings;
+using BoslaPlatform.Application.Settings;
+using BoslaPlatform.Application.Interfaces.Communication;
+using BoslaPlatform.Infrastructure.Communication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -38,6 +41,11 @@ public static class DependencyInjection
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<BoslaPlatform.Application.Features.Notifications.Services.INotificationService, BoslaPlatform.Infrastructure.Communication.NotificationService>();
+        services.AddScoped<INotificationSender, SignalRNotificationSender>();
+        services.AddScoped<IEmailService, EmailService>();
+
+        services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
+        services.AddSignalR();
 
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
@@ -81,6 +89,20 @@ public static class DependencyInjection
                 ValidIssuer = jwtSettings["Issuer"],
                 ValidAudience = jwtSettings["Audience"],
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!)),
+            };
+
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    var accessToken = context.Request.Query["access_token"];
+                    var path = context.HttpContext.Request.Path;
+                    if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/notifications"))
+                    {
+                        context.Token = accessToken;
+                    }
+                    return Task.CompletedTask;
+                }
             };
             
         });

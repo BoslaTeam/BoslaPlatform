@@ -4,8 +4,12 @@ namespace BoslaPlatform.Application.Features.Users.DTOs
         Guid Id,
         string Email,
         string Name,
-        string Country,
-        string Gender,
-        string PreferredLanguage,
+        string? Title,
+        string? Bio,
+        string? ProfileImageUrl,
+        string? PhoneNumber,
+        string? Country,
+        string? Gender,
+        string? PreferredLanguage,
         bool IsActive);
 }
