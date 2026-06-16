@@ -15,6 +15,8 @@ builder.Services.AddApplication()
     .AddInfrastructure(builder.Configuration)
     .AddPresentation();
 
+// Rate limiting (disabled for now) — policy code previously added removed per request
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

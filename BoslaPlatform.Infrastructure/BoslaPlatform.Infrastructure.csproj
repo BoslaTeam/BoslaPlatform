@@ -18,6 +18,7 @@
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
+	<!-- Removed Polly packages in favor of a lightweight retry handler to avoid package compatibility issues -->
 	</ItemGroup>
 
 	<ItemGroup>
