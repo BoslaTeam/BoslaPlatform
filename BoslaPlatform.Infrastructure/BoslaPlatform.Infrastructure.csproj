@@ -28,6 +28,7 @@
 	<ItemGroup>
 	  <Folder Include="BackgroundJobs\" />
 	  <Folder Include="AI\" />
+	  <Folder Include="Realtime\" />
 	  <Folder Include="Observability\" />
 	  <Folder Include="Services\Specialist\" />
 	</ItemGroup>
