@@ -36,5 +36,6 @@ if (app.Environment.IsDevelopment())
 app.UseCoreMiddlewares(builder.Configuration);
 
 app.MapControllers();
+app.MapHub<BoslaPlatform.Infrastructure.RealTime.NotificationHub>("/hubs/notifications");
 
 app.Run();

@@ -12,5 +12,6 @@ namespace BoslaPlatform.Application.Features.Notifications.Services
         Task<Result<List<NotificationDto>>> GetMyAsync(CancellationToken ct = default);
         Task<Result<bool>> MarkReadAsync(Guid id, CancellationToken ct = default);
         Task<Result<bool>> MarkAllReadAsync(CancellationToken ct = default);
+        Task<Result<bool>> CreateAndSendNotificationAsync(Guid userId, string title, string message, BoslaPlatform.Domain.Enums.NotificationType type, CancellationToken ct = default);
     }
 }

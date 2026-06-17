@@ -1,8 +1,11 @@
 using BoslaPlatform.Application;
+using BoslaPlatform.Application.Features.Appointments.Services;
 using BoslaPlatform.Application.Features.Notifications.Services;
-using BoslaPlatform.Application.Features.Specialists.Services;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Persistence;
+using BoslaPlatform.Application.Interfaces.Specialists;
+using BoslaPlatform.Application.Services;
+using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Infrastructure.Data;
 using BoslaPlatform.Infrastructure.Data.Interceptors;
@@ -36,28 +39,40 @@ public static class DependencyInjection
             cfg.RegisterServicesFromAssembly(typeof(ApplicationAssemblyReference).Assembly);
         });
 
-        services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
-        services.AddScoped<ApplicationDbContextInitialiser>();
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<ITokenService, TokenService>();
-        services.AddScoped<IUserService, UserService>();
-        services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
+            services.AddScoped<ISaveChangesInterceptor, DomainEventsInterceptor>();
+            services.AddScoped<ApplicationDbContextInitialiser>();
+            services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<ITokenService, TokenService>();
+            services.AddScoped<IUserService, UserService>();
+            services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<IAppointmentService, AppointmentService>();
 
-        services.AddDbContext<AppDbContext>((sp, options) =>
-        {
-            options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
-            options.UseSqlServer(connectionString);
-            // Prevent PendingModelChangesWarning from being escalated to an exception at startup
-            // This will ignore EF Core's pending-model-change warning so MigrateAsync won't throw.
-            // Note: this suppresses the exception but does not resolve the underlying model/schema mismatch.
-            options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
-        });
-        services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
-        services.AddIdentity<User, IdentityRole<Guid>>(options =>
-        {
-            options.Password.RequiredLength = 8;
-            options.Password.RequireLowercase = true;
-            options.Password.RequireUppercase = true;
+            services.AddDbContext<AppDbContext>((sp, options) =>
+            {
+                options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
+                options.UseSqlServer(connectionString);
+            });
+            services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
+
+            services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<ITokenService, TokenService>();
+            services.AddScoped<IUserService, UserService>();
+
+            services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<INotificationSender, SignalRNotificationSender>();
+            services.AddScoped<IEmailService, EmailService>();
+            services.AddSignalR();
+
+            services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
+            services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
+
+            services.AddIdentity<User, IdentityRole<Guid>>(options =>
+            {
+                options.Password.RequiredLength = 8;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireDigit = true;
             options.Password.RequireDigit = true;
             options.Password.RequireNonAlphanumeric = false;
             options.Password.RequiredUniqueChars = 1;
@@ -66,7 +81,12 @@ public static class DependencyInjection
             options.Lockout.DefaultLockoutTimeSpan =
                 TimeSpan.FromMinutes(15);
 
-            options.Lockout.AllowedForNewUsers = true;
+                options.Password.RequireNonAlphanumeric = false;
+                options.Password.RequiredUniqueChars = 1;
+
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+                options.Lockout.AllowedForNewUsers = true;
         })
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
@@ -85,7 +105,7 @@ public static class DependencyInjection
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
                 ClockSkew = TimeSpan.Zero,
-                ValidIssuer = jwtSettings["Issuer"],
+                    ValidIssuer = jwtSettings["Issuer"],
                 ValidAudience = jwtSettings["Audience"],
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!)),
             };
@@ -104,10 +124,10 @@ public static class DependencyInjection
         // Qdrant settings and client
         services.Configure<QdrantSettings>(configuration.GetSection("QdrantSettings"));
         services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Qdrant.QdrantClient>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(10));
-        // Register AI implementations - concrete types will be implemented in Infrastructure
-        // Interfaces are defined under Application.Interfaces.AI (create if missing)
-        services.AddScoped<BoslaPlatform.Application.Interfaces.AI.IEmbeddingService, BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiEmbeddingService>();
-        services.AddScoped<BoslaPlatform.Application.Interfaces.AI.IChatService, BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiChatService>();
+                };
+
+            });
+            services.AddAuthorization();
 
         // Use Qdrant-backed vector store for production; fallback to EF Core if Qdrant unavailable
         services.AddScoped<BoslaPlatform.Application.Interfaces.AI.IVectorStore, BoslaPlatform.Infrastructure.AI.Qdrant.QdrantVectorStore>();
