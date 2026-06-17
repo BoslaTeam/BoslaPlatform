@@ -1,11 +1,15 @@
 using BoslaPlatform.Application.Interfaces.AI;
 using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Service.Features.AI.Requests;
+using BoslaPlatform.Infrastructure.AI.Tokenizers;
 using BoslaPlatform.Service.Features.AI.Responses;
 using BoslaPlatform.Domain.Models;
 using BoslaPlatform.Domain.Models.Profile;
-using System.Linq;
 
+using BoslaPlatform.Domain.Entities.Profile;
+using BoslaPlatform.Domain.Entities;
+using System.Linq;
+using BoslaPlatform.Application.Interfaces.Authentication;
 namespace BoslaPlatform.Infrastructure.AI;
 
 public class AiSearchService : IAiSearchService
@@ -14,10 +18,10 @@ public class AiSearchService : IAiSearchService
     private readonly IVectorStore _vectors;
     private readonly IChatService _chat;
     private readonly IAppDbContext _db;
-    private readonly BoslaPlatform.Application.Interfaces.Authentication.IUser _currentUser;
-    private readonly BoslaPlatform.Infrastructure.AI.Tokenizers.ITokenizer _tokenizer;
+    private readonly IUser _currentUser;
+    private readonly ITokenizer _tokenizer;
 
-    public AiSearchService(IEmbeddingService emb, IVectorStore vectors, IChatService chat, IAppDbContext db, BoslaPlatform.Application.Interfaces.Authentication.IUser currentUser, BoslaPlatform.Infrastructure.AI.Tokenizers.ITokenizer tokenizer)
+    public AiSearchService(IEmbeddingService emb, IVectorStore vectors, IChatService chat, IAppDbContext db, IUser currentUser, ITokenizer tokenizer)
     {
         _emb = emb;
         _vectors = vectors;

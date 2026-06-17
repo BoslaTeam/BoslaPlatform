@@ -1,0 +1,927 @@
+Bosla Platform
+Backend Team Work Plan — v6
+Onion Architecture  +  Services  +  MediatR  +  Domain Events  +  Result<T>
+.NET 10  •  6 Developers  •  April 2026
+Developer	Feature Ownership	Branch
+Osama	Auth & Users	feature/auth
+Karim	Appointments	feature/appointments
+M.Yasser	Video & Communication (shared with Mostafa)	feature/communication
+Mostafa	Admin & AI (shared with M.Yasser)	feature/admin-ai
+Khaled	Payments + Specialists (shared with Elsefy)	feature/specialists-payments
+Elsefy	Specialists & Experience (shared with Khaled)	feature/specialists-payments
+
+1. Onion Architecture Overview
+Bosla uses Onion Architecture with 5 projects. Business logic lives in Services inside Application —
+MediatR is used only for Domain Events (INotification) and Pipeline Behaviours. The Result<T> pattern handles expected failures without exceptions.
+
+Project	Role	Depends On
+Bosla.Domain	Entities, Enums, Value Objects, Domain Events, Result<T>, Error. Zero dependencies.	Nothing
+Bosla.Shared	Result<T>, Error, ErrorKind, Pagination, Constants, Helpers. Used everywhere.	Nothing
+Bosla.Application	Service interfaces (Abstractions), Feature Services, DTOs, Validators, Behaviours, Mappings.	Domain + Shared
+Bosla.Infrastructure	EF Core, Identity, Interceptors, Repositories, AI clients, Background Jobs, Observability.	Application
+Bosla.API	Controllers (V1), Middleware, Filters, Swagger, DI wiring. Entry point.	Application + Infrastructure
+
+ℹ  Dependency Rule: API → Application → Domain. Infrastructure → Application.
+    Bosla.Shared has no project references — it is referenced by all layers.
+    - Controllers call IXxxService directly via constructor injection.
+    MediatR used ONLY for Domain Events (INotificationHandler) and Pipeline Behaviours.
+
+2. Full Project Structure
+
+Bosla.sln
+├── src/
+│
+│  ── BOSLA.SHARED ──────────────────────────────────────────────
+│  Bosla.Shared/
+│  ├── Results/
+│  │   ├── Result.cs
+│  │   ├── Error.cs
+│  │   ├── ErrorKind.cs
+│  │   └── Interfaces/
+│  ├── Pagination/
+│  │   ├── PaginationMetadata.cs
+│  │   └── PaginationRequest.cs
+│  ├── Constants/
+│  │   ├── Roles.cs
+│  │   ├── Policies.cs
+│  │   ├── CacheKeys.cs
+│  │   └── AppDefaults.cs
+│  ├── Exceptions/
+│  ├── Helpers/
+│  └── Common/
+│
+│  ── BOSLA.DOMAIN ──────────────────────────────────────────────
+│  Bosla.Domain/
+│  ├── Common/
+│  │   ├── BaseEntity.cs
+│  │   ├── AuditableEntity.cs
+│  │   ├── DomainEvent.cs
+│  │   ├── IAuditableEntity.cs
+│  │   └── EntityErrors.cs
+│  ├── Entities/
+│  │   ├── User.cs
+│  │   ├── Specialist.cs
+│  │   ├── Appointment.cs
+│  │   ├── AppointmentStatusHistory.cs
+│  │   ├── Payment.cs
+│  │   ├── Conversation.cs
+│  │   ├── ConversationParticipant.cs
+│  │   ├── Message.cs
+│  │   ├── VideoSession.cs
+│  │   ├── VideoSessionParticipant.cs
+│  │   ├── ScreenRecording.cs
+│  │   ├── Review.cs
+│  │   ├── Notification.cs
+│  │   ├── Reminder.cs
+│  │   ├── AuditLog.cs
+│  │   ├── RefreshToken.cs
+│  │   ├── SocialLink.cs
+│  │   ├── Education.cs
+│  │   ├── Experience.cs
+│  │   ├── UserIndustry.cs
+│  │   ├── UserExpertise.cs
+│  │   ├── SessionTranscript.cs              AI
+│  │   ├── SessionSummary.cs                 AI
+│  │   ├── SpecialistEmbedding.cs            AI
+│  │   └── SearchInteraction.cs              AI
+│  ├── Events/
+│  │   ├── UserRegisteredEvent.cs
+│  │   ├── SpecialistVerifiedEvent.cs
+│  │   ├── AppointmentCreatedEvent.cs
+│  │   ├── AppointmentCancelledEvent.cs
+│  │   ├── AppointmentCompletedEvent.cs
+│  │   ├── PaymentCompletedEvent.cs
+│  │   ├── VideoSessionEndedEvent.cs
+│  │   └── SpecialistProfileUpdatedEvent.cs
+│  ├── Enums/
+│  │   ├── UserRole.cs
+│  │   ├── AppointmentStatus.cs
+│  │   ├── PaymentStatus.cs
+│  │   ├── VerificationStatus.cs
+│  │   ├── VideoSessionStatus.cs
+│  │   ├── ConversationType.cs
+│  │   ├── SummaryStatus.cs                  AI
+│  │   ├── Gender.cs
+│  │   └── NotificationType.cs
+│  ├── ValueObjects/
+│  │   ├── Email.cs
+│  │   ├── PhoneNumber.cs
+│  │   ├── Address.cs
+│  │   ├── GeoLocation.cs
+│  │   └── Money.cs
+│  └── Specifications/                        future
+│
+│  ── BOSLA.APPLICATION ─────────────────────────────────────────
+│  Bosla.Application/
+│  ├── Abstractions/
+│  │   ├── Authentication/
+│  │   │   ├── IAuthService.cs
+│  │   │   ├── ITokenService.cs
+│  │   │   └── ICurrentUser.cs
+│  │   ├── Persistence/
+│  │   │   └── IApplicationDbContext.cs
+│  │   ├── Notifications/
+│  │   │   ├── IEmailService.cs
+│  │   │   ├── IPushNotificationService.cs
+│  │   │   └── ISmsService.cs
+│  │   ├── AI/
+│  │   │   ├── IEmbeddingService.cs
+│  │   │   ├── IChatService.cs
+│  │   │   └── IVectorStore.cs
+│  │   └── Files/
+│  │       └── IFileStorageService.cs
+│  │
+│  ├── Features/
+│  │   ├── Authentication/
+│  │   │   ├── Services/
+│  │   │   │   └── IAuthFeatureService.cs
+│  │   │   ├── Requests/
+│  │   │   ├── Responses/
+│  │   │   ├── DTOs/
+│  │   │   ├── Validators/
+│  │   │   ├── Mappings/
+│  │   │   └── EventHandlers/
+│  │   ├── Users/
+│  │   │   ├── Services/
+│  │   │   ├── Requests/
+│  │   │   ├── Responses/
+│  │   │   ├── DTOs/
+│  │   │   ├── Validators/
+│  │   │   └── Mappings/
+│  │   ├── Specialists/
+│  │   │   ├── Services/
+│  │   │   ├── Requests/
+│  │   │   ├── Responses/
+│  │   │   ├── DTOs/
+│  │   │   ├── Validators/
+│  │   │   ├── Mappings/
+│  │   │   └── EventHandlers/
+│  │   ├── Appointments/
+│  │   │   ├── Services/
+│  │   │   ├── Requests/
+│  │   │   ├── Responses/
+│  │   │   ├── DTOs/
+│  │   │   ├── Validators/
+│  │   │   ├── Mappings/
+│  │   │   └── EventHandlers/
+│  │   ├── Payments/
+│  │   │   ├── Services/
+│  │   │   ├── Requests/
+│  │   │   ├── Responses/
+│  │   │   ├── DTOs/
+│  │   │   ├── Validators/
+│  │   │   ├── Mappings/
+│  │   │   └── EventHandlers/
+│  │   ├── Conversations/
+│  │   │   ├── Services/
+│  │   │   ├── Requests/
+│  │   │   ├── Responses/
+│  │   │   ├── DTOs/
+│  │   │   ├── Validators/
+│  │   │   └── Mappings/
+│  │   ├── VideoSessions/
+│  │   │   ├── Services/
+│  │   │   ├── Requests/
+│  │   │   ├── Responses/
+│  │   │   ├── DTOs/
+│  │   │   ├── Validators/
+│  │   │   ├── Mappings/
+│  │   │   └── EventHandlers/
+│  │   ├── Notifications/
+│  │   │   ├── Services/
+│  │   │   ├── DTOs/
+│  │   │   └── Mappings/
+│  │   ├── Admin/
+│  │   │   ├── Services/
+│  │   │   ├── Requests/
+│  │   │   ├── Responses/
+│  │   │   ├── DTOs/
+│  │   │   └── Validators/
+│  │   └── AI/
+│  │       ├── Services/
+│  │       ├── Requests/
+│  │       ├── Responses/
+│  │       ├── DTOs/
+│  │       └── Validators/
+│  │
+│  ├── Behaviors/
+│  │   ├── LoggingBehavior.cs
+│  │   ├── ValidationBehavior.cs
+│  │   ├── PerformanceBehavior.cs
+│  │   ├── CachingBehavior.cs
+│  │   └── UnhandledExceptionBehavior.cs
+│  │
+│  └── DependencyInjection.cs
+│
+│  ── BOSLA.INFRASTRUCTURE ──────────────────────────────────────
+│  Bosla.Infrastructure/
+│  ├── Identity/
+│  │   ├── AuthService.cs
+│  │   ├── TokenService.cs
+│  │   ├── JwtGenerator.cs
+│  │   └── IdentitySeeder.cs
+│  ├── Data/
+│  │   ├── ApplicationDbContext.cs
+│  │   ├── ApplicationDbContextInitialiser.cs
+│  │   ├── Configurations/          one file per entity
+│  │   ├── Interceptors/
+│  │   │   ├── AuditableEntityInterceptor.cs
+│  │   │   └── DomainEventsInterceptor.cs
+│  │   ├── Repositories/
+│  │   ├── Seed/
+│  │   │   ├── SeedRoles.cs
+│  │   │   └── SeedAdmin.cs
+│  │   └── Migrations/
+│  ├── Services/
+│  │   ├── EmailService.cs
+│  │   ├── SmsService.cs
+│  │   ├── PushNotificationService.cs
+│  │   ├── FileStorageService.cs
+│  │   └── CurrentDateTime.cs
+│  ├── AI/
+│  │   ├── OpenAI/
+│  │   ├── VectorStore/
+│  │   ├── EmbeddingService.cs
+│  │   └── SemanticKernel/
+│  ├── BackgroundJobs/
+│  │   ├── ReminderJob.cs
+│  │   ├── NotificationDispatcher.cs
+│  │   ├── EmbeddingRebuildJob.cs       AI
+│  │   ├── TranscriptFetchJob.cs         AI
+│  │   ├── SummaryGenerationJob.cs       AI
+│  │   └── CleanupExpiredTokensJob.cs
+│  ├── Options/
+│  │   ├── JwtSettings.cs
+│  │   ├── OpenAISettings.cs
+│  │   ├── EmailSettings.cs
+│  │   └── StorageSettings.cs
+│  ├── Observability/
+│  │   ├── Serilog/
+│  │   ├── Seq/
+│  │   └── OpenTelemetry/
+│  └── DependencyInjection.cs
+│
+│  ── BOSLA.API ─────────────────────────────────────────────────
+│  Bosla.API/
+│  ├── Controllers/
+│  │   ├── V1/
+│  │   │   ├── AuthController.cs
+│  │   │   ├── UsersController.cs
+│  │   │   ├── SpecialistsController.cs
+│  │   │   ├── AppointmentsController.cs
+│  │   │   ├── PaymentsController.cs
+│  │   │   ├── ConversationsController.cs
+│  │   │   ├── VideoController.cs
+│  │   │   ├── NotificationsController.cs
+│  │   │   ├── AdminController.cs
+│  │   │   ├── AiController.cs
+│  │   │   └── WebhooksController.cs
+│  │   └── V2/                             future
+│  ├── Common/
+│  │   ├── Responses/
+│  │   │   ├── ApiResponse.cs
+│  │   │   └── PaginationMetadata.cs
+│  │   ├── Extensions/
+│  │   │   ├── ProblemExtensions.cs
+│  │   │   ├── ResultExtensions.cs
+│  │   │   └── ServiceCollectionExtensions.cs
+│  │   ├── Exceptions/
+│  │   │   └── GlobalExceptionHandler.cs
+│  │   ├── Middleware/
+│  │   │   ├── RequestLogContextMiddleware.cs
+│  │   │   ├── PerformanceMiddleware.cs
+│  │   │   ├── RateLimitingMiddleware.cs     future
+│  │   │   └── LocalizationMiddleware.cs     future
+│  │   ├── Filters/
+│  │   │   ├── ValidationFilter.cs
+│  │   │   └── AuthorizeRolesFilter.cs       future
+│  │   └── OpenApi/
+│  │       └── SwaggerConfigurations.cs
+│  ├── Services/                             API-level services only
+│  ├── DependencyInjection.cs
+│  ├── Program.cs
+│  └── appsettings.json
+│
+└── tests/
+    ├── Bosla.Unit.Tests/
+    │   ├── Domain/
+    │   └── Application/
+    ├── Bosla.Integration.Tests/
+    │   └── Controllers/
+    └── Bosla.Architecture.Tests/
+        └── LayerDependencyTests.cs
+
+3. Key Patterns — Code Reference
+3.1  Result<T> + Error (Bosla.Shared)
+
+// Bosla.Shared/Results/ErrorKind.cs
+public enum ErrorKind
+{
+    None, NotFound, Validation,Forbidden, BadRequest, Unexpected,
+    Conflict, Unauthorized, Failure
+}
+
+// Bosla.Shared/Results/Error.cs
+    public readonly record struct Error
+    {
+        private Error(string code, string description, ErrorKind type)
+        {
+            Code = code;
+            Description = description;
+            Type = type;
+        }
+
+        public string Code { get; }
+
+        public string Description { get; }
+
+        public ErrorKind Type { get; }
+
+        public static Error Failure(string code = nameof(Failure), string description = "General failure.")
+            => new(code, description, ErrorKind.Failure);
+
+        public static Error Unexpected(string code = nameof(Unexpected), string description = "Unexpected error.")
+            => new(code, description, ErrorKind.Unexpected);
+
+        public static Error Validation(string code = nameof(Validation), string description = "Validation error")
+            => new(code, description, ErrorKind.Validation);
+
+        public static Error Conflict(string code = nameof(Conflict), string description = "Conflict error")
+            => new(code, description, ErrorKind.Conflict);
+
+        public static Error NotFound(string code = nameof(NotFound), string description = "Not found error")
+            => new(code, description, ErrorKind.NotFound);
+
+        public static Error Unauthorized(string code = nameof(Unauthorized), string description = "Unauthorized error")
+            => new(code, description, ErrorKind.Unauthorized);
+
+        public static Error Forbidden(string code = nameof(Forbidden), string description = "Forbidden error")
+            => new(code, description, ErrorKind.Forbidden);
+
+        public static Error Create(ErrorKind type, string code, string description)
+            => new(code, description, type);
+    }
+
+// Bosla.Shared/Results/Result.cs
+    public sealed class Result<TValue>
+        : Result, IResult<TValue>
+    {
+        private readonly TValue? _value;
+
+        public TValue Value =>
+            IsSuccess
+                ? _value!
+                : throw new InvalidOperationException(
+                    "Cannot access value of failed result.");
+
+        private Result(TValue value)
+            : base(true)
+        {
+            _value = value;
+        }
+
+        private Result(List<Error> errors)
+            : base(false, errors)
+        {
+        }
+
+        public static Result<TValue> Success(TValue value)
+            => new(value);
+
+        public static Result<TValue> Failure(Error error)
+            => new([error]);
+
+        public static Result<TValue> Failure(List<Error> errors)
+            => new(errors);
+
+        public TResult Match<TResult>(
+            Func<TValue, TResult> onSuccess,
+            Func<IReadOnlyList<Error>, TResult> onFailure)
+        {
+            return IsSuccess
+                ? onSuccess(Value)
+                : onFailure(Errors);
+        }
+
+        public static implicit operator Result<TValue>(TValue value)
+            => Success(value);
+
+        public static implicit operator Result<TValue>(Error error)
+            => Failure(error);
+
+        public static implicit operator Result<TValue>(List<Error> errors)
+            => Failure(errors);
+    }
+
+3.2  Domain Entities — BaseEntity + AuditableEntity + Domain Events
+
+// Bosla.Domain/Common/BaseEntity.cs
+    public abstract class BaseEntity
+    {
+        public Guid Id { get; protected set; }
+        private readonly List<DomainEvent> _domainEvents = [];
+        [NotMapped]
+        public IReadOnlyCollection<DomainEvent> DomainEvents =>_domainEvents.AsReadOnly();
+
+        protected BaseEntity() { }
+        public void AddDomainEvent(DomainEvent domainEvent)
+        {
+            _domainEvents.Add(domainEvent);
+        }
+        public void RemoveDomainEvent(DomainEvent domainEvent)
+        {
+            _domainEvents.Remove(domainEvent);
+        }
+
+        public void ClearDomainEvents()
+        {
+            _domainEvents.Clear();
+        }
+    }
+
+// Bosla.Domain/Common/AuditableEntity.cs
+    public abstract class AuditableEntity : BaseEntity, IAuditableEntity
+    {
+        protected AuditableEntity() { }
+
+        public DateTimeOffset CreatedAtUtc { get; set; }
+
+        public Guid? CreatedBy { get; set; }
+
+        public DateTimeOffset? LastModifiedUtc { get; set; }
+
+        public Guid? LastModifiedBy { get; set; }
+    }
+
+// Bosla.Domain/Common/DomainEvent.cs
+    public abstract class DomainEvent : INotification;
+
+3.3  Service Pattern — Feature Services
+Each feature has a service interface in Application/Features/XXX/Services/ and implementation in Infrastructure. Controllers inject the interface directly.
+
+// Bosla.Application/Features/Appointments/Services/IAppointmentService.cs
+public interface IAppointmentService
+{
+    Task<Result<Guid>>             CreateAsync(CreateAppointmentRequest request, CancellationToken ct);
+    Task<Result<AppointmentDto>>   GetByIdAsync(Guid id, CancellationToken ct);
+    Task<Result<PaginatedList<AppointmentDto>>> GetMyAppointmentsAsync(PaginationRequest request, CancellationToken ct);
+    Task<Result<bool>>             ConfirmAsync(Guid id, CancellationToken ct);
+    Task<Result<bool>>             CancelAsync(Guid id, string reason, CancellationToken ct);
+    Task<Result<bool>>             RescheduleAsync(Guid id, RescheduleRequest request, CancellationToken ct);
+    Task<Result<bool>>             CompleteAsync(Guid id, CancellationToken ct);
+    Task<Result<Guid>>             SubmitReviewAsync(Guid id, SubmitReviewRequest request, CancellationToken ct);
+}
+
+// Bosla.API/Controllers/V1/AppointmentsController.cs
+[ApiController]
+[Route("api/v1/appointments")]
+[Authorize]
+public class AppointmentsController(IAppointmentService appointmentService) : ControllerBase
+{
+    [HttpPost]
+    public async Task<IActionResult> Create(CreateAppointmentRequest request, CancellationToken ct)
+    {
+        var result = await appointmentService.CreateAsync(request, ct);
+        return result.Match(
+    value => Results.Ok(
+        ApiResponse<T>
+            .SuccessResponse(value)),
+    errors => errors.ToProblem());
+
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
+    {
+        var result = await appointmentService.GetByIdAsync(id, ct);
+        return result.Match(
+    value => Results.Ok(
+        ApiResponse<AppointmentDto>
+            .SuccessResponse(value)),
+    errors => errors.ToProblem());
+
+    }
+}
+
+3.4  MediatR — Domain Events Only
+MediatR is NOT used for request handling. It is used ONLY to dispatch Domain Events after SaveChanges via DomainEventsInterceptor.
+
+// Bosla.Domain/Events/AppointmentCreatedEvent.cs
+public record AppointmentCreatedEvent(Guid AppointmentId) : DomainEvent;
+
+// Bosla.Domain/Entities/Appointment.cs — raises event inside entity
+public class Appointment : AuditableEntity
+{
+    public static Result<Appointment> Schedule(Guid userId, Guid specialistId,
+        DateTime startTime, DateTime endTime)
+    {
+        var appointment = new Appointment { ... };
+        appointment.RaiseDomainEvent(new AppointmentCreatedEvent(appointment.Id));
+        return appointment;
+    }
+}
+
+// Bosla.Infrastructure/Data/Interceptors/DomainEventsInterceptor.cs
+public class DomainEventsInterceptor(IPublisher publisher) : SaveChangesInterceptor
+{
+    public override async ValueTask<int> SavedChangesAsync(
+        SaveChangesCompletedEventData data, int result, CancellationToken ct)
+    {
+        var events = data.Context!.ChangeTracker
+            .Entries<BaseEntity>()
+            .SelectMany(e => e.Entity.DomainEvents)
+            .ToList();
+
+        foreach (var e in events) await publisher.Publish(e, ct);
+        return result;
+    }
+}
+
+// Bosla.Application/Features/Appointments/EventHandlers/
+public class CreateRemindersOnAppointmentCreated
+    : INotificationHandler<AppointmentCreatedEvent>
+{
+    public async Task Handle(AppointmentCreatedEvent notification, CancellationToken ct)
+    {
+        // create default reminders
+    }
+}
+
+3.5  MediatR Behaviours Pipeline
+
+Order	Behaviour	Purpose
+1	LoggingBehavior	Logs request name + execution time
+2	PerformanceBehavior	Warns if execution > 500ms
+3	UnhandledExceptionBehavior	Catches and logs unexpected exceptions
+4	ValidationBehavior	Runs FluentValidation — returns error if fails
+5	CachingBehavior	HybridCache check for cacheable requests
+
+⚠  Behaviours apply to MediatR pipeline — but since Controllers call Services directly (not MediatR Send), Behaviours run only for Domain Event handlers.
+    Validation in Controllers is handled via FluentValidation + ValidationFilter in Bosla.API.
+
+3.6  Result → Problem Details (RFC 7807)
+
+// Bosla.API/Common/Extensions/ResultExtensions.cs
+        public static class ProblemExtensions
+    {
+        public static IResult ToProblem(this IReadOnlyList<Error> errors)
+        {
+            if (errors.Count == 0)
+            {
+                return Results.Problem();
+            }
+
+            if (errors.All(error => error.Type == ErrorKind.Validation))
+            {
+                return ValidationProblem(errors);
+            }
+
+            return Problem(errors[0]);
+        }
+
+        private static IResult Problem(Error error)
+        {
+            var statusCode = error.Type switch
+            {
+                ErrorKind.Conflict => StatusCodes.Status409Conflict,
+                ErrorKind.Validation => StatusCodes.Status400BadRequest,
+                ErrorKind.NotFound => StatusCodes.Status404NotFound,
+                ErrorKind.Unauthorized => StatusCodes.Status403Forbidden,
+                _ => StatusCodes.Status500InternalServerError,
+            };
+
+            return Results.Problem(statusCode: statusCode, title: error.Description);
+        }
+
+        private static IResult ValidationProblem(IReadOnlyList<Error> errors)
+        {
+            var errorsDict = errors.ToDictionary(e => e.Code, e => new[] { e.Description });
+
+            var problemDetails = new ValidationProblemDetails(errorsDict)
+            {
+                Status = StatusCodes.Status400BadRequest
+            };
+
+            return Results.Json(problemDetails, statusCode: StatusCodes.Status400BadRequest);
+        }
+    }
+3.7  Hybrid Caching — HybridCache + Output Cache
+
+// Inside a Service method — HybridCache for data
+public async Task<Result<List<SpecialistDto>>> GetSpecialistsAsync(
+    GetSpecialistsRequest request, CancellationToken ct)
+{
+    return await _cache.GetOrCreateAsync(
+        $"{CacheKeys.Specialists}:{request.Page}:{request.Filter}",
+        async token => await FetchFromDb(request, token),
+        new HybridCacheEntryOptions
+        {
+            Expiration = TimeSpan.FromMinutes(5),
+            LocalCacheExpiration = TimeSpan.FromMinutes(1)
+        }, cancellationToken: ct);
+}
+
+// Bosla.API — Output Cache on lookup endpoints
+[OutputCache(Duration = 3600)]
+[HttpGet("/api/v1/lookup/expertise")]
+public async Task<IActionResult> GetExpertise(CancellationToken ct)
+    => Ok(await _specialistService.GetExpertiseAsync(ct));
+
+3.8  DI Extension Methods
+
+// Bosla.Application/DependencyInjection.cs
+public static IServiceCollection AddApplication(this IServiceCollection services)
+{
+    services.AddMediatR(cfg =>
+        cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+
+    services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+    services.AddAutoMapper(Assembly.GetExecutingAssembly());
+
+    services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+    services.AddTransient(typeof(IPipelineBehavior<,>), typeof(PerformanceBehavior<,>));
+    services.AddTransient(typeof(IPipelineBehavior<,>), typeof(UnhandledExceptionBehavior<,>));
+    services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+    services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
+
+    return services;
+}
+
+// Bosla.Infrastructure/DependencyInjection.cs
+public static IServiceCollection AddInfrastructure(
+    this IServiceCollection services, IConfiguration config)
+{
+    services.AddDbContext<ApplicationDbContext>((sp, o) => o
+        .UseSqlServer(config.GetConnectionString("DefaultConnection"))
+        .AddInterceptors(
+            sp.GetRequiredService<AuditableEntityInterceptor>(),
+            sp.GetRequiredService<DomainEventsInterceptor>()));
+
+    services.AddScoped<IApplicationDbContext>(
+        sp => sp.GetRequiredService<ApplicationDbContext>());
+
+    services.AddHybridCache();
+    services.AddStackExchangeRedisCache(o =>
+        o.Configuration = config["Redis:ConnectionString"]);
+
+    // AI Provider switching
+    var provider = config["AI:Provider"];
+    services.AddScoped<IEmbeddingService>(_ =>
+        provider == "Claude"
+            ? new ClaudeEmbeddingService(config)
+            : new OpenAiEmbeddingService(config));
+
+    services.AddHangfire(o =>
+        o.UseSqlServerStorage(config.GetConnectionString("DefaultConnection")));
+
+    return services;
+}
+
+// Bosla.API/Program.cs
+builder.Services
+    .AddApplication()
+    .AddInfrastructure(builder.Configuration)
+    .AddApiServices(builder.Configuration);
+
+app.UseMiddleware<RequestLogContextMiddleware>();
+app.UseExceptionHandler();
+app.UseRateLimiter();
+app.UseOutputCache();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+app.Run();
+
+4. Shared Foundation — Team Lead
+Estimated 3–4 days. All developers are blocked until this is merged to main.
+
+!  BLOCKER — no feature branch starts until Shared Foundation is merged.
+
+4.1  Checklist
+1.	5 projects created with correct references (Bosla.Shared has no project refs)
+2.	NuGet: MediatR, FluentValidation.AspNetCore, AutoMapper, EF Core 10, Hangfire, Serilog.AspNetCore, Serilog.Sinks.Seq, OpenTelemetry, Microsoft.Extensions.Caching.Hybrid, StackExchange.Redis, Swashbuckle
+3.	Bosla.Shared — Result<T>, Error, ErrorKind, PaginationMetadata, PaginationRequest, Constants
+4.	Bosla.Domain — BaseEntity, AuditableEntity, DomainEvent, IAuditableEntity, EntityErrors, all Entities, Enums, ValueObjects, Events
+5.	All Abstractions in Bosla.Application — IApplicationDbContext, IAuthService, ITokenService, ICurrentUser, IEmailService, IEmbeddingService, IVectorStore, IChatService, IFileStorageService
+6.	All 5 MediatR Behaviours registered in correct order
+7.	ApplicationDbContext implementing IApplicationDbContext + all EntityTypeConfigurations
+8.	AuditableEntityInterceptor + DomainEventsInterceptor
+9.	IdentitySeeder + SeedRoles + SeedAdmin
+10.	GlobalExceptionHandler (IExceptionHandler .NET 9/10) → Problem Details RFC 7807
+11.	RequestLogContextMiddleware — enriches Serilog with UserId + TraceId
+12.	PerformanceMiddleware
+13.	ValidationFilter
+14.	ResultExtensions.ToActionResult() + ProblemExtensions in Bosla.API/Common
+15.	ApiResponse<T> + PaginationMetadata in Bosla.API/Common/Responses
+16.	Rate Limiting — general (100/min), auth (10/min), ai (20/min)
+17.	HybridCache + Redis + Output Cache configuration
+18.	Serilog + Seq + OpenTelemetry configuration in Infrastructure/Observability
+19.	All DependencyInjection.cs — one per project
+20.	appsettings.json + appsettings.Development.json (in .gitignore)
+21.	Initial EF Core Migration
+22.	Swagger / OpenApi with JWT Bearer
+23.	GitHub repo + branch strategy + Architecture Tests project
+24.	All JwtSettings, OpenAISettings, EmailSettings, StorageSettings Options classes
+
+5. Feature Dependencies & Delivery
+
+Developer	Feature	Depends On	Start
+Osama	Auth & Users	Shared Foundation	Phase 1 ✓
+Karim	Appointments	Osama — User + Specialist entities	Phase 3
+M.Yasser	Video & Communication	Osama (chat) — Karim (video sessions)	Chat: Phase 1 / Video: Phase 3
+Mostafa	Admin & AI	All features + Khaled (embeddings)	AI wiring: Phase 1 / Admin: Phase 4+
+Khaled	Payments + Specialists	Osama — Karim (AppointmentId for payment)	Specialist: Phase 2 / Payment: Phase 3
+Elsefy	Specialists & Experience	Osama — same branch as Khaled	Phase 2 (paired with Khaled)
+
+⚠  Osama (Auth) is the critical path — 5 out of 6 features depend on it.
+    Khaled + Elsefy share feature/specialists-payments — daily sync required.
+    Mostafa starts AI service wiring (IEmbeddingService impl) in Phase 1, Admin work starts Phase 4.
+
+Phase	Dev	Deliverable	Est.
+0	Lead	Shared Foundation — all projects, entities, abstractions, DI, migration	3–4 days
+1	Osama	Auth + Users — IAuthService impl, token rotation, profile, education, social links	3–4 days
+1	M.Yasser	Conversations + Messages — IConversationService impl	3–4 days
+1	Mostafa	AI service wiring — IEmbeddingService, IVectorStore, IChatService impls + DI	2–3 days
+2	Khaled+Elsefy	Specialists + Experience — ISpecialistService impl + SpecialistProfileUpdatedEvent	4–5 days
+3	Karim	Appointments — IAppointmentService impl + all Domain Events	4–5 days
+3	M.Yasser	Video Sessions — IVideoSessionService impl + HandleAgoraWebhook + VideoSessionEndedEvent	3–4 days
+3	Mostafa	Smart Search — IAiSearchService impl + RAG pipeline + SearchInteraction	3–4 days
+4	Khaled	Payments — IPaymentService impl + PaymentCompletedEvent	3–4 days
+4	Mostafa	Session Summary — ISummaryService impl + SummaryGenerationJob	3–4 days
+5	Mostafa	Admin — IAdminService impl + AuditLog in every write operation	4–5 days
+
+6. All Endpoints by Developer
+Each endpoint shows the Service method it calls. All controllers are in /api/v1/.
+6.1  Osama — Auth & Users
+
+Method	Endpoint	Service Method	Auth
+POST	/api/v1/auth/register	IAuthService.RegisterAsync()	Public
+POST	/api/v1/auth/login	IAuthService.LoginAsync()	Public
+POST	/api/v1/auth/refresh	IAuthService.RefreshTokenAsync()	Public
+POST	/api/v1/auth/logout	IAuthService.LogoutAsync()	User
+POST	/api/v1/auth/forgot-password	IAuthService.ForgotPasswordAsync()	Public
+POST	/api/v1/auth/reset-password	IAuthService.ResetPasswordAsync()	Public
+GET	/api/v1/users/me	IUserService.GetMyProfileAsync()	User
+PUT	/api/v1/users/me	IUserService.UpdateProfileAsync()	User
+PUT	/api/v1/users/me/password	IUserService.ChangePasswordAsync()	User
+GET	/api/v1/users/me/education	IUserService.GetEducationAsync()	User
+POST	/api/v1/users/me/education	IUserService.AddEducationAsync()	User
+PUT	/api/v1/users/me/education/{id}	IUserService.UpdateEducationAsync()	User
+DELETE	/api/v1/users/me/education/{id}	IUserService.DeleteEducationAsync()	User
+GET	/api/v1/users/me/social-links	IUserService.GetSocialLinksAsync()	User
+POST	/api/v1/users/me/social-links	IUserService.AddSocialLinkAsync()	User
+DELETE	/api/v1/users/me/social-links/{id}	IUserService.DeleteSocialLinkAsync()	User
+GET	/api/v1/users/{id}	IUserService.GetByIdAsync()	User
+GET	/api/v1/notifications	INotificationService.GetMyAsync()	User
+PUT	/api/v1/notifications/read	INotificationService.MarkAllReadAsync()	User
+PUT	/api/v1/notifications/{id}/read	INotificationService.MarkReadAsync()	User
+
+6.2  Karim — Appointments
+
+Method	Endpoint	Service Method	Auth
+POST	/api/v1/appointments	IAppointmentService.CreateAsync() → AppointmentCreatedEvent	User
+GET	/api/v1/appointments	IAppointmentService.GetMyAppointmentsAsync()	User
+GET	/api/v1/appointments/{id}	IAppointmentService.GetByIdAsync()	User
+POST	/api/v1/appointments/{id}/confirm	IAppointmentService.ConfirmAsync() → status history	Specialist
+POST	/api/v1/appointments/{id}/cancel	IAppointmentService.CancelAsync() → AppointmentCancelledEvent	User/Spec
+POST	/api/v1/appointments/{id}/reschedule	IAppointmentService.RescheduleAsync() (overlap check inside)	User/Spec
+POST	/api/v1/appointments/{id}/complete	IAppointmentService.CompleteAsync() → AppointmentCompletedEvent	Specialist
+GET	/api/v1/appointments/{id}/status-history	IAppointmentService.GetStatusHistoryAsync()	User/Spec
+POST	/api/v1/appointments/{id}/reviews	IAppointmentService.SubmitReviewAsync()	User
+GET	/api/v1/appointments/{id}/reminders	IAppointmentService.GetRemindersAsync()	User
+POST	/api/v1/appointments/{id}/reminders	IAppointmentService.AddReminderAsync()	User
+DELETE	/api/v1/appointments/{id}/reminders/{rid}	IAppointmentService.DeleteReminderAsync()	User
+
+⚠  Every status change → INSERT AppointmentStatusHistory row inside same transaction.
+    Overlap check lives inside IAppointmentService.CreateAsync() — not in controller.
+    Domain Events (AppointmentCreatedEvent etc.) are raised inside entity factory methods.
+
+6.3  M. Yasser — Video & Communication
+HandleAgoraWebhook endpoint raises VideoSessionEndedEvent → FetchTranscriptOnVideoSessionEnded handler → queues SummaryGenerationJob.
+
+Method	Endpoint	Service Method	Auth
+GET	/api/v1/conversations	IConversationService.GetAllAsync()	User
+POST	/api/v1/conversations	IConversationService.CreateAsync()	User
+GET	/api/v1/conversations/{id}	IConversationService.GetByIdAsync()	User
+POST	/api/v1/conversations/{id}/participants	IConversationService.AddParticipantAsync()	Owner
+DELETE	/api/v1/conversations/{id}/participants/{uid}	IConversationService.RemoveParticipantAsync()	Owner
+GET	/api/v1/conversations/{id}/messages	IMessageService.GetAsync() — paginated	User
+POST	/api/v1/conversations/{id}/messages	IMessageService.SendAsync()	User
+PUT	/api/v1/conversations/{id}/messages/{mid}	IMessageService.EditAsync()	User
+DELETE	/api/v1/conversations/{id}/messages/{mid}	IMessageService.DeleteAsync()	User
+POST	/api/v1/video/sessions	IVideoSessionService.CreateAsync()	User
+GET	/api/v1/video/sessions/{id}	IVideoSessionService.GetByIdAsync()	User
+POST	/api/v1/video/sessions/{id}/join	IVideoSessionService.JoinAsync() — RTC token	User
+POST	/api/v1/video/sessions/{id}/leave	IVideoSessionService.LeaveAsync()	User
+GET	/api/v1/video/sessions/{id}/participants	IVideoSessionService.GetParticipantsAsync()	User
+POST	/api/v1/webhooks/agora	IAgoraWebhookService.HandleAsync() → VideoSessionEndedEvent	Agora
+
+6.4  Khaled + Elsefy — Specialists, Experience & Payments
+Every write to profile, experience, skills, or expertise raises SpecialistProfileUpdatedEvent → RebuildEmbeddingOnProfileUpdated handler → queues EmbeddingRebuildJob.
+
+Method	Endpoint	Service Method	Auth
+POST	/api/v1/specialists/onboard	ISpecialistService.OnboardAsync() → ProfileUpdatedEvent	User
+GET	/api/v1/specialists/me	ISpecialistService.GetMyProfileAsync()	Specialist
+PUT	/api/v1/specialists/me	ISpecialistService.UpdateAsync() → ProfileUpdatedEvent	Specialist
+PUT	/api/v1/specialists/me/cancellation-policy	ISpecialistService.UpdateCancellationPolicyAsync()	Specialist
+PUT	/api/v1/specialists/me/booking-policy	ISpecialistService.UpdateBookingPolicyAsync()	Specialist
+GET	/api/v1/specialists/me/availability	ISpecialistService.GetMyAvailabilityAsync()	Specialist
+POST	/api/v1/specialists/me/availability	ISpecialistService.AddAvailabilityAsync()	Specialist
+DELETE	/api/v1/specialists/me/availability/{id}	ISpecialistService.DeleteAvailabilityAsync()	Specialist
+GET	/api/v1/specialists/me/experience	ISpecialistService.GetExperienceAsync()	Specialist
+POST	/api/v1/specialists/me/experience	ISpecialistService.AddExperienceAsync() → ProfileUpdatedEvent	Specialist
+PUT	/api/v1/specialists/me/experience/{id}	ISpecialistService.UpdateExperienceAsync() → ProfileUpdatedEvent	Specialist
+DELETE	/api/v1/specialists/me/experience/{id}	ISpecialistService.DeleteExperienceAsync() → ProfileUpdatedEvent	Specialist
+POST	/api/v1/specialists/me/expertise	ISpecialistService.AddExpertiseAsync() → ProfileUpdatedEvent	Specialist
+DELETE	/api/v1/specialists/me/expertise/{id}	ISpecialistService.DeleteExpertiseAsync()	Specialist
+POST	/api/v1/specialists/me/skills	ISpecialistService.AddSkillAsync() → ProfileUpdatedEvent	Specialist
+DELETE	/api/v1/specialists/me/skills/{id}	ISpecialistService.DeleteSkillAsync()	Specialist
+POST	/api/v1/specialists/me/tools	ISpecialistService.AddToolAsync()	Specialist
+DELETE	/api/v1/specialists/me/tools/{id}	ISpecialistService.DeleteToolAsync()	Specialist
+GET	/api/v1/specialists	ISpecialistService.GetAllAsync() — paginated, cached	User
+GET	/api/v1/specialists/{id}	ISpecialistService.GetByIdAsync()	User
+GET	/api/v1/specialists/{id}/availability	ISpecialistService.GetAvailabilityAsync()	User
+GET	/api/v1/specialists/{id}/reviews	ISpecialistService.GetReviewsAsync()	User
+GET	/api/v1/lookup/expertise	ILookupService.GetExpertiseAsync() [OutputCache 1hr]	Public
+GET	/api/v1/lookup/industries	ILookupService.GetIndustriesAsync() [OutputCache 1hr]	Public
+GET	/api/v1/lookup/skills	ILookupService.GetSkillsAsync() [OutputCache 1hr]	Public
+GET	/api/v1/lookup/tools	ILookupService.GetToolsAsync() [OutputCache 1hr]	Public
+POST	/api/v1/payments	IPaymentService.InitiateAsync() — gateway call	User
+GET	/api/v1/payments/{id}	IPaymentService.GetByIdAsync()	User
+GET	/api/v1/appointments/{id}/payment	IPaymentService.GetByAppointmentAsync()	User/Spec
+POST	/api/v1/payments/webhook	IPaymentService.ConfirmWebhookAsync() → PaymentCompletedEvent	Gateway
+GET	/api/v1/specialists/me/earnings	IPaymentService.GetEarningsAsync() — Dapper read model	Specialist
+
+6.5  Mostafa — Admin & AI Integration
+Every Admin write operation calls IAuditLogService.RecordAsync() inside the same transaction. AI endpoints are rate-limited to 20 req/min.
+
+Method	Endpoint	Service Method	Auth
+GET	/api/v1/admin/specialists/pending	IAdminService.GetPendingSpecialistsAsync()	Admin
+GET	/api/v1/admin/specialists/{id}	IAdminService.GetSpecialistDetailAsync()	Admin
+PUT	/api/v1/admin/specialists/{id}/verify	IAdminService.VerifySpecialistAsync() → SpecialistVerifiedEvent + AuditLog	Admin
+GET	/api/v1/admin/users	IAdminService.GetAllUsersAsync()	Admin
+GET	/api/v1/admin/users/{id}	IAdminService.GetUserDetailAsync()	Admin
+PUT	/api/v1/admin/users/{id}/deactivate	IAdminService.DeactivateUserAsync() + AuditLog	Admin
+PUT	/api/v1/admin/users/{id}/reactivate	IAdminService.ReactivateUserAsync() + AuditLog	Admin
+GET	/api/v1/admin/appointments	IAdminService.GetAllAppointmentsAsync()	Admin
+PUT	/api/v1/admin/appointments/{id}/cancel	IAdminService.CancelAppointmentAsync() + StatusHistory + AuditLog	Admin
+PUT	/api/v1/admin/appointments/{id}/reschedule	IAdminService.RescheduleAppointmentAsync() + overlap + AuditLog	Admin
+GET	/api/v1/admin/payments	IAdminService.GetAllPaymentsAsync()	Admin
+POST	/api/v1/admin/payments/{id}/refund	IAdminService.RefundAsync() — gateway first + AuditLog	Admin
+GET	/api/v1/admin/audit-logs	IAdminService.GetAuditLogsAsync() — paginated	Admin
+GET	/api/v1/admin/audit-logs/{id}	IAdminService.GetAuditLogByIdAsync() — diff view	Admin
+GET	/api/v1/admin/dashboard	IAdminService.GetDashboardAsync() — Dapper read model	Admin
+POST	/api/v1/ai/search	IAiSearchService.SearchAsync() — LLM intent + RAG + log	User
+GET	/api/v1/ai/search/history	IAiSearchService.GetHistoryAsync()	User
+POST	/api/v1/ai/search/{id}/feedback	IAiSearchService.RecordFeedbackAsync()	User
+GET	/api/v1/appointments/{id}/summary	ISummaryService.GetAsync()	User/Spec
+POST	/api/v1/ai/summaries/{id}/regenerate	ISummaryService.RegenerateAsync()	Admin
+GET	/api/v1/admin/ai/embeddings	IEmbeddingAdminService.GetStatusAsync()	Admin
+POST	/api/v1/admin/ai/embeddings/rebuild	IEmbeddingAdminService.RebuildAllAsync()	Admin
+POST	/api/v1/specialists/me/embedding/refresh	IEmbeddingAdminService.RebuildSelfAsync()	Specialist
+
+7. Summary
+
+Developer	Feature	Service Interfaces	Total Endpoints
+Osama	Auth & Users	IAuthService, IUserService, INotificationService	20
+Karim	Appointments	IAppointmentService	12
+M.Yasser	Video & Communication	IConversationService, IMessageService, IVideoSessionService, IAgoraWebhookService	15
+Mostafa	Admin & AI	IAdminService, IAiSearchService, ISummaryService, IEmbeddingAdminService	23
+Khaled	Payments + Specialists	ISpecialistService, ILookupService, IPaymentService	31
+Elsefy	(paired with Khaled)	—	—
+Total			101
+
+8. Coding Standards
+8.1  Naming
+Item	Convention	Example
+Service interface	I + PascalCase + Service	IAppointmentService
+Service implementation	PascalCase + Service	AppointmentService
+Request DTO	PascalCase + Request	CreateAppointmentRequest
+Response DTO	PascalCase + Response / Dto	AppointmentDto
+Domain Event	PascalCase + Event	AppointmentCreatedEvent
+Event Handler	Verb + On + EventName	CreateRemindersOnAppointmentCreated
+Background Job	PascalCase + Job	EmbeddingRebuildJob
+Error code	Entity.Issue	Appointment.NotFound
+Endpoint route	lowercase kebab-case plural, versioned	/api/v1/video-sessions
+Controller	PascalCase + Controller in V1 folder	AppointmentsController
+
+8.2  Non-Negotiable Rules
+⦁	Every Service method returns Result<T> — no exceptions for expected failures
+⦁	Every Controller maps Result<T> via .ToActionResult(this) — no raw status codes
+⦁	Controllers inject IXxxService only — zero business logic in controllers
+⦁	MediatR is for Domain Events only — do NOT use _mediator.Send() for HTTP requests
+⦁	Domain Events raised inside entity factory/action methods — not in services
+⦁	Every Appointment status change → INSERT AppointmentStatusHistory in same transaction
+⦁	Every Admin write operation → call IAuditLogService.RecordAsync() in same transaction
+⦁	Every Specialist profile/experience/skill write → raise SpecialistProfileUpdatedEvent
+⦁	Program to IEmbeddingService / IVectorStore / IChatService — never concrete AI types
+⦁	All LLM calls have timeout (30s) + retry with Polly (3 attempts, exponential backoff)
+⦁	RTC Token generated per-request server-side — never stored in DB
+⦁	All datetime stored and returned as UTC
+⦁	Soft delete via AuditableEntityInterceptor — never hard delete Users, Specialists, Appointments
+⦁	All endpoints versioned under /api/v1/ — V2 folder ready for future
+⦁	FluentValidation for all Request DTOs — ValidationFilter handles response
+⦁	Architecture Tests enforce layer dependency rules — CI fails if violated
+⦁	PR requires at least 1 reviewer approval before merge to develop
+
+— End of Document — Bosla Platform — Backend Work Plan v6 —
