@@ -1,11 +1,17 @@
 using BoslaPlatform.Application.Interfaces.Communication;
 using BoslaPlatform.Application;
 using BoslaPlatform.Application.Interfaces.Authentication;
+using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Domain.Events.Identity;
 using BoslaPlatform.Shared;
 using BoslaPlatform.Shared.Constants;
+using Google.Apis.Auth;
+using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace BoslaPlatform.Infrastructure.Identity
 {
@@ -17,6 +23,9 @@ namespace BoslaPlatform.Infrastructure.Identity
         private readonly SignInManager<User> _signInManager;
         private readonly IUser _currentUser;
         private readonly IEmailService _emailService;
+        private readonly IPublisher _publisher;
+        private readonly GoogleSettings _googleSettings;
+        private readonly ILogger<AuthService> _logger;
 
         public AuthService(
             ITokenService tokenService,
@@ -24,7 +33,10 @@ namespace BoslaPlatform.Infrastructure.Identity
             RoleManager<IdentityRole<Guid>> roleManager,
             SignInManager<User> signInManager,
             IUser currentUser,
-            IEmailService emailService)
+            IEmailService emailService,
+            IPublisher publisher,
+            IOptions<GoogleSettings> googleSettings,
+            ILogger<AuthService> logger)
         {
             _tokenService = tokenService;
             _userManager = userManager;
@@ -32,7 +44,11 @@ namespace BoslaPlatform.Infrastructure.Identity
             _signInManager = signInManager;
             _currentUser = currentUser;
             _emailService = emailService;
+            _publisher = publisher;
+            _googleSettings = googleSettings.Value;
+            _logger = logger;
         }
+
         public async Task<Result<TokenResponse>> LoginAsync(LoginRequest request, CancellationToken ct = default)
         {
             var user = await _userManager.FindByEmailAsync(request.Email);
@@ -48,11 +64,11 @@ namespace BoslaPlatform.Infrastructure.Identity
                     description: "Your account is disabled.");
             }
 
-            //if (!user.EmailConfirmed)
-            //{
-            //    return Error.Forbidden(
-            //        description: "Please confirm your email first.");
-            //}
+            if (!user.EmailConfirmed)
+            {
+                return Error.Forbidden(
+                    description: "Please confirm your email first.");
+            }
 
             var signInResult =
                 await _signInManager.CheckPasswordSignInAsync(
@@ -71,7 +87,7 @@ namespace BoslaPlatform.Infrastructure.Identity
                 .CreateTokenAsync(user, ct);
         }
 
-        public async Task<Result<TokenResponse>> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
+        public async Task<Result<RegisterResponse>> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
         {
             var allowedRoles = new[]
                         {
@@ -125,8 +141,162 @@ namespace BoslaPlatform.Infrastructure.Identity
                 return roleResult.Errors.Select(e => Error.Create(ErrorKind.Validation, e.Code, e.Description)).ToList();
             }
 
+            // Generate email confirmation token and send confirmation email
+            await SendConfirmationEmailAsync(user);
 
-            return await _tokenService.CreateTokenAsync(user, ct);
+            return Result<RegisterResponse>.Success(new RegisterResponse
+            {
+                Message = "Registration successful. Please check your email to confirm your account.",
+                Email = user.Email!
+            });
+        }
+
+        public async Task<Result<bool>> ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken ct = default)
+        {
+            var user = await _userManager.FindByEmailAsync(request.Email);
+            if (user == null)
+            {
+                return Error.NotFound(
+                    description: "Invalid confirmation request.");
+            }
+
+            if (user.EmailConfirmed)
+            {
+                return Error.Validation(
+                    description: "Email is already confirmed.");
+            }
+
+            var decodedToken = Uri.UnescapeDataString(request.Token);
+            var result = await _userManager.ConfirmEmailAsync(user, decodedToken);
+
+            if (!result.Succeeded)
+            {
+                return result.Errors
+                    .Select(e => Error.Create(ErrorKind.Validation, e.Code, e.Description))
+                    .ToList();
+            }
+
+            // Publish EmailVerifiedEvent to trigger welcome email
+            await _publisher.Publish(
+                new EmailVerifiedEvent(user.Id, user.Email!, user.Name), ct);
+
+            _logger.LogInformation(
+                "Email confirmed successfully for user {UserId} ({Email})",
+                user.Id, user.Email);
+
+            return Result<bool>.Success(true);
+        }
+
+        public async Task<Result<bool>> ResendConfirmationEmailAsync(
+            ResendConfirmationEmailRequest request, CancellationToken ct = default)
+        {
+            var user = await _userManager.FindByEmailAsync(request.Email);
+            if (user == null)
+            {
+                // Return success even if user doesn't exist to prevent email enumeration
+                return Result<bool>.Success(true);
+            }
+
+            if (user.EmailConfirmed)
+            {
+                return Error.Validation(
+                    description: "Email is already confirmed.");
+            }
+
+            await SendConfirmationEmailAsync(user);
+
+            return Result<bool>.Success(true);
+        }
+
+        public async Task<Result<TokenResponse>> GoogleLoginAsync(
+            GoogleLoginRequest request, CancellationToken ct = default)
+        {
+            GoogleJsonWebSignature.Payload payload;
+            try
+            {
+                var settings = new GoogleJsonWebSignature.ValidationSettings
+                {
+                    Audience = [_googleSettings.ClientId]
+                };
+
+                payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, settings);
+            }
+            catch (InvalidJwtException)
+            {
+                return Error.Unauthorized(
+                    description: "Invalid Google token.");
+            }
+
+            var user = await _userManager.FindByEmailAsync(payload.Email);
+
+            if (user != null)
+            {
+                // Existing user — ensure they are active
+                if (!user.IsActive)
+                {
+                    return Error.Forbidden(
+                        description: "Your account is disabled.");
+                }
+
+                // Ensure Google login is linked
+                var logins = await _userManager.GetLoginsAsync(user);
+                if (!logins.Any(l => l.LoginProvider == "Google"))
+                {
+                    var addLoginResult = await _userManager.AddLoginAsync(user,
+                        new UserLoginInfo("Google", payload.Subject, "Google"));
+
+                    if (!addLoginResult.Succeeded)
+                    {
+                        _logger.LogWarning(
+                            "Failed to link Google login for user {UserId}", user.Id);
+                    }
+                }
+
+                // Mark email as confirmed since Google has verified it
+                if (!user.EmailConfirmed)
+                {
+                    user.EmailConfirmed = true;
+                    await _userManager.UpdateAsync(user);
+                }
+
+                return await _tokenService.CreateTokenAsync(user, ct);
+            }
+
+            // New user — create account with Google info
+            var newUser = new User
+            {
+                Email = payload.Email,
+                UserName = payload.Email,
+                Name = payload.Name ?? payload.Email,
+                EmailConfirmed = true, // Google has already verified the email
+                ProfileImageUrl = payload.Picture,
+                IsActive = true
+            };
+
+            var createResult = await _userManager.CreateAsync(newUser);
+            if (!createResult.Succeeded)
+            {
+                return createResult.Errors
+                    .Select(e => Error.Create(ErrorKind.Validation, e.Code, e.Description))
+                    .ToList();
+            }
+
+            // Add default role
+            await _userManager.AddToRoleAsync(newUser, Roles.User);
+
+            // Link Google login
+            await _userManager.AddLoginAsync(newUser,
+                new UserLoginInfo("Google", payload.Subject, "Google"));
+
+            _logger.LogInformation(
+                "New user created via Google login: {UserId} ({Email})",
+                newUser.Id, newUser.Email);
+
+            // Publish welcome event for new Google users too
+            await _publisher.Publish(
+                new EmailVerifiedEvent(newUser.Id, newUser.Email!, newUser.Name), ct);
+
+            return await _tokenService.CreateTokenAsync(newUser, ct);
         }
 
         public async Task<Result<TokenResponse>> RefreshTokenAsync(RefreshTokenRequest request,
@@ -210,6 +380,58 @@ namespace BoslaPlatform.Infrastructure.Identity
             return Result<bool>.Success(true);
         }
 
+        #region Private Helpers
+
+        private async Task SendConfirmationEmailAsync(User user)
+        {
+            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+
+            var confirmLink = $"https://localhost:44397/verify-email?email={Uri.EscapeDataString(user.Email!)}&token={Uri.EscapeDataString(token)}";
+
+            var body = $@"
+<div style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; background-color: #f9f9fc; padding: 40px 20px; text-align: center;'>
+    <div style='max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #eaeaea;'>
+        <div style='margin-bottom: 30px;'>
+            <h1 style='color: #2c3e50; font-size: 24px; margin: 0;'>Bosla Platform</h1>
+        </div>
+        <div style='margin-bottom: 20px;'>
+            <span style='font-size: 48px;'>✉️</span>
+        </div>
+        <h2 style='color: #333333; font-size: 22px; margin-bottom: 15px;'>Verify Your Email Address</h2>
+        <p style='color: #555555; font-size: 16px; line-height: 1.6; margin-bottom: 10px;'>
+            Hi <strong>{user.Name}</strong>,
+        </p>
+        <p style='color: #555555; font-size: 16px; line-height: 1.6; margin-bottom: 30px;'>
+            Thank you for registering with Bosla Platform! Please click the button below to verify your email address and activate your account.
+        </p>
+        <a href='{confirmLink}' style='display: inline-block; background-color: #4361ee; color: #ffffff; text-decoration: none; padding: 14px 32px; font-size: 16px; font-weight: 600; border-radius: 6px;'>
+            Verify Email
+        </a>
+        <p style='color: #888888; font-size: 14px; margin-top: 35px; line-height: 1.5;'>
+            Or copy and paste this link into your browser:<br>
+            <a href='{confirmLink}' style='color: #4361ee; word-break: break-all; text-decoration: underline;'>{confirmLink}</a>
+        </p>
+        <hr style='border: none; border-top: 1px solid #eeeeee; margin: 30px 0;'>
+        <p style='color: #aaaaaa; font-size: 12px; margin: 0;'>
+            If you didn't create an account, you can safely ignore this email.
+        </p>
+        <p style='color: #aaaaaa; font-size: 12px; margin: 5px 0 0;'>
+            &copy; {DateTime.UtcNow.Year} Bosla Platform. All rights reserved.
+        </p>
+    </div>
+</div>";
+
+            await _emailService.SendEmailAsync(
+                user.Email!,
+                "Verify Your Email - Bosla Platform",
+                body);
+
+            _logger.LogInformation(
+                "Confirmation email sent to {Email} for user {UserId}",
+                user.Email, user.Id);
+        }
+
+        #endregion
     }
 
 }

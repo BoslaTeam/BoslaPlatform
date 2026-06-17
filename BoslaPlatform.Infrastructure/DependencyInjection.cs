@@ -55,6 +55,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSignalR();
 
             services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
+            services.Configure<GoogleSettings>(configuration.GetSection("GoogleSettings"));
             services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
 
             services.AddIdentity<User, IdentityRole<Guid>>(options =>
