@@ -1,12 +1,14 @@
 ﻿using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Communication;
 using BoslaPlatform.Domain.Models.Identity;
+using BoslaPlatform.Domain.Models.Junctions;
 using BoslaPlatform.Domain.Models.Lookup;
 using BoslaPlatform.Domain.Models.Profile;
 using Microsoft.EntityFrameworkCore;
-namespace BoslaPlatform.Application.Interfaces.Persistence
 
+namespace BoslaPlatform.Application.Interfaces.Persistence
 {
     public interface IAppDbContext
     {
@@ -16,6 +18,8 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
 
 
         DbSet<Specialist> Specialists { get; }
+
+        DbSet<SpecialistExperience> SpecialistExperiences { get; }
 
         DbSet<Education> Educations { get; }
 
@@ -29,7 +33,12 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
 
         DbSet<Expertise> Expertises { get; }
 
+        DbSet<Tool> Tools { get; }
+
+        DbSet<SpecialistExpertise> SpecialistExpertise { get; }
+
         DbSet<Appointment> Appointments { get; }
+
         DbSet<Payment> Payments { get; }
         DbSet<BoslaPlatform.Domain.Models.Communication.Conversation> Conversations { get; }
         DbSet<ConversationParticipant> ConversationParticipants { get; }
@@ -38,6 +47,7 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
         DbSet<Notification> Notifications { get; }
 
         DbSet<Review> Reviews { get; }
+
         DbSet<TEntity> Set<TEntity>()
             where TEntity : class;
 

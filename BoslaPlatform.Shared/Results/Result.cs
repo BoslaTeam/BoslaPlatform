@@ -28,6 +28,12 @@
 
         public static Result Failure(List<Error> errors)
             => new(false, errors);
+
+        public static implicit operator Result(Error error)
+            => Failure(error);
+
+        public static implicit operator Result(List<Error> errors)
+            => Failure(errors);
     }
 
     public sealed class Result<TValue>
@@ -55,10 +61,10 @@
         public static Result<TValue> Success(TValue value)
             => new(value);
 
-        public static Result<TValue> Failure(Error error)
+        public static new Result<TValue> Failure(Error error)
             => new([error]);
 
-        public static Result<TValue> Failure(List<Error> errors)
+        public static new Result<TValue> Failure(List<Error> errors)
             => new(errors);
 
         public TResult Match<TResult>(

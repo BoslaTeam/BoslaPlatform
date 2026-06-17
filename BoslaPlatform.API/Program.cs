@@ -1,4 +1,6 @@
 using BoslaPlatform.Infrastructure.Realtime;
+using BoslaPlatform.API.Common.Filters;
+using BoslaPlatform.Infrastructure.Data;
 
 public partial class Program
 {
@@ -6,11 +8,12 @@ public partial class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        // Add services to the container.
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<FluentValidationFilter>();
+});
 
-        builder.Services.AddControllers();
-        // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-        builder.Services.AddOpenApi();
+builder.Services.AddOpenApi();
 
         builder.Services.AddApplication()
             .AddInfrastructure(builder.Configuration)

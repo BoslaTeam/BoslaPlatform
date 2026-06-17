@@ -1,10 +1,5 @@
 ﻿using BoslaPlatform.Domain.Common;
-using BoslaPlatform.Domain.Models.Profile;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using BoslaPlatform.Domain.Entities.Profile;
 
 namespace BoslaPlatform.Domain.Models
 {

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -8,11 +8,8 @@
 
   <ItemGroup>
     <Compile Remove="Behaviours\**" />
-    <Compile Remove="Validators\**" />
     <EmbeddedResource Remove="Behaviours\**" />
-    <EmbeddedResource Remove="Validators\**" />
     <None Remove="Behaviours\**" />
-    <None Remove="Validators\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,6 +22,8 @@
     <Folder Include="Features\Authentication\Validators\" />
     <Folder Include="Features\Conversations\Responses\" />
     <Folder Include="Features\VideoSessions\" />
+    <Folder Include="EventHandlers\" />
+    <Folder Include="Features\Users\Services\" />
     <Folder Include="Mappings\" />
   </ItemGroup>
 
@@ -33,6 +32,9 @@
     <PackageReference Include="FluentValidation" Version="12.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Core" Version="1.2.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.8" />
   </ItemGroup>
 
 

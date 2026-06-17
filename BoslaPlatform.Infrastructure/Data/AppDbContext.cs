@@ -1,5 +1,6 @@
 ﻿using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Models;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Communication;

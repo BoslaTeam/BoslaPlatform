@@ -1,4 +1,4 @@
-﻿using Asp.Versioning;
+using Asp.Versioning;
 using BoslaPlatform.API.Common.Exceptions;
 using BoslaPlatform.API.Common.Middleware;
 using BoslaPlatform.Application.Interfaces.Authentication;
@@ -13,6 +13,7 @@ public static class DependencyInjection
         // Register presentation services here
         services.AddIdentityInfrastructure()
             .AddCustomProblemDetails()
+            .AddExceptionHandling()
             .AddEndpointsApiExplorer()
             .AddSwaggerGen()
             .AddCustomApiVersioning();
