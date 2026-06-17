@@ -1,5 +1,6 @@
 using BoslaPlatform.Application.Features.Notifications.DTOs;
 using BoslaPlatform.Application.Features.Notifications.Services;
+using BoslaPlatform.Application.Interfaces.Communication;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Domain.Models.Communication;
 using BoslaPlatform.Infrastructure.Data;
@@ -17,11 +18,13 @@ namespace BoslaPlatform.Infrastructure.Communication
     {
         private readonly AppDbContext _context;
         private readonly IUser _currentUser;
+        private readonly INotificationSender _notificationSender;
 
-        public NotificationService(AppDbContext context, IUser currentUser)
+        public NotificationService(AppDbContext context, IUser currentUser, INotificationSender notificationSender)
         {
             _context = context;
             _currentUser = currentUser;
+            _notificationSender = notificationSender;
         }
 
         private Guid GetUserId()
@@ -80,6 +83,35 @@ namespace BoslaPlatform.Infrastructure.Communication
             }
 
             await _context.SaveChangesAsync(ct);
+
+            await _context.SaveChangesAsync(ct);
+
+            return Result<bool>.Success(true);
+        }
+
+        public async Task<Result<bool>> CreateAndSendNotificationAsync(Guid userId, string title, string message, BoslaPlatform.Domain.Enums.NotificationType type, CancellationToken ct = default)
+        {
+            var notification = new Notification
+            {
+                UserId = userId,
+                Title = title,
+                Message = message,
+                Type = type,
+                IsRead = false
+            };
+
+            _context.Set<Notification>().Add(notification);
+            await _context.SaveChangesAsync(ct);
+
+            var dto = new NotificationDto(
+                notification.Id,
+                notification.Title,
+                notification.Message,
+                notification.Type.ToString(),
+                notification.IsRead,
+                notification.CreatedAtUtc);
+
+            await _notificationSender.SendToUserAsync(userId, dto);
 
             return Result<bool>.Success(true);
         }

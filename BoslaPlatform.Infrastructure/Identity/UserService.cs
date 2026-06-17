@@ -1,6 +1,7 @@
 using BoslaPlatform.Application.Features.Users.DTOs;
 using BoslaPlatform.Application.Features.Users.Requests;
 using BoslaPlatform.Application.Interfaces.Authentication;
+using BoslaPlatform.Application.Interfaces.Communication;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Models.Profile;
 using BoslaPlatform.Infrastructure.Data;
@@ -15,12 +16,14 @@ namespace BoslaPlatform.Infrastructure.Identity
         private readonly UserManager<User> _userManager;
         private readonly AppDbContext _context;
         private readonly IUser _currentUser;
+        private readonly IEmailService _emailService;
 
-        public UserService(UserManager<User> userManager, AppDbContext context, IUser currentUser)
+        public UserService(UserManager<User> userManager, AppDbContext context, IUser currentUser, IEmailService emailService)
         {
             _userManager = userManager;
             _context = context;
             _currentUser = currentUser;
+            _emailService = emailService;
         }
 
         private Guid GetUserId()
@@ -44,9 +47,13 @@ namespace BoslaPlatform.Infrastructure.Identity
                 user.Id,
                 user.Email ?? string.Empty,
                 user.Name,
-                user.Country ?? string.Empty,
-                user.Gender ?? string.Empty,
-                user.PreferredLanguage ?? string.Empty,
+                user.Title,
+                user.Bio,
+                user.ProfileImageUrl,
+                user.PhoneNumber,
+                user.Country,
+                user.Gender,
+                user.PreferredLanguage,
                 user.IsActive);
 
             return Result<UserProfileDto>.Success(dto);
@@ -60,10 +67,14 @@ namespace BoslaPlatform.Infrastructure.Identity
             if (user == null)
                 return Error.NotFound(description: "User not found.");
 
-            user.Name = request.Name;
-            user.Country = request.Country;
-            user.Gender = request.Gender;
-            user.PreferredLanguage = request.PreferredLanguage;
+            if (request.Name != null) user.Name = request.Name;
+            if (request.Title != null) user.Title = request.Title;
+            if (request.Bio != null) user.Bio = request.Bio;
+            if (request.ProfileImageUrl != null) user.ProfileImageUrl = request.ProfileImageUrl;
+            if (request.PhoneNumber != null) user.PhoneNumber = request.PhoneNumber;
+            if (request.Country != null) user.Country = request.Country;
+            if (request.Gender != null) user.Gender = request.Gender;
+            if (request.PreferredLanguage != null) user.PreferredLanguage = request.PreferredLanguage;
 
             var result = await _userManager.UpdateAsync(user);
             if (!result.Succeeded)
@@ -75,6 +86,10 @@ namespace BoslaPlatform.Infrastructure.Identity
                 user.Id,
                 user.Email ?? string.Empty,
                 user.Name,
+                user.Title,
+                user.Bio,
+                user.ProfileImageUrl,
+                user.PhoneNumber,
                 user.Country,
                 user.Gender,
                 user.PreferredLanguage,
@@ -96,6 +111,8 @@ namespace BoslaPlatform.Infrastructure.Identity
             {
                 return result.Errors.Select(e => Error.Create(ErrorKind.Validation, e.Code, e.Description)).ToList();
             }
+
+            await _emailService.SendEmailAsync(user.Email!, "Password Changed", "Your password has been successfully changed. If this was not you, please contact support immediately.");
 
             return Result<bool>.Success(true);
         }
@@ -126,7 +143,7 @@ namespace BoslaPlatform.Infrastructure.Identity
                 FieldOfStudy = request.Degree,
                 InstitutionName = request.Institution,
                 StartDate = new DateOnly(request.StartYear, 1, 1),
-                EndDate = request.EndYear.HasValue ? new DateOnly(request.EndYear.Value, 1, 1) : null
+                EndDate = new DateOnly(request.EndYear, 1, 1)
             };
 
             _context.Set<Education>().Add(education);
@@ -154,7 +171,7 @@ namespace BoslaPlatform.Infrastructure.Identity
             education.FieldOfStudy = request.Degree;
             education.InstitutionName = request.Institution;
             education.StartDate = new DateOnly(request.StartYear, 1, 1);
-            education.EndDate = request.EndYear.HasValue ? new DateOnly(request.EndYear.Value, 1, 1) : null;
+            education.EndDate = new DateOnly(request.EndYear, 1, 1);
 
             await _context.SaveChangesAsync(ct);
 
@@ -241,9 +258,13 @@ namespace BoslaPlatform.Infrastructure.Identity
                 user.Id,
                 user.Email ?? string.Empty,
                 user.Name,
-                user.Country ?? string.Empty,
-                user.Gender ?? string.Empty,
-                user.PreferredLanguage ?? string.Empty,
+                user.Title,
+                user.Bio,
+                user.ProfileImageUrl,
+                user.PhoneNumber,
+                user.Country,
+                user.Gender,
+                user.PreferredLanguage,
                 user.IsActive);
 
             return Result<UserProfileDto>.Success(dto);
