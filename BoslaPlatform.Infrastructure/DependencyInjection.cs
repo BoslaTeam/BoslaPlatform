@@ -1,9 +1,12 @@
 using System.Text;
 using BoslaPlatform.Application;
+using BoslaPlatform.Application.Features.Appointments.Services;
 using BoslaPlatform.Application.Features.Notifications.Services;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Communication;
 using BoslaPlatform.Application.Interfaces.Persistence;
+using BoslaPlatform.Application.Interfaces.Specialists;
+using BoslaPlatform.Application.Services;
 using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Infrastructure.Communication;
@@ -37,6 +40,11 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
             services.AddScoped<ISaveChangesInterceptor, DomainEventsInterceptor>();
             services.AddScoped<ApplicationDbContextInitialiser>();
+            services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<ITokenService, TokenService>();
+            services.AddScoped<IUserService, UserService>();
+            services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<IAppointmentService, AppointmentService>();
 
             services.AddDbContext<AppDbContext>((sp, options) =>
             {
