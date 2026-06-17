@@ -25,6 +25,9 @@ public static class DependencyInjection
             .AddExceptionHandling()
             .AddEndpointsApiExplorer()
             .AddCustomApiVersioning();
+
+        // Ensure application services (including AutoMapper) are available
+        services.AddApplication();
         return services;
     }
 

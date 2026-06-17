@@ -11,7 +11,9 @@
   </ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="Google.Apis.Auth" Version="1.69.0" />
 		<PackageReference Include="MailKit" Version="4.17.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.8" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
 		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.8" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
@@ -23,6 +25,7 @@
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
+	<!-- Removed Polly packages in favor of a lightweight retry handler to avoid package compatibility issues -->
 	</ItemGroup>
 
 	<ItemGroup>
@@ -33,8 +36,9 @@
 	<ItemGroup>
 	  <Folder Include="BackgroundJobs\" />
 	  <Folder Include="AI\" />
+	  <Folder Include="Realtime\" />
 	  <Folder Include="Observability\" />
-	  <Folder Include="Services\" />
+	  <Folder Include="Services\Specialist\" />
 	</ItemGroup>
 
 </Project>

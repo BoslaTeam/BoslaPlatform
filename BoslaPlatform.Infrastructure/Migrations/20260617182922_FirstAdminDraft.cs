@@ -1,0 +1,28 @@
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace BoslaPlatform.Infrastructure.Migrations
+{
+    /// <inheritdoc />
+    public partial class FirstAdminDraft : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AddColumn<bool>(
+                name: "WasHelpful",
+                table: "SearchInteractions",
+                type: "bit",
+                nullable: true);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropColumn(
+                name: "WasHelpful",
+                table: "SearchInteractions");
+        }
+    }
+}

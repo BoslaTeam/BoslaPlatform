@@ -13,8 +13,13 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
 
             builder.HasOne(a => a.Specialist).WithMany(s => s.Availabilities)
                 .HasForeignKey(a => a.SpecialistId).OnDelete(DeleteBehavior.Cascade);
-            builder.HasIndex(
-                nameof(Appointment.SpecialistId), nameof(Availability.Start), nameof(Availability.End));
-            }
+
+            builder.HasIndex(a => new
+            {
+                a.SpecialistId,
+                a.Start,
+                a.End
+            });
+        }
     }
 }
