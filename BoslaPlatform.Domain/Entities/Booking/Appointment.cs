@@ -28,22 +28,16 @@ namespace BoslaPlatform.Domain.Models.Booking
         private readonly List<AppointmentStatusHistory> _statusHistory = new();
         public IReadOnlyCollection<AppointmentStatusHistory> StatusHistory => _statusHistory.AsReadOnly();
 
-        // 1. لـ VideoSessionConfiguration (رأس برأس One-to-One)
         public VideoSession? VideoSession { get; private set; }
 
-        // 2. لـ ReminderConfiguration (رأس بأطراف One-to-Many)
         public ICollection<Reminder> Reminders { get; private set; } = new List<Reminder>();
 
-        // 3. لـ ReviewConfiguration (رأس برأس One-to-One)
         public Review? Review { get; private set; }
 
-        // 4. لـ PaymentConfiguration (رأس برأس One-to-One)
         public Payment? Payment { get; private set; }
 
-        // 5. لـ SessionSummaryConfiguration (رأس برأس One-to-One)
         public SessionSummary? SessionSummary { get; private set; }
 
-        // 6. لـ ScreenRecordingConfiguration (رأس برأس One-to-One)
         public ScreenRecording? ScreenRecording { get; private set; }
 
         private Appointment() { }

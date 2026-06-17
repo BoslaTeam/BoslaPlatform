@@ -505,7 +505,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
 
         public async Task<Result> DeleteExperienceAsync( Guid experienceId,CancellationToken ct)
-           {
+        {
             var specialist = await GetCurrentSpecialistAsync(ct);
 
             if (specialist is null)
@@ -529,6 +529,99 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             }
 
             context.SpecialistExperiences.Remove(experience);
+
+            specialist.AddDomainEvent(
+                new SpecialistProfileUpdatedEvent(
+                    specialist.Id));
+
+            await context.SaveChangesAsync(ct);
+
+            return Result.Success();
+        }
+
+
+        public async Task<Result> AddSkillAsync( AddSkillRequest request, CancellationToken ct)
+        {
+            var specialist = await GetCurrentSpecialistAsync(ct);
+
+            if (specialist is null)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist not found.");
+            }
+
+            var skillExists = await context.Skills
+                .AnyAsync(
+                    x => x.Id == request.SkillId,
+                    ct);
+
+            if (!skillExists)
+            {
+                return Error.NotFound(
+                    "Skill.NotFound",
+                    "Skill not found.");
+            }
+
+            var alreadyAssigned = await context.SpecialistSkills
+                .AnyAsync(
+                    x => x.SpecialistId == specialist.Id &&
+                         x.SkillId == request.SkillId,
+                    ct);
+
+            if (alreadyAssigned)
+            {
+                return Error.Conflict(
+                    "Skill.AlreadyAssigned",
+                    "Skill already assigned.");
+            }
+
+            await context.SpecialistSkills.AddAsync(
+                new SpecialistSkill
+                {
+                    SpecialistId = specialist.Id,
+                    SkillId = request.SkillId
+                },
+                ct);
+
+            specialist.AddDomainEvent(
+                new SpecialistProfileUpdatedEvent(
+                    specialist.Id));
+
+            await context.SaveChangesAsync(ct);
+
+            return Result.Success();
+        }
+
+
+        public async Task<Result> DeleteSkillAsync(
+    Guid skillId,
+    CancellationToken ct)
+        {
+            var specialist = await GetCurrentSpecialistAsync(ct);
+
+            if (specialist is null)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist not found.");
+            }
+
+            var specialistSkill = await context.SpecialistSkills
+                .FirstOrDefaultAsync(
+                    x => x.SpecialistId == specialist.Id &&
+                         x.SkillId == skillId,
+                    ct);
+
+            if (specialistSkill is null)
+            {
+                return Error.NotFound(
+                    "Skill.NotFound",
+                    "Skill assignment not found.");
+            }
+
+            context.SpecialistSkills.Remove(
+                specialistSkill);
 
             specialist.AddDomainEvent(
                 new SpecialistProfileUpdatedEvent(

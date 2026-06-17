@@ -48,6 +48,7 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
 
         DbSet<Notification> Notifications { get; }
 
+        DbSet<SpecialistSkill> SpecialistSkills { get; }
         DbSet<Review> Reviews { get; }
 
         DbSet<TEntity> Set<TEntity>()
