@@ -39,10 +39,10 @@ namespace BoslaPlatform.Domain.Models.Communication
             };
 
             conversation._participants.Add(
-                ConversationParticipant.Create(conversation.Id,userId,ParticipantRole.Member));
+                ConversationParticipant.Create(conversation.Id,userId));
 
             conversation._participants.Add(
-                ConversationParticipant.Create(conversation.Id,specialistId,ParticipantRole.Member));
+                ConversationParticipant.Create(conversation.Id,specialistId));
 
             conversation.AddDomainEvent(
                 new ConversationCreatedEvent(
@@ -52,40 +52,39 @@ namespace BoslaPlatform.Domain.Models.Communication
             return conversation;
         }
 
-        public Result AddParticipant(Guid userId, ParticipantRole role)
-        {
-            if (_participants.Any(x => x.UserId == userId))
-            {
-                return Result.Failure(Error.Conflict(
-                    "Conversation.ParticipantExists",
-                    "Participant already exists."));
-            }
+        //public Result AddParticipant(Guid userId, ParticipantRole role)
+        //{
+        //    if (_participants.Any(x => x.UserId == userId))
+        //    {
+        //        return Result.Failure(Error.Conflict(
+        //            "Conversation.ParticipantExists",
+        //            "Participant already exists."));
+        //    }
 
-            _participants.Add(
-                ConversationParticipant.Create(
-                    Id,
-                    userId,
-                    role));
+        //    _participants.Add(
+        //        ConversationParticipant.Create(
+        //            Id,
+        //            userId));
 
-            return Result.Success();
-        }
+        //    return Result.Success();
+        //}
 
-        public Result RemoveParticipant(Guid userId)
-        {
-            var participant = _participants
-                .FirstOrDefault(x => x.UserId == userId);
+        //public Result RemoveParticipant(Guid userId)
+        //{
+        //    var participant = _participants
+        //        .FirstOrDefault(x => x.UserId == userId);
 
-            if (participant is null)
-            {
-                return Result.Failure( Error.NotFound(
-                    "ConversationParticipant.NotFound",
-                    "Participant was not found."));
-            }
+        //    if (participant is null)
+        //    {
+        //        return Result.Failure( Error.NotFound(
+        //            "ConversationParticipant.NotFound",
+        //            "Participant was not found."));
+        //    }
 
-            _participants.Remove(participant);
+        //    _participants.Remove(participant);
 
-            return Result.Success();
-        }
+        //    return Result.Success();
+        //}
 
 }
 }

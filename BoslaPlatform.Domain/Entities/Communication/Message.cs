@@ -41,7 +41,8 @@ namespace BoslaPlatform.Domain.Models.Communication
                 new MessageSentEvent(
                     message.Id,
                     conversationId,
-                    senderId));
+                    senderId,
+                    messageText));
 
             return message;
         }
@@ -66,5 +67,12 @@ namespace BoslaPlatform.Domain.Models.Communication
 
             return Result.Success();
         }
-}
+        public void MarkAsDeleted()
+        {
+            AddDomainEvent(
+                new MessageDeletedEvent(
+                    Id,
+                    ConversationId));
+        }
+    }
 }

@@ -8,8 +8,8 @@ namespace BoslaPlatform.Application.Features.Conversations.Validators
         public SendMessageRequestValidator()
         {
             RuleFor(x => x.MessageText)
-                .NotEmpty()
-                .MaximumLength(4000);
+                .NotEmpty().WithMessage("Message cannot be empty.")
+                .MaximumLength(2000).WithMessage("Message cannot exceed 2000 characters.");
         }
     }
 }

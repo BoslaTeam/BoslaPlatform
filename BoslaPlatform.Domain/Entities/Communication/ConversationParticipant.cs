@@ -9,28 +9,26 @@ namespace BoslaPlatform.Domain.Models.Communication
         private ConversationParticipant() { }
         public Guid ConversationId { get; private set; }
         public Guid UserId { get; private set; }
-        public ParticipantRole Role { get; private set; }
+        //public ParticipantRole? Role { get; private set; }
         public Conversation Conversation { get; private set; } = null!;
         public User User { get; private set; } = null!;
 
         public static ConversationParticipant Create(
             Guid conversationId,
-            Guid userId,
-            ParticipantRole role)
+            Guid userId)
         {
             return new ConversationParticipant
             {
                 Id = Guid.NewGuid(),
                 ConversationId = conversationId,
                 UserId = userId,
-                Role = role,
             };
         }
         // Method to change the role of a participant
-        public void ChangeRole(ParticipantRole role)
-        {
-            Role = role;
-        }
+        //public void ChangeRole(ParticipantRole role)
+        //{
+        //    Role = role;
+        //}
 
 }
 }

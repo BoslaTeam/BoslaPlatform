@@ -1,35 +1,42 @@
-using BoslaPlatform.Infrastructure.Data;
+using BoslaPlatform.Infrastructure.Realtime;
 
-var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
-
-builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
-builder.Services.AddApplication()
-    .AddInfrastructure(builder.Configuration)
-    .AddPresentation();
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+public partial class Program
 {
-    app.MapOpenApi();
-    app.UseSwaggerUI(options =>
+    private static void Main(string[] args)
     {
-        options.SwaggerEndpoint("/openapi/v1.json", "BoslaPlatform API V1");
+        var builder = WebApplication.CreateBuilder(args);
 
-        options.EnableDeepLinking();
-        options.DisplayRequestDuration();
-        options.EnableFilter();
-    });
-    //await app.InitialiseDatabaseAsync();
+        // Add services to the container.
+
+        builder.Services.AddControllers();
+        // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+        builder.Services.AddOpenApi();
+
+        builder.Services.AddApplication()
+            .AddInfrastructure(builder.Configuration)
+            .AddPresentation();
+
+        builder.Services.AddSignalR();
+        var app = builder.Build();
+
+        // Configure the HTTP request pipeline.
+        if (app.Environment.IsDevelopment())
+        {
+            app.MapOpenApi();
+            app.UseSwaggerUI(options =>
+            {
+                options.SwaggerEndpoint("/openapi/v1.json", "BoslaPlatform API V1");
+
+                options.EnableDeepLinking();
+                options.DisplayRequestDuration();
+                options.EnableFilter();
+            });
+            //await app.InitialiseDatabaseAsync();
+        }
+        app.UseCoreMiddlewares(builder.Configuration);
+        app.MapHub<ChatHub>("/hubs/chat");
+        app.MapControllers();
+
+        app.Run();
+    }
 }
-app.UseCoreMiddlewares(builder.Configuration);
-
-app.MapControllers();
-
-app.Run();

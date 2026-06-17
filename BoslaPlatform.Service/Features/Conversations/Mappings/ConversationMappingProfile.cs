@@ -22,12 +22,8 @@ namespace BoslaPlatform.Application.Features.Conversations.Mappings
                     o => o.MapFrom(s => s.Sender.Name));
 
             CreateMap<Conversation, ConversationDto>()
-                .ForMember(
-                    d => d.LastMessage,
-                    o => o.MapFrom(
-                        s => s.Messages
-                            .OrderByDescending(x => x.CreatedAtUtc)
-                            .FirstOrDefault()));
+                .ForMember(d => d.LastMessage, o => o.MapFrom(
+                    s => s.Messages.FirstOrDefault()));
         }
     }
 }

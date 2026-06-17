@@ -10,7 +10,7 @@ using BoslaPlatform.Shared;
 using BoslaPlatform.Shared.Pagination;
 using Microsoft.EntityFrameworkCore;
 
-namespace BoslaPlatform.Application.Services.Communications
+namespace BoslaPlatform.Application.Features.Conversations.Services
 {
     public sealed class MessageService : IMessageService
     {
@@ -40,11 +40,7 @@ namespace BoslaPlatform.Application.Services.Communications
                     "User is not authenticated.");
             }
 
-            var isParticipant = await _context.ConversationParticipants
-                .AnyAsync(
-                    x => x.ConversationId == conversationId &&
-                         x.UserId == _currentUser.Id.Value,
-                    ct);
+            var isParticipant = await IsParticipantAsync(conversationId, _currentUser.Id.Value, ct);
 
             if (!isParticipant)
             {
@@ -59,10 +55,14 @@ namespace BoslaPlatform.Application.Services.Communications
 
             var totalCount = await query.CountAsync(ct);
 
+
+            var pageNumber = request.NormalizePageNumber();
+            var pageSize = request.NormalizePageSize();
+
             var messages = await query
                 .OrderByDescending(x => x.CreatedAtUtc)
-                .Skip((request.PageNumber - 1) * request.PageSize)
-                .Take(request.PageSize)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .ProjectTo<MessageDto>(_mapper.ConfigurationProvider)
                 .ToListAsync(ct);
 
@@ -71,8 +71,8 @@ namespace BoslaPlatform.Application.Services.Communications
                     new PaginatedResult<MessageDto>(
                         messages,
                         PaginationMetadata.Create(
-                            request.PageNumber,
-                            request.PageSize,
+                            pageNumber,
+                            pageSize,
                             totalCount)));
         }
 
@@ -87,12 +87,15 @@ namespace BoslaPlatform.Application.Services.Communications
                     "User.Unauthorized",
                     "User is not authenticated.");
             }
+            var conversationExists =await _context.Conversations.AnyAsync(
+                    x => x.Id == conversationId,ct);
 
-            var isParticipant = await _context.ConversationParticipants
-                .AnyAsync(
-                    x => x.ConversationId == conversationId &&
-                         x.UserId == _currentUser.Id.Value,
-                    ct);
+            if(!conversationExists)
+            {
+                return Error.NotFound("Conversation.NotFound", "there is not conversation with this id");
+            }
+            var isParticipant = await IsParticipantAsync(conversationId, _currentUser.Id.Value, ct);
+
 
             if (!isParticipant)
             {
@@ -132,7 +135,16 @@ namespace BoslaPlatform.Application.Services.Communications
                     "User.Unauthorized",
                     "User is not authenticated.");
             }
+            // 1. Check Participants 
+            var isParticipant = await IsParticipantAsync(conversationId,_currentUser.Id.Value, ct);
+            if (!isParticipant)
+            {
+                return Error.Forbidden(
+                    "Conversation.Forbidden",
+                    "You are not a participant in this conversation.");
+            }
 
+            // 2. Get Message
             var message = await _context.Messages
                 .FirstOrDefaultAsync(
                     x => x.Id == messageId &&
@@ -145,7 +157,7 @@ namespace BoslaPlatform.Application.Services.Communications
                     "Message.NotFound",
                     "Message was not found.");
             }
-
+            // 3. Check Ownership
             if (message.SenderId != _currentUser.Id.Value)
             {
                 return Error.Forbidden(
@@ -177,7 +189,14 @@ namespace BoslaPlatform.Application.Services.Communications
                     "User.Unauthorized",
                     "User is not authenticated.");
             }
+            var isParticipant = await IsParticipantAsync(conversationId, _currentUser.Id.Value, ct);
 
+            if (!isParticipant)
+            {
+                return Error.Forbidden(
+                    "Conversation.Forbidden",
+                    "You are not a participant in this conversation.");
+            }
             var message = await _context.Messages
                 .FirstOrDefaultAsync(
                     x => x.Id == messageId &&
@@ -197,12 +216,24 @@ namespace BoslaPlatform.Application.Services.Communications
                     "Message.Forbidden",
                     "You can delete only your own messages.");
             }
-
+            // AddEvent
+            message.MarkAsDeleted();
             _context.Messages.Remove(message);
 
             await _context.SaveChangesAsync(ct);
 
             return true;
+        }
+        private async Task<bool> IsParticipantAsync(
+            Guid conversationId,
+            Guid userId,
+            CancellationToken ct)
+        {
+            return await _context.ConversationParticipants
+                .AnyAsync(
+                    x => x.ConversationId == conversationId &&
+                         x.UserId == userId,
+                    ct);
         }
     }
 }

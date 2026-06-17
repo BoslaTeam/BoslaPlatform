@@ -1,7 +1,7 @@
 ﻿
 using BoslaPlatform.Application.Features.Conversations.Mappings;
+using BoslaPlatform.Application.Features.Conversations.Services;
 using BoslaPlatform.Application.Interfaces.Conversation;
-using BoslaPlatform.Application.Services.Communications;
 
 namespace Microsoft.Extensions.DependencyInjection;
 

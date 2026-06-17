@@ -10,7 +10,7 @@ using BoslaPlatform.Shared;
 using BoslaPlatform.Shared.Pagination;
 using Microsoft.EntityFrameworkCore;
 
-namespace BoslaPlatform.Application.Services.Communications
+namespace BoslaPlatform.Application.Features.Conversations.Services
 {
     public sealed class ConversationService : IConversationService
     {
@@ -27,14 +27,16 @@ namespace BoslaPlatform.Application.Services.Communications
             _currentUser = currentUser;
             _mapper = mapper;
         }
-
+        // TODO:
+        // In future versions, conversations should be created automatically
+        // when an appointment becomes confirmed through AppointmentConfirmedEvent.
         public async Task<Result<Guid>> CreateAsync(
-            CreateConversationRequest request,
+        CreateConversationRequest request,
             CancellationToken ct)
         {
-            // 1. Validate user authentication
+
+            // 1. Check if a appointment exists between the users
             var appointment = await _context.Appointments
-                .Include(x => x.Specialist)
                 .FirstOrDefaultAsync(x => x.Id == request.AppointmentId, ct);
 
             if (appointment is null)
@@ -43,14 +45,22 @@ namespace BoslaPlatform.Application.Services.Communications
                     "Appointment.NotFound",
                     "Appointment was not found.");
             }
-
+            // 2. Check if the current user is either the specialist or the client in the appointment
+            if (appointment.UserId != _currentUser.Id && appointment.SpecialistId != _currentUser.Id)
+            {
+                return Error.Forbidden(
+                    "Conversation.Forbidden",
+                    "You are not part of this appointment.");
+            }
+            // 3. Checl if Appointment Status is already confirmed
             if (appointment.Status != AppointmentStatus.Confirmed)
             {
                 return Error.Validation(
                     "Appointment.NotConfirmed",
                     "Conversation can only be created for confirmed appointments.");
             }
-            // 2. Check if conversation already exists for the appointment
+
+            // 4. Check if conversation already exists for the appointment
             var exists = await _context.Conversations
                 .AnyAsync(x => x.AppointmentId == appointment.Id, ct);
 
@@ -65,7 +75,7 @@ namespace BoslaPlatform.Application.Services.Communications
                 Conversation.CreateForAppointment(
                     appointment.Id,
                     appointment.UserId,
-                    appointment.Specialist.UserId);
+                    appointment.SpecialistId);
 
             if (conversationResult.IsError)
             {
@@ -91,15 +101,13 @@ namespace BoslaPlatform.Application.Services.Communications
             }
             // 1. Retrieve conversation with related data
             var conversation = await _context.Conversations
-                .AsNoTracking()
-                .Include(x => x.Participants)
-                .ThenInclude(x => x.User)
-                .Include(x => x.Messages)
-                    .ThenInclude(x => x.Sender)
-                .FirstOrDefaultAsync(
+                    .AsNoTracking()
+                    .Include(x => x.Participants)
+                    .ThenInclude(x => x.User)
+                    .FirstOrDefaultAsync(
                     x => x.Id == id &&
-                         x.Participants.Any(
-                             p => p.UserId == _currentUser.Id.Value), ct);
+                    x.Participants.Any(
+                 p => p.UserId == _currentUser.Id!.Value), ct);
 
             if (conversation is null)
             {
@@ -133,23 +141,25 @@ namespace BoslaPlatform.Application.Services.Communications
             // 3. Get total count for pagination metadata
             var totalCount = await query.CountAsync(ct);
 
-            // 4. Retrieve paginated conversations with related data
+            // 4. Include related data and apply pagination
             var conversations = await query
                 .Include(x => x.Participants)
-                    .ThenInclude(x => x.User)
-                .Include(x => x.Messages)
-                    .ThenInclude(x => x.Sender)
+                 .ThenInclude(x => x.User)
+                .Include(x => x.Messages
+                .OrderByDescending(m => m.CreatedAtUtc)
+                .Take(1))
+                .ThenInclude(x => x.Sender)
                 .OrderByDescending(x => x.LastModifiedUtc)
-                .Skip((request.PageNumber - 1) * request.PageSize)
-                .Take(request.PageSize)
+                .Skip((request.NormalizePageNumber() - 1) * request.NormalizePageSize())
+                .Take(request.NormalizePageSize())
                 .ToListAsync(ct);
 
             // 5. Map to DTOs and return paginated result
             return new PaginatedResult<ConversationDto>(
                 _mapper.Map<List<ConversationDto>>(conversations),
                 PaginationMetadata.Create(
-                    request.PageNumber,
-                    request.PageSize,
+                    request.NormalizePageNumber(),
+                    request.NormalizePageSize(),
                     totalCount));
         }
     }
