@@ -12,10 +12,13 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         //services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
         services.AddValidatorsFromAssemblyContaining<ApplicationAssemblyReference>();
 
         services.AddScoped<ISpecialistService, SpecialistService>();
         services.AddScoped<ILookupService, LookupService>();
+
+        // Admin service implementation is registered in Infrastructure DI
 
         return services;
     }

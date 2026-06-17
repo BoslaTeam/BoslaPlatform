@@ -20,7 +20,7 @@ namespace BoslaPlatform.Infrastructure.Data
     {
         // Identity
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
-        public DbSet<User> Users => Set<User>();
+        public new DbSet<User> Users => Set<User>();
 
         // Booking
         public DbSet<Appointment> Appointments => Set<Appointment>();
@@ -69,9 +69,11 @@ namespace BoslaPlatform.Infrastructure.Data
 
         // System
         public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
-        {
+        private readonly IServiceProvider? _serviceProvider;
 
+        public AppDbContext(DbContextOptions<AppDbContext> options, IServiceProvider? serviceProvider = null) : base(options)
+        {
+            _serviceProvider = serviceProvider;
         }
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -82,6 +84,8 @@ namespace BoslaPlatform.Infrastructure.Data
             base.OnModelCreating(modelBuilder);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         }
+
+        public IServiceProvider? GetInfrastructureServiceProvider() => _serviceProvider;
     }
 
 }
