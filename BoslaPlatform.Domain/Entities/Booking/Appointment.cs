@@ -140,16 +140,6 @@ namespace BoslaPlatform.Domain.Models.Booking
 
             _statusHistory.Add(new AppointmentStatusHistory(Id, oldStatus, newStatus, reason));
 
-        // Navigation
-        public Specialist Specialist { get; set; } = null!;
-        public User User { get; set; } = null!;
-        public Payment? Payment { get; set; }
-        public Review? Review { get; set; }
-        public ScreenRecording? ScreenRecording { get; set; }
-        public VideoSession? VideoSession { get; set; }
-        public ICollection<Reminder> Reminders { get; set; } = [];
-        public ICollection<AppointmentStatusHistory> StatusHistory { get; set; } = [];
-        public SessionSummary? SessionSummary { get; set; }
             AddDomainEvent(new AppointmentStatusChangedEvent(Id, oldStatus, newStatus, changedByUserId, reason));
         }
         public void UpdateNotes(string notes)

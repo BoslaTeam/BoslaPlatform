@@ -53,12 +53,12 @@ namespace BoslaPlatform.Application.Features.Conversations.Services
                     "You are not part of this appointment.");
             }
             // 3. Checl if Appointment Status is already confirmed
-            if (appointment.Status != AppointmentStatus.Confirmed)
-            {
-                return Error.Validation(
-                    "Appointment.NotConfirmed",
-                    "Conversation can only be created for confirmed appointments.");
-            }
+            //if (appointment.Status != AppointmentStatus.Confirmed)
+            //{
+            //    return Error.Validation(
+            //        "Appointment.NotConfirmed",
+            //        "Conversation can only be created for confirmed appointments.");
+            //}
 
             // 4. Check if conversation already exists for the appointment
             var exists = await _context.Conversations
@@ -81,6 +81,15 @@ namespace BoslaPlatform.Application.Features.Conversations.Services
             {
                 return Result<Guid>.Failure(
                     conversationResult.Errors);
+            }
+            var clientExists = await _context.Users.AnyAsync(x => x.Id == appointment.UserId, ct);
+            var specialistExists = await _context.Users.AnyAsync(x => x.Id == appointment.SpecialistId, ct);
+
+            if (!clientExists || !specialistExists)
+            {
+                return Error.NotFound(
+                    "Appointment.InvalidUsers",
+                    "One or more users referenced by this appointment no longer exist.");
             }
             // 4. Save conversation
             await _context.Conversations.AddAsync(conversationResult.Value,ct);

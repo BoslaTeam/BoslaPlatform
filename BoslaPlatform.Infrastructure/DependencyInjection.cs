@@ -7,7 +7,6 @@ using BoslaPlatform.Application.Interfaces.AI;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Communication;
 using BoslaPlatform.Application.Interfaces.Persistence;
-using BoslaPlatform.Application.Interfaces.Specialists;
 using BoslaPlatform.Application.Services;
 using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
@@ -55,9 +54,6 @@ public static class DependencyInjection
 
         services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
 
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<ITokenService, TokenService>();
-        services.AddScoped<IUserService, UserService>();
         services.AddScoped<BoslaPlatform.Application.Features.Admin.Services.IAdminService, BoslaPlatform.Infrastructure.Services.AdminService>();
 
         services.AddScoped<IAppointmentService, AppointmentService>();
@@ -104,13 +100,6 @@ public static class DependencyInjection
                     ValidAudience = jwtSettings["Audience"],
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!)),
                 };
-                options.Events = new JwtBearerEvents
-                {
-                    OnMessageReceived = context =>
-                    {
-                        //
-                        var accessToken = context.Request.Query["access_token"];
-
             options.Events = new JwtBearerEvents
             {
                 OnMessageReceived = context =>
@@ -144,23 +133,10 @@ public static class DependencyInjection
 
         services.AddScoped<IVectorStore, BoslaPlatform.Infrastructure.AI.Qdrant.QdrantVectorStore>();
         services.AddScoped<IAiSearchService, BoslaPlatform.Infrastructure.AI.AiSearchService>();
-                        var path = context.HttpContext.Request.Path;
-
-                        if (!string.IsNullOrEmpty(accessToken) &&
-                            path.StartsWithSegments("/hubs/chat"))
-                        {
-                            context.Token = accessToken;
-                        }
-
-                        return Task.CompletedTask;
-                    }
-                };
-
-            });
+                        
             services.AddAuthorization();
 
 
             return services;
         }
     }
-}

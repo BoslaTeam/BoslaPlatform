@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using BoslaPlatform.Application.Features.Appointments.DTOs;
+﻿using BoslaPlatform.Application.Features.Appointments.DTOs;
 using BoslaPlatform.Application.Features.Appointments.Requests;
 using BoslaPlatform.Application.Features.Appointments.Services;
 using BoslaPlatform.Application.Interfaces.Authentication;
