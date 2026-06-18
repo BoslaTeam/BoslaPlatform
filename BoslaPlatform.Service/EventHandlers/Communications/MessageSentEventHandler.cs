@@ -4,7 +4,6 @@ using BoslaPlatform.Application.Features.Conversations.Dtos;
 using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Domain.Events.Conversations;
 using MediatR;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace BoslaPlatform.Application.EventHandlers.Communications

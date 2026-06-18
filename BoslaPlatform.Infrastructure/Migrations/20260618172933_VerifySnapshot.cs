@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace BoslaPlatform.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class UpdateCoversation_MessageTables : Migration
+    public partial class VerifySnapshot : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -33,6 +33,10 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
             migrationBuilder.DropColumn(
                 name: "JoinedAt",
+                table: "ConversationParticipants");
+
+            migrationBuilder.DropColumn(
+                name: "Role",
                 table: "ConversationParticipants");
 
             migrationBuilder.AlterColumn<string>(
@@ -136,6 +140,14 @@ namespace BoslaPlatform.Infrastructure.Migrations
                 type: "datetime2",
                 nullable: false,
                 defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
+
+            migrationBuilder.AddColumn<string>(
+                name: "Role",
+                table: "ConversationParticipants",
+                type: "nvarchar(20)",
+                maxLength: 20,
+                nullable: false,
+                defaultValue: "");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Messages_AppointmentId",

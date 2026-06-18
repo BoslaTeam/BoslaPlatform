@@ -2,11 +2,7 @@ using BoslaPlatform.Infrastructure.Realtime;
 using BoslaPlatform.API.Common.Filters;
 using BoslaPlatform.Infrastructure.Data;
 
-public partial class Program
-{
-    private static void Main(string[] args)
-    {
-        var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers(options =>
 {
@@ -15,31 +11,32 @@ builder.Services.AddControllers(options =>
 
 builder.Services.AddOpenApi();
 
-        builder.Services.AddApplication()
-            .AddInfrastructure(builder.Configuration)
-            .AddPresentation();
+builder.Services.AddApplication()
+    .AddInfrastructure(builder.Configuration)
+    .AddPresentation();
 
-        builder.Services.AddSignalR();
-        var app = builder.Build();
 
-        // Configure the HTTP request pipeline.
-        if (app.Environment.IsDevelopment())
-        {
-            app.MapOpenApi();
-            app.UseSwaggerUI(options =>
-            {
-                options.SwaggerEndpoint("/openapi/v1.json", "BoslaPlatform API V1");
+builder.Services.AddSignalR();
+var app = builder.Build();
 
-                options.EnableDeepLinking();
-                options.DisplayRequestDuration();
-                options.EnableFilter();
-            });
-            //await app.InitialiseDatabaseAsync();
-        }
-        app.UseCoreMiddlewares(builder.Configuration);
-        app.MapHub<ChatHub>("/hubs/chat");
-        app.MapControllers();
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "BoslaPlatform API V1");
 
-        app.Run();
-    }
+        options.EnableDeepLinking();
+        options.DisplayRequestDuration();
+        options.EnableFilter();
+    });
+    await app.InitialiseDatabaseAsync();
 }
+
+app.UseCoreMiddlewares(builder.Configuration);
+app.MapControllers();
+
+app.MapHub<ChatHub>("/hubs/chat");
+
+app.Run();

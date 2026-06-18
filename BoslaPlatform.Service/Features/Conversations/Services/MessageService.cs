@@ -87,22 +87,15 @@ namespace BoslaPlatform.Application.Features.Conversations.Services
                     "User.Unauthorized",
                     "User is not authenticated.");
             }
-            var conversationExists =await _context.Conversations.AnyAsync(
-                    x => x.Id == conversationId,ct);
-
-            if(!conversationExists)
-            {
-                return Error.NotFound("Conversation.NotFound", "there is not conversation with this id");
-            }
-            var isParticipant = await IsParticipantAsync(conversationId, _currentUser.Id.Value, ct);
-
+            var isParticipant = await _context.ConversationParticipants
+                .AnyAsync(x =>
+                    x.ConversationId == conversationId &&
+                    x.UserId == _currentUser.Id.Value, ct);
 
             if (!isParticipant)
-            {
-                return Error.Forbidden(
-                    "Conversation.Forbidden",
+                return Error.Forbidden("Conversation.Forbidden",
                     "You are not a participant in this conversation.");
-            }
+
 
             var messageResult = Message.Create(
                 conversationId,

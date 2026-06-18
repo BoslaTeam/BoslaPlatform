@@ -141,6 +141,9 @@ namespace BoslaPlatform.Application.Features.Conversations.Services
             // 3. Get total count for pagination metadata
             var totalCount = await query.CountAsync(ct);
 
+            var pageNumber = request.NormalizePageNumber();
+            var pageSize = request.NormalizePageSize();
+
             // 4. Include related data and apply pagination
             var conversations = await query
                 .Include(x => x.Participants)
@@ -150,16 +153,16 @@ namespace BoslaPlatform.Application.Features.Conversations.Services
                 .Take(1))
                 .ThenInclude(x => x.Sender)
                 .OrderByDescending(x => x.LastModifiedUtc)
-                .Skip((request.NormalizePageNumber() - 1) * request.NormalizePageSize())
-                .Take(request.NormalizePageSize())
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync(ct);
 
             // 5. Map to DTOs and return paginated result
             return new PaginatedResult<ConversationDto>(
                 _mapper.Map<List<ConversationDto>>(conversations),
                 PaginationMetadata.Create(
-                    request.NormalizePageNumber(),
-                    request.NormalizePageSize(),
+                    pageNumber,
+                    pageSize,
                     totalCount));
         }
     }
