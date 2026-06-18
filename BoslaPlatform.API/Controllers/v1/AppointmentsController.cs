@@ -27,6 +27,10 @@ namespace BoslaPlatform.API.Controllers.V1
 
         // 1. POST: api/v1/appointments
         [HttpPost]
+        [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> Create([FromBody] CreateAppointmentRequest request, CancellationToken ct)
         {
             var result = await _appointmentService.CreateAsync(request, ct);
@@ -36,6 +40,9 @@ namespace BoslaPlatform.API.Controllers.V1
 
         // 2. GET: api/v1/appointments/{id}
         [HttpGet("{id:guid}")]
+        [ProducesResponseType(typeof(ApiResponse<AppointmentDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken ct)
         {
             var result = await _appointmentService.GetByIdAsync(id, ct);
@@ -45,6 +52,8 @@ namespace BoslaPlatform.API.Controllers.V1
 
         // 3. GET: api/v1/appointments/my-appointments
         [HttpGet("my-appointments")]
+        [ProducesResponseType(typeof(ApiResponse<IReadOnlyCollection<AppointmentDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetMyAppointments([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
         {
             var result = await _appointmentService.GetMyAppointmentsAsync(pageNumber, pageSize, ct);
@@ -60,6 +69,8 @@ namespace BoslaPlatform.API.Controllers.V1
 
         // 4. GET: api/v1/appointments/specialist/{specialistId}
         [HttpGet("specialist/{specialistId:guid}")]
+        [ProducesResponseType(typeof(ApiResponse<IReadOnlyCollection<AppointmentDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetSpecialistAppointments([FromRoute] Guid specialistId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
         {
             var result = await _appointmentService.GetSpecialistAppointmentsAsync(specialistId, pageNumber, pageSize, ct);
@@ -75,6 +86,8 @@ namespace BoslaPlatform.API.Controllers.V1
 
         // 5. GET: api/v1/appointments/upcoming
         [HttpGet("upcoming")]
+        [ProducesResponseType(typeof(ApiResponse<List<AppointmentDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetUpcomingAppointments(CancellationToken ct)
         {
             var result = await _appointmentService.GetUpcomingAppointmentsAsync(ct);
@@ -84,6 +97,9 @@ namespace BoslaPlatform.API.Controllers.V1
 
         // 6. GET: api/v1/appointments/{id}/history
         [HttpGet("{id:guid}/history")]
+        [ProducesResponseType(typeof(ApiResponse<List<AppointmentStatusHistoryDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetStatusHistory([FromRoute] Guid id, CancellationToken ct)
         {
             var result = await _appointmentService.GetStatusHistoryAsync(id, ct);
@@ -93,6 +109,10 @@ namespace BoslaPlatform.API.Controllers.V1
 
         // 7. PUT: api/v1/appointments/{id}/confirm
         [HttpPut("{id:guid}/confirm")]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Confirm([FromRoute] Guid id, CancellationToken ct)
         {
             var result = await _appointmentService.ConfirmAsync(id, ct);
@@ -102,6 +122,10 @@ namespace BoslaPlatform.API.Controllers.V1
 
         // 8. PUT: api/v1/appointments/{id}/cancel
         [HttpPut("{id:guid}/cancel")]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Cancel([FromRoute] Guid id, [FromBody] CancelAppointmentRequest request, CancellationToken ct)
         {
             var result = await _appointmentService.CancelAsync(id, request.Reason, ct);
@@ -111,6 +135,11 @@ namespace BoslaPlatform.API.Controllers.V1
 
         // 9. PUT: api/v1/appointments/{id}/reschedule
         [HttpPut("{id:guid}/reschedule")]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> Reschedule([FromRoute] Guid id, [FromBody] RescheduleAppointmentRequest request, CancellationToken ct)
         {
             var result = await _appointmentService.RescheduleAsync(id, request.NewStart, request.NewEnd, request.Reason, ct);
@@ -120,6 +149,10 @@ namespace BoslaPlatform.API.Controllers.V1
 
         // 10. PUT: api/v1/appointments/{id}/complete
         [HttpPut("{id:guid}/complete")]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Complete([FromRoute] Guid id, CancellationToken ct)
         {
             var result = await _appointmentService.CompleteAsync(id, ct);
@@ -129,6 +162,10 @@ namespace BoslaPlatform.API.Controllers.V1
 
         // 11. PUT: api/v1/appointments/{id}/reject
         [HttpPut("{id:guid}/reject")]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Reject([FromRoute] Guid id, [FromBody] RejectAppointmentRequest request, CancellationToken ct)
         {
             var result = await _appointmentService.RejectAsync(id, request.Reason, ct);
@@ -138,6 +175,9 @@ namespace BoslaPlatform.API.Controllers.V1
 
         // 12. PATCH: api/v1/appointments/{id}/notes
         [HttpPatch("{id:guid}/notes")]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> UpdateNotes([FromRoute] Guid id, [FromBody] UpdateAppointmentNotesRequest request, CancellationToken ct)
         {
             var result = await _appointmentService.UpdateNotesAsync(id, request.Notes, ct);
