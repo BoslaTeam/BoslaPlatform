@@ -50,6 +50,7 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
 
         DbSet<SpecialistSkill> SpecialistSkills { get; }
         DbSet<Review> Reviews { get; }
+        DbSet<SpecialistTool> SpecialistTools { get; }
 
         DbSet<TEntity> Set<TEntity>()
             where TEntity : class;
