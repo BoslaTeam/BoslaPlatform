@@ -17,6 +17,8 @@ builder.Services.AddApplication()
 
 
 builder.Services.AddSignalR();
+// Rate limiting (disabled for now) — policy code previously added removed per request
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -37,6 +39,8 @@ if (app.Environment.IsDevelopment())
 app.UseCoreMiddlewares(builder.Configuration);
 app.MapControllers();
 
+app.MapControllers();
+app.MapHub<BoslaPlatform.Infrastructure.RealTime.NotificationHub>("/hubs/notifications");
 app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();

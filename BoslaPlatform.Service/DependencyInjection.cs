@@ -20,10 +20,13 @@ public static class DependencyInjection
 
         services.AddAutoMapper(cfg =>{}, typeof(ConversationMappingProfile).Assembly);
         //services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
         services.AddValidatorsFromAssemblyContaining<ApplicationAssemblyReference>();
 
         services.AddScoped<ISpecialistService, SpecialistService>();
         services.AddScoped<ILookupService, LookupService>();
+
+        // Admin service implementation is registered in Infrastructure DI
 
         return services;
     }

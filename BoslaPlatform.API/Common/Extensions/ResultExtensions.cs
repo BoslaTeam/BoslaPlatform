@@ -17,5 +17,13 @@ namespace BoslaPlatform.API.Common.Extensions
                 errors => ApiResponse<T>.FailureResponse(
                     errors));
         }
+        public static ApiResponse ToApiResponse(
+            this Result result,
+            string successMessage = "Success")
+        {
+            return result.IsSuccess
+                ? ApiResponse.SuccessResponse(successMessage)
+                : ApiResponse.FailureResponse(result.Errors);
+        }
     }
 }

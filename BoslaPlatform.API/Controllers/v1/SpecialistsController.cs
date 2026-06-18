@@ -238,6 +238,40 @@ namespace BoslaPlatform.API.Controllers.v1
             return result.Errors.ToProblem();
         }
 
+
+        [HttpPost("me/skills")]
+        public async Task<IResult> AddSkill( AddSkillRequest request,CancellationToken ct)
+        {
+            var result = await specialistService
+                .AddSkillAsync(request, ct);
+
+            if (result.IsSuccess)
+            {
+                return Results.Ok(
+                    ApiResponse.SuccessResponse(
+                        "Skill added successfully."));
+            }
+
+            return result.Errors.ToProblem();
+        }
+
+
+
+        [HttpDelete("me/skills/{id:guid}")]
+        public async Task<IResult> DeleteSkill(Guid id, CancellationToken ct)
+        {
+            var result = await specialistService
+                .DeleteSkillAsync(id, ct);
+
+            if (result.IsSuccess)
+            {
+                return Results.Ok(
+                    ApiResponse.SuccessResponse(
+                        "Skill deleted successfully."));
+            }
+
+            return result.Errors.ToProblem();
+        }
     }
 }
 //Khaled$123
