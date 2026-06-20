@@ -8,8 +8,20 @@ namespace BoslaPlatform.Application.Interfaces.Authentication
         LoginRequest request,
         CancellationToken ct = default);
 
-        Task<Result<TokenResponse>> RegisterAsync(
+        Task<Result<RegisterResponse>> RegisterAsync(
             RegisterRequest request,
+            CancellationToken ct = default);
+
+        Task<Result<bool>> ConfirmEmailAsync(
+            ConfirmEmailRequest request,
+            CancellationToken ct = default);
+
+        Task<Result<bool>> ResendConfirmationEmailAsync(
+            ResendConfirmationEmailRequest request,
+            CancellationToken ct = default);
+
+        Task<Result<TokenResponse>> GoogleLoginAsync(
+            GoogleLoginRequest request,
             CancellationToken ct = default);
 
         Task<Result<TokenResponse>> RefreshTokenAsync(

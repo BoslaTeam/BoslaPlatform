@@ -36,8 +36,9 @@ namespace BoslaPlatform.API.Controllers.v1
                         .SuccessResponse(value)),
                 errors => errors.ToProblem());
         }
+
         [HttpPost("register")]
-        [ProducesResponseType(typeof(ApiResponse<TokenResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<RegisterResponse>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
@@ -47,17 +48,45 @@ namespace BoslaPlatform.API.Controllers.v1
                 .RegisterAsync(request, ct);
 
             return result.Match(
-                value =>
-                {
-                    var response =
-                        ApiResponse<TokenResponse>
-                            .SuccessResponse(
-                                value,
-                                "User registered successfully.");
+                value => Results.Ok(
+                    ApiResponse<RegisterResponse>
+                        .SuccessResponse(value, value.Message)),
+                errors => errors.ToProblem());
+        }
 
-                    return Results.Ok(response);
-                },
+        [HttpPost("confirm-email")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        public async Task<IResult> ConfirmEmail([FromBody] ConfirmEmailRequest request, CancellationToken ct)
+        {
+            var result = await _authService.ConfirmEmailAsync(request, ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<bool>.SuccessResponse(value, "Email confirmed successfully.")),
+                errors => errors.ToProblem());
+        }
 
+        [HttpPost("resend-confirmation-email")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        public async Task<IResult> ResendConfirmationEmail([FromBody] ResendConfirmationEmailRequest request, CancellationToken ct)
+        {
+            var result = await _authService.ResendConfirmationEmailAsync(request, ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<bool>.SuccessResponse(value, "If an account exists, a confirmation email has been sent.")),
+                errors => errors.ToProblem());
+        }
+
+        [HttpPost("google-login")]
+        [ProducesResponseType(typeof(ApiResponse<TokenResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<IResult> GoogleLogin([FromBody] GoogleLoginRequest request, CancellationToken ct)
+        {
+            var result = await _authService.GoogleLoginAsync(request, ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<TokenResponse>.SuccessResponse(value, "Google login successful.")),
                 errors => errors.ToProblem());
         }
 

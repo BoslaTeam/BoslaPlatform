@@ -10,13 +10,24 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddPresentation(this IServiceCollection services)
     {
+        services.AddCors(options =>
+        {
+            options.AddPolicy("AllowAll", builder =>
+                builder.SetIsOriginAllowed(_ => true)
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowCredentials());
+        });
+
         // Register presentation services here
         services.AddIdentityInfrastructure()
             .AddCustomProblemDetails()
             .AddExceptionHandling()
             .AddEndpointsApiExplorer()
-            .AddSwaggerGen()
             .AddCustomApiVersioning();
+
+        // Ensure application services (including AutoMapper) are available
+        services.AddApplication();
         return services;
     }
 
@@ -62,6 +73,8 @@ public static class DependencyInjection
         app.UseExceptionHandler();
 
         app.UseStatusCodePages();
+
+        app.UseCors("AllowAll");
 
         app.UseHttpsRedirection();
 

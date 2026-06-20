@@ -10,7 +10,8 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
         {
             base.Configure(builder);
             builder.Property(r => r.Comment).HasMaxLength(2000);
-            builder.HasCheckConstraint("CK_Reviews_Rating", "[Rating] BETWEEN 1 AND 5");
+            // Use ToTable with HasCheckConstraint per EF Core guidance to avoid obsolete API
+            builder.ToTable(tb => tb.HasCheckConstraint("CK_Reviews_Rating", "[Rating] BETWEEN 1 AND 5"));
 
             builder.HasOne(r => r.Appointment).WithOne(a => a.Review).HasForeignKey<Review>(r => r.AppointmentId)
                 .OnDelete(DeleteBehavior.Restrict);

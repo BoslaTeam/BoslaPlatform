@@ -1,4 +1,5 @@
 ﻿using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Models.Lookup;
 using Microsoft.AspNetCore.Builder;
@@ -9,23 +10,53 @@ using Microsoft.Extensions.Logging;
 
 namespace BoslaPlatform.Infrastructure.Data
 {
-    public class ApplicationDbContextInitialiser(
-        ILogger<ApplicationDbContextInitialiser> logger,
-        AppDbContext context,
-        UserManager<User> userManager,
-        RoleManager<IdentityRole<Guid>> roleManager)
+    public class ApplicationDbContextInitialiser
     {
+        private readonly ILogger<ApplicationDbContextInitialiser> _logger;
+        private readonly AppDbContext _context;
+        private readonly UserManager<User> _userManager;
+        private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private const string DefaultPassword = "0105140@Ma";
+
+        public ApplicationDbContextInitialiser(
+            ILogger<ApplicationDbContextInitialiser> logger,
+            AppDbContext context,
+            UserManager<User> userManager,
+            RoleManager<IdentityRole<Guid>> roleManager)
+        {
+            _logger = logger;
+            _context = context;
+            _userManager = userManager;
+            _roleManager = roleManager;
+        }
 
         public async Task InitialiseAsync()
         {
             try
             {
-                await context.Database.MigrateAsync();
+                await _context.Database.MigrateAsync();
+                // Ensure Qdrant collection exists if Qdrant client is registered
+                try
+                {
+                    var sp = _context.GetInfrastructureServiceProvider();
+                    if (sp != null)
+                    {
+                        var qClient = sp.GetService(typeof(BoslaPlatform.Infrastructure.AI.Qdrant.QdrantClient)) as BoslaPlatform.Infrastructure.AI.Qdrant.QdrantClient;
+                        if (qClient != null)
+                        {
+                            await qClient.EnsureCollectionAsync();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Qdrant collection ensure failed; continuing startup.");
+                }
+                await _context.Database.MigrateAsync();
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "An error occurred while initialising the database.");
+                _logger.LogError(ex, "An error occurred while initialising the database.");
                 throw;
             }
         }
@@ -38,7 +69,7 @@ namespace BoslaPlatform.Infrastructure.Data
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "An error occurred while seeding the database.");
+                _logger.LogError(ex, "An error occurred while seeding the database.");
                 throw;
             }
         }
@@ -58,9 +89,9 @@ namespace BoslaPlatform.Infrastructure.Data
 
             foreach (var roleName in roles)
             {
-                if (!await roleManager.RoleExistsAsync(roleName))
+                if (!await _roleManager.RoleExistsAsync(roleName))
                 {
-                    var roleResult = await roleManager.CreateAsync(new IdentityRole<Guid> { Name = roleName });
+                    var roleResult = await _roleManager.CreateAsync(new IdentityRole<Guid> { Name = roleName });
                     if (!roleResult.Succeeded)
                     {
                         var errors = string.Join(", ", roleResult.Errors.Select(x => x.Description));
@@ -81,7 +112,7 @@ namespace BoslaPlatform.Infrastructure.Data
 
             foreach (var userData in defaultUsers)
             {
-                if (await userManager.FindByEmailAsync(userData.Email) is null)
+                if (await _userManager.FindByEmailAsync(userData.Email) is null)
                 {
                     var newUser = new User
                     {
@@ -91,16 +122,28 @@ namespace BoslaPlatform.Infrastructure.Data
                         Name = userData.Name
                     };
 
-                    var result = await userManager.CreateAsync(newUser, DefaultPassword);
+                    var result = await _userManager.CreateAsync(newUser, DefaultPassword);
                     if (!result.Succeeded)
                     {
                         var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                         throw new Exception($"Failed to create user '{userData.Email}': {errors}");
                     }
+                    if (userData.Role == nameof(UserRole.Specialist))
+                    {
+                        var specialist = new Specialist
+                        {
+                            UserId = newUser.Id,
+                            ExperienceYears = 5,
+                            HourlyRate = 100,
+                            VerificationStatus = VerificationStatus.Approved
+                        };
 
+                        _context.Specialists.Add(specialist);
+                        await _context.SaveChangesAsync();
+                    }
                     if (!string.IsNullOrWhiteSpace(newUser.Name))
                     {
-                        await userManager.AddToRolesAsync(newUser, [userData.Role]);
+                        await _userManager.AddToRolesAsync(newUser, new[] { userData.Role });
                     }
                 }
             }
@@ -110,66 +153,70 @@ namespace BoslaPlatform.Infrastructure.Data
         {
             var hasChanges = false;
 
-            if (!await context.Expertises.AnyAsync())
+            if (!await _context.Expertises.AnyAsync())
             {
-                await context.Expertises.AddRangeAsync([
-                    new() { Name = "Backend Development" },
-                    new() { Name = "Frontend Development" },
-                    new() { Name = "Mobile Development" },
-                    new() { Name = "DevOps" },
-                    new() { Name = "Cloud Computing" },
-                    new() { Name = "Data Science" },
-                    new() { Name = "Machine Learning" },
-                    new() { Name = "Cybersecurity" }
-                ]);
+                await _context.Expertises.AddRangeAsync(new[]
+                {
+                    new Expertise { Name = "Backend Development" },
+                    new Expertise { Name = "Frontend Development" },
+                    new Expertise { Name = "Mobile Development" },
+                    new Expertise { Name = "DevOps" },
+                    new Expertise { Name = "Cloud Computing" },
+                    new Expertise { Name = "Data Science" },
+                    new Expertise { Name = "Machine Learning" },
+                    new Expertise { Name = "Cybersecurity" }
+                });
                 hasChanges = true;
             }
 
-            if (!await context.Industries.AnyAsync())
+            if (!await _context.Industries.AnyAsync())
             {
-                await context.Industries.AddRangeAsync([
-                    new() { Name = "Healthcare" },
-                    new() { Name = "Finance" },
-                    new() { Name = "Education" },
-                    new() { Name = "E-Commerce" },
-                    new() { Name = "Real Estate" },
-                    new() { Name = "Telecommunications" }
-                ]);
+                await _context.Industries.AddRangeAsync(new[]
+                {
+                    new Industry { Name = "Healthcare" },
+                    new Industry { Name = "Finance" },
+                    new Industry { Name = "Education" },
+                    new Industry { Name = "E-Commerce" },
+                    new Industry { Name = "Real Estate" },
+                    new Industry { Name = "Telecommunications" }
+                });
                 hasChanges = true;
             }
 
-            if (!await context.Skills.AnyAsync())
+            if (!await _context.Skills.AnyAsync())
             {
-                await context.Skills.AddRangeAsync([
-                    new() { Name = "C#" },
-                    new() { Name = ".NET" },
-                    new() { Name = "ASP.NET Core" },
-                    new() { Name = "Angular" },
-                    new() { Name = "React" },
-                    new() { Name = "SQL Server" },
-                    new() { Name = "Docker" },
-                    new() { Name = "Kubernetes" }
-                ]);
+                await _context.Skills.AddRangeAsync(new[]
+                {
+                    new Skill { Name = "C#" },
+                    new Skill { Name = ".NET" },
+                    new Skill { Name = "ASP.NET Core" },
+                    new Skill { Name = "Angular" },
+                    new Skill { Name = "React" },
+                    new Skill { Name = "SQL Server" },
+                    new Skill { Name = "Docker" },
+                    new Skill { Name = "Kubernetes" }
+                });
                 hasChanges = true;
             }
 
-            if (!await context.Tools.AnyAsync())
+            if (!await _context.Tools.AnyAsync())
             {
-                await context.Tools.AddRangeAsync([
-                    new() { Name = "Visual Studio" },
-                    new() { Name = "VS Code" },
-                    new() { Name = "Postman" },
-                    new() { Name = "GitHub" },
-                    new() { Name = "Azure DevOps" },
-                    new() { Name = "Jira" },
-                    new() { Name = "Figma" }
-                ]);
+                await _context.Tools.AddRangeAsync(new[]
+                {
+                    new Tool { Name = "Visual Studio" },
+                    new Tool { Name = "VS Code" },
+                    new Tool { Name = "Postman" },
+                    new Tool { Name = "GitHub" },
+                    new Tool { Name = "Azure DevOps" },
+                    new Tool { Name = "Jira" },
+                    new Tool { Name = "Figma" }
+                });
                 hasChanges = true;
             }
 
             if (hasChanges)
             {
-                await context.SaveChangesAsync();
+                await _context.SaveChangesAsync();
             }
         }
     }
@@ -183,6 +230,21 @@ namespace BoslaPlatform.Infrastructure.Data
 
             await initialiser.InitialiseAsync();
             await initialiser.SeedAsync();
+
+            // After seeding, attempt a Qdrant backfill (best-effort)
+            try
+            {
+                var backfill = scope.ServiceProvider.GetService<BoslaPlatform.Infrastructure.BackgroundJobs.QdrantBackfillJob>();
+                if (backfill != null)
+                {
+                    await backfill.RunAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                var logger = scope.ServiceProvider.GetService<Microsoft.Extensions.Logging.ILogger<ApplicationDbContextInitialiser>>();
+                logger?.LogWarning(ex, "Qdrant backfill failed; continuing startup.");
+            }
         }
     }
 }

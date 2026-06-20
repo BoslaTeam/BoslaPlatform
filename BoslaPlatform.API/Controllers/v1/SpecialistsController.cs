@@ -235,7 +235,7 @@ namespace BoslaPlatform.API.Controllers.v1
 
 
         [HttpPost("me/skills")]
-        public async Task<IResult> AddSkill( AddSkillRequest request,CancellationToken ct)
+        public async Task<IResult> AddSkill(AddSkillRequest request,CancellationToken ct)
         {
             var result = await specialistService
                 .AddSkillAsync(request, ct);

@@ -13,6 +13,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
             builder.Property(rt => rt.CreatedByIp).HasMaxLength(50);
             builder.HasIndex(rt => rt.Token).IsUnique();
 
+
             builder.HasOne(rt => rt.User)
                 .WithMany(u => u.RefreshTokens)
                 .HasForeignKey(rt => rt.UserId)

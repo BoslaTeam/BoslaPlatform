@@ -1,4 +1,5 @@
 using BoslaPlatform.Domain.Models.Booking;
+using BoslaPlatform.Domain.Models.Communication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -19,6 +20,11 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
             builder.HasIndex(
                 nameof(Appointment.SpecialistId), nameof(Appointment.Start), nameof(Appointment.End))
                 .IsUnique().HasFilter("[Status] != 'Cancelled'");
+
+            builder.HasOne(x => x.Conversation)
+                        .WithOne(x => x.Appointment)
+                        .HasForeignKey<Conversation>(x => x.AppointmentId);
+
             builder.HasIndex(nameof(Appointment.SpecialistId), nameof(Appointment.Start));
 
             builder.HasOne(a => a.User)
