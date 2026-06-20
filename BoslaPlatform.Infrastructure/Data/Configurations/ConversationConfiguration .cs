@@ -16,11 +16,6 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
 
                 builder.HasIndex(x => x.AppointmentId);
 
-                builder.HasOne(x => x.Appointment)
-                    .WithMany()
-                    .HasForeignKey(x => x.AppointmentId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
                 builder.Navigation(x => x.Participants)
                     .UsePropertyAccessMode(PropertyAccessMode.Field);
 

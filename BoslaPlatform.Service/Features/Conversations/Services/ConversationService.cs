@@ -35,68 +35,135 @@ namespace BoslaPlatform.Application.Features.Conversations.Services
             CancellationToken ct)
         {
 
-            // 1. Check if a appointment exists between the users
-            var appointment = await _context.Appointments
-                .FirstOrDefaultAsync(x => x.Id == request.AppointmentId, ct);
+            //1.    
+            // 1. Fetch everything in a single query
+            var data = await _context.Appointments
+                .Where(x => x.Id == request.AppointmentId)
+                .Select(x => new
+                {
+                    AppointmentId = x.Id,
+                    UserId = x.UserId,
+                    SpecialistId = x.SpecialistId,
+                    SpecialistUserId = x.Specialist.UserId,
+                    Status = x.Status,
+                    ConversationExists = x.Conversation != null,
+                })
+                .FirstOrDefaultAsync(ct);
 
-            if (appointment is null)
-            {
+            if (data is null)
                 return Error.NotFound(
                     "Appointment.NotFound",
                     "Appointment was not found.");
-            }
-            // 2. Check if the current user is either the specialist or the client in the appointment
-            if (appointment.UserId != _currentUser.Id && appointment.SpecialistId != _currentUser.Id)
-            {
+
+            // 2. Authorization — current user must be part of this appointment
+            var isAuthorized = _currentUser.Id == data.UserId ||
+                               _currentUser.Id == data.SpecialistUserId;
+
+            if (!isAuthorized)
                 return Error.Forbidden(
                     "Conversation.Forbidden",
                     "You are not part of this appointment.");
-            }
-            // 3. Checl if Appointment Status is already confirmed
-            //if (appointment.Status != AppointmentStatus.Confirmed)
-            //{
+
+            // 3. Appointment must be confirmed
+            //if (data.Status != AppointmentStatus.Confirmed)
             //    return Error.Validation(
             //        "Appointment.NotConfirmed",
             //        "Conversation can only be created for confirmed appointments.");
-            //}
 
-            // 4. Check if conversation already exists for the appointment
-            var exists = await _context.Conversations
-                .AnyAsync(x => x.AppointmentId == appointment.Id, ct);
-
-            if (exists)
-            {
+            // 4. No duplicate conversations
+            if (data.ConversationExists)
                 return Error.Conflict(
                     "Conversation.Exists",
-                    "Conversation already exists.");
-            }
-            // 3. Create conversation
-            var conversationResult =
-                Conversation.CreateForAppointment(
-                    appointment.Id,
-                    appointment.UserId,
-                    appointment.SpecialistId);
+                    "A conversation already exists for this appointment.");
+
+            // 5. Create conversation — all validation passed
+            var conversationResult = Conversation.CreateForAppointment(
+                data.AppointmentId,
+                data.UserId,
+                data.SpecialistUserId);
 
             if (conversationResult.IsError)
-            {
-                return Result<Guid>.Failure(
-                    conversationResult.Errors);
-            }
-            var clientExists = await _context.Users.AnyAsync(x => x.Id == appointment.UserId, ct);
-            var specialistExists = await _context.Users.AnyAsync(x => x.Id == appointment.SpecialistId, ct);
+                return conversationResult.Errors;
 
-            if (!clientExists || !specialistExists)
-            {
-                return Error.NotFound(
-                    "Appointment.InvalidUsers",
-                    "One or more users referenced by this appointment no longer exist.");
-            }
-            // 4. Save conversation
-            await _context.Conversations.AddAsync(conversationResult.Value,ct);
-
+            // 6. Persist
+            await _context.Conversations.AddAsync(conversationResult.Value, ct);
             await _context.SaveChangesAsync(ct);
 
             return conversationResult.Value.Id;
+
+
+
+            //// 1. Check if a appointment exists between the users
+            //var appointment = await _context.Appointments
+            //    .FirstOrDefaultAsync(x => x.Id == request.AppointmentId, ct);
+
+            //if (appointment is null)
+            //{
+            //    return Error.NotFound(
+            //        "Appointment.NotFound",
+            //        "Appointment was not found.");
+            //}
+            //// 2. Check if the current user is either the specialist or the client in the appointment
+            //if (appointment.UserId != _currentUser.Id && appointment.SpecialistId != _currentUser.Id)
+            //{
+            //    return Error.Forbidden(
+            //        "Conversation.Forbidden",
+            //        "You are not part of this appointment.");
+            //}
+            //// 3. Checl if Appointment Status is already confirmed
+            ////if (appointment.Status != AppointmentStatus.Confirmed)
+            ////{
+            ////    return Error.Validation(
+            ////        "Appointment.NotConfirmed",
+            ////        "Conversation can only be created for confirmed appointments.");
+            ////}
+
+            //// 4. Check if conversation already exists for the appointment
+            //var exists = await _context.Conversations
+            //    .AnyAsync(x => x.AppointmentId == appointment.Id, ct);
+
+            //if (exists)
+            //{
+            //    return Error.Conflict(
+            //        "Conversation.Exists",
+            //        "Conversation already exists.");
+            //}
+            //var specialist = await _context.Specialists
+            //        .FirstOrDefaultAsync(x => x.Id == appointment.SpecialistId, ct);
+
+            //if (specialist is null)
+            //{
+            //    return Error.NotFound(
+            //        "Specialist.NotFound",
+            //        "Specialist was not found.");
+            //}
+            //// 5. Create conversation
+            //var conversationResult =
+            //    Conversation.CreateForAppointment(
+            //        appointment.Id,
+            //        appointment.UserId,
+            //        specialist.UserId); // Use specialist's UserId, not SpecialistId
+
+            //if (conversationResult.IsError)
+            //{
+            //    return Result<Guid>.Failure(
+            //        conversationResult.Errors);
+            //}
+            //var clientExists = await _context.Users.AnyAsync(x => x.Id == appointment.UserId, ct);
+            //var specialistExists = await _context.Specialists.AnyAsync(x => x.Id == appointment.SpecialistId, ct);
+
+            //if (!clientExists || !specialistExists)
+            //{
+            //    return Error.NotFound(
+            //        "Appointment.InvalidUsers",
+            //        "One or more users referenced by this appointment no longer exist.");
+            //}
+            //// 6. Save conversation
+            //await _context.Conversations.AddAsync(conversationResult.Value,ct);
+
+            //await _context.SaveChangesAsync(ct);
+
+            //return conversationResult.Value.Id;
         }
         public async Task<Result<ConversationDto>> GetByIdAsync(
             Guid id,
