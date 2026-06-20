@@ -64,11 +64,11 @@ namespace BoslaPlatform.Infrastructure.Identity
                     description: "Your account is disabled.");
             }
 
-            if (!user.EmailConfirmed)
-            {
-                return Error.Forbidden(
-                    description: "Please confirm your email first.");
-            }
+            //if (!user.EmailConfirmed)
+            //{
+            //    return Error.Forbidden(
+            //        description: "Please confirm your email first.");
+            //}
 
             var signInResult =
                 await _signInManager.CheckPasswordSignInAsync(

@@ -5,6 +5,7 @@ using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Enums;
 
 using BoslaPlatform.Domain.Events.Apoointments;
+using BoslaPlatform.Domain.Models.Communication;
 using BoslaPlatform.Domain.Models.Video;
 using BoslaPlatform.Shared; 
 
@@ -39,6 +40,8 @@ namespace BoslaPlatform.Domain.Models.Booking
         public SessionSummary? SessionSummary { get; private set; }
 
         public ScreenRecording? ScreenRecording { get; private set; }
+
+        public Conversation? Conversation { get; private set; }
 
         private Appointment() { }
 

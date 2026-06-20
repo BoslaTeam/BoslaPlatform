@@ -1,20 +1,34 @@
 ﻿using BoslaPlatform.Domain.Common;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Enums;
-using BoslaPlatform.Domain.Models.Identity;
 
-namespace BoslaPlatform.Domain.Models.Conversations
+namespace BoslaPlatform.Domain.Models.Communication
 {
-    public class ConversationParticipant: AuditableEntity
+    public class ConversationParticipant : AuditableEntity
     {
-        public Guid ConversationId { get; set; }
-        public Guid UserId { get; set; }
-        public ParticipantRole Role { get; set; }
-        public DateTime JoinedAt { get; set; }
+        private ConversationParticipant() { }
+        public Guid ConversationId { get; private set; }
+        public Guid UserId { get; private set; }
+        //public ParticipantRole? Role { get; private set; }
+        public Conversation Conversation { get; private set; } = null!;
+        public User User { get; private set; } = null!;
 
-        // Navigation
-        public Conversation Conversation { get; set; } = null!;
-        public User User { get; set; }
+        public static ConversationParticipant Create(
+            Guid conversationId,
+            Guid userId)
+        {
+            return new ConversationParticipant
+            {
+                Id = Guid.NewGuid(),
+                ConversationId = conversationId,
+                UserId = userId,
+            };
+        }
+        // Method to change the role of a participant
+        //public void ChangeRole(ParticipantRole role)
+        //{
+        //    Role = role;
+        //}
 
-    }
+}
 }
