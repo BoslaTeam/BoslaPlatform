@@ -2,5 +2,5 @@
 {
     public sealed record AddAvailabilityRequest(
     DateTimeOffset Start,
-    DateTimeOffset End);
+    DateTimeOffset End); 
 }

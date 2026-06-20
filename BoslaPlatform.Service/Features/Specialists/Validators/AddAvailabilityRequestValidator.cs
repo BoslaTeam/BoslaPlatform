@@ -8,14 +8,34 @@ namespace BoslaPlatform.Application.Features.Specialists.Validators
         public AddAvailabilityRequestValidator()
         {
             RuleFor(x => x.Start)
-                .NotEmpty();
+                            .NotEmpty()
+                            .WithMessage("Start date is required.");
 
             RuleFor(x => x.End)
-                .NotEmpty();
+                .NotEmpty()
+                .WithMessage("End date is required.");
 
             RuleFor(x => x)
                 .Must(x => x.End > x.Start)
                 .WithMessage("End time must be greater than start time.");
+
+            RuleFor(x => x.Start)
+                .GreaterThan(DateTimeOffset.UtcNow)
+                .WithMessage("Start must be in the future.");
+        }
+
+        private bool BeAValidDay(string day)
+        {
+            return Enum.TryParse<DayOfWeek>(day, true, out _);
+        }
+
+        private bool BeAfterStartTime(string startTime, string endTime)
+        {
+            if (TimeSpan.TryParse(startTime, out var start) && TimeSpan.TryParse(endTime, out var end))
+            {
+                return end > start;
+            }
+            return false;
         }
     }
 }

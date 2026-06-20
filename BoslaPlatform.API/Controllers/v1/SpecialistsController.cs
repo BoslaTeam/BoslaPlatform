@@ -72,7 +72,7 @@ namespace BoslaPlatform.API.Controllers.v1
         public async Task<IResult> GetMyAvailability(CancellationToken ct)
         {
             var result = await specialistService
-                    .GetMyAvailabilityAsync(ct);
+                .GetMyAvailabilityAsync(ct);
 
             return result.Match(
                 value => Results.Ok(
@@ -85,7 +85,7 @@ namespace BoslaPlatform.API.Controllers.v1
         [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
         public async Task<IResult> AddAvailability([FromBody] AddAvailabilityRequest request, CancellationToken ct)
         {
-            var result = await specialistService
+             var result = await specialistService
                     .AddAvailabilityAsync(request, ct);
 
             return result.Match(
@@ -272,6 +272,71 @@ namespace BoslaPlatform.API.Controllers.v1
 
             return result.Errors.ToProblem();
         }
+
+
+        [HttpPost("me/tools")]
+        public async Task<IResult> AddTool(AddToolRequest request, CancellationToken ct)
+        {
+            var result = await specialistService
+                .AddToolAsync(request, ct);
+
+            if (result.IsSuccess)
+            {
+                return Results.Ok(
+                    ApiResponse.SuccessResponse(
+                        "Tool added successfully."));
+            }
+
+            return result.Errors.ToProblem();
+        }
+
+
+        [HttpDelete("me/tools/{id:guid}")]
+        public async Task<IResult> DeleteTool(Guid id,CancellationToken ct)    
+        {
+            var result = await specialistService
+                .DeleteToolAsync(id, ct);
+
+            if (result.IsSuccess)
+            {
+                return Results.Ok(
+                    ApiResponse.SuccessResponse(
+                        "Tool deleted successfully."));
+            }
+
+            return result.Errors.ToProblem();
+        }
+
+
+
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<IResult> GetSpecialists( CancellationToken ct)
+        {
+            var result = await specialistService
+                .GetSpecialistsAsync(ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<SpecialistListItemResponse>>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        [HttpGet("{id:guid}")]
+        [AllowAnonymous]
+        public async Task<IResult> GetSpecialistById( Guid id,CancellationToken ct)
+         {
+            var result = await specialistService
+                .GetSpecialistByIdAsync(id, ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<SpecialistDetailsResponse>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
     }
 }
 //Khaled$123
