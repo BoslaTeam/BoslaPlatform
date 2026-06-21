@@ -115,8 +115,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         public async Task<Result<List<AvailabilityResponse>>> GetMyAvailabilityAsync(CancellationToken ct = default)
         {
             if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
-                return Error.Unauthorized(
-                    description: "User is not authenticated.");
+                return Error.Unauthorized(description: "User is not authenticated.");
 
             var specialist = await GetCurrentSpecialistAsync(ct);
 
@@ -128,9 +127,9 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                     .OrderBy(x => x.Start)
                     .Select(x => new AvailabilityResponse(
                         x.Id,
-                        x.Start.DayOfWeek.ToString(),
-                        x.Start.ToString(@"hh\:mm"),
-                        x.End.ToString(@"hh\:mm")))
+                        x.Start, 
+                        x.End     
+                    ))
                     .ToListAsync(ct);
 
             return availability;
