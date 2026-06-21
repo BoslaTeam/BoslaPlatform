@@ -46,13 +46,7 @@ namespace BoslaPlatform.Application.Interfaces.Specialists
         Task<Result> DeleteToolAsync( Guid toolId, CancellationToken ct);
         Task<Result<IReadOnlyList<SpecialistListItemResponse>>> GetSpecialistsAsync(CancellationToken ct);
         Task<Result<SpecialistDetailsResponse>> GetSpecialistByIdAsync( Guid specialistId,CancellationToken ct);
-
-
-    
-    
-
-
-
+        Task<Result<SpecialistEarningsDto>> GetEarningsAsync(CancellationToken ct = default);
 
     }
 }
