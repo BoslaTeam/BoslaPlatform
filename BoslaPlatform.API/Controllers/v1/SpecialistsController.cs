@@ -16,8 +16,7 @@ namespace BoslaPlatform.API.Controllers.v1
     [Route("api/v{version:apiVersion}/specialists")]
     [Authorize]
     [ApiConventionType(typeof(DefaultApiConventions))]
-    public class SpecialistsController(
-        ISpecialistService specialistService) : ControllerBase
+    public class SpecialistsController(ISpecialistService specialistService) : ControllerBase
     {
         #region Onboard & Profile 
 
@@ -129,6 +128,22 @@ namespace BoslaPlatform.API.Controllers.v1
                 return Results.Ok(ApiResponse.SuccessResponse("Expertise deleted successfully."));
 
             return result.Errors.ToProblem();
+        }
+
+        #endregion
+
+        #region earnings
+
+        [HttpGet("me/earnings")]
+        public async Task<IActionResult> GetMyEarnings()
+        {
+            var result = await specialistService.GetEarningsAsync(HttpContext.RequestAborted);
+
+            if (result.IsError)
+            {
+                return BadRequest(result.Errors);
+            }
+            return Ok(result.Value);
         }
 
         #endregion
