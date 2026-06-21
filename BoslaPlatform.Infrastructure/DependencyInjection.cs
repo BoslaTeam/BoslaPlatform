@@ -1,21 +1,26 @@
 using System.Text;
 using BoslaPlatform.Application;
 using BoslaPlatform.Application.Common.Interfaces;
+using BoslaPlatform.Application.Features.Admin.Services;
 using BoslaPlatform.Application.Features.Appointments.Services;
 using BoslaPlatform.Application.Features.Notifications.Services;
 using BoslaPlatform.Application.Interfaces.AI;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Communication;
 using BoslaPlatform.Application.Interfaces.Persistence;
+using BoslaPlatform.Application.Interfaces.Video;
 using BoslaPlatform.Application.Services;
 using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Infrastructure.Agora;
+using BoslaPlatform.Infrastructure.Agora.Services;
 using BoslaPlatform.Infrastructure.AI.OpenAi;
 using BoslaPlatform.Infrastructure.Communication;
 using BoslaPlatform.Infrastructure.Data;
 using BoslaPlatform.Infrastructure.Data.Interceptors;
 using BoslaPlatform.Infrastructure.Identity;
 using BoslaPlatform.Infrastructure.Realtime;
+using BoslaPlatform.Infrastructure.Services;
 using BoslaPlatform.Infrastructure.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -45,6 +50,8 @@ public static class DependencyInjection
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IChatNotifier, SignalRChatNotifier>();
+            services.AddScoped<IAgoraTokenService, AgoraTokenService>();
+
 
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
@@ -54,10 +61,9 @@ public static class DependencyInjection
 
         services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
 
-        services.AddScoped<BoslaPlatform.Application.Features.Admin.Services.IAdminService, BoslaPlatform.Infrastructure.Services.AdminService>();
+        services.AddScoped<IAdminService, AdminService>();
 
         services.AddScoped<IAppointmentService, AppointmentService>();
-        services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<INotificationSender, SignalRNotificationSender>();
         services.AddScoped<IEmailService, EmailService>();
         services.AddSignalR();
@@ -65,6 +71,9 @@ public static class DependencyInjection
         services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
         services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
         services.Configure<GoogleSettings>(configuration.GetSection("GoogleSettings"));
+        services.AddOptions<AgoraSettings>().Bind(configuration.GetSection(AgoraSettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         services.AddIdentity<User, IdentityRole<Guid>>(options =>
         {
@@ -122,10 +131,10 @@ public static class DependencyInjection
         services.AddHttpClient("openai").ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(10));
         services.AddScoped<IChatService, OpenAiChatService>();
         
-        services.AddHttpClient<BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiEmbeddingService>();
-        services.AddScoped<IEmbeddingService, BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiEmbeddingService>();
+        services.AddHttpClient<OpenAiEmbeddingService>();
+        services.AddScoped<IEmbeddingService,OpenAiEmbeddingService>();
         
-        services.AddHttpClient<BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiChatService>();
+        services.AddHttpClient<OpenAiChatService>();
         services.AddSingleton<BoslaPlatform.Infrastructure.AI.Tokenizers.ITokenizer, BoslaPlatform.Infrastructure.AI.Tokenizers.SimpleTokenizer>();
         
         services.Configure<QdrantSettings>(configuration.GetSection("QdrantSettings"));

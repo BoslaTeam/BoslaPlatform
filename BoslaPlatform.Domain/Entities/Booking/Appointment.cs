@@ -149,5 +149,9 @@ namespace BoslaPlatform.Domain.Models.Booking
         {
             Notes = notes;
         }
+        public void AttachVideoSession(VideoSession videoSession)
+        {
+            VideoSession = videoSession;
+        }
     }
 }

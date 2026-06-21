@@ -1,0 +1,87 @@
+using Asp.Versioning;
+using BoslaPlatform.API.Common.Extensions;
+using BoslaPlatform.API.Common.Responses;
+using BoslaPlatform.Application.Features.VideoSessions.Interfaces;
+using BoslaPlatform.Application.Features.VideoSessions.Requests;
+using BoslaPlatform.Application.Features.VideoSessions.Responses;
+using BoslaPlatform.Application.Interfaces.Video;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace BoslaPlatform.API.Controllers.v1
+{
+    /// <summary>
+    /// Controller for managing video sessions and generating Agora tokens.
+    /// Provides endpoints for video session operations within the Bosla Platform.
+    /// </summary>
+    [ApiVersion("1")]
+    [Route("api/v{version:apiVersion}/video-sessions")]
+    [ApiController]
+    [Authorize]
+    public class VideoSessionsController : ControllerBase
+    {
+        private readonly IVideoSessionService _videoSessionService;
+
+        /// <summary>
+        /// Initializes a new instance of the VideoSessionsController.
+        /// </summary>
+        /// <param name="videoSessionService">The video session service.</param>
+        /// <exception cref="ArgumentNullException">Thrown when videoSessionService is null.</exception>
+        public VideoSessionsController(IVideoSessionService videoSessionService)
+        {
+            _videoSessionService = videoSessionService ?? throw new ArgumentNullException(nameof(videoSessionService));
+        }
+
+        /// <summary>
+        /// Generates an Agora RTC token for a video session.
+        /// </summary>
+        /// <remarks>
+        /// Generates an Agora RTC token that allows the current user to join a video channel
+        /// associated with their appointment. The user must be either the client or specialist
+        /// in the appointment.
+        /// 
+        /// The token is valid for a configured duration (typically 24 hours) and expires after that time.
+        /// </remarks>
+        /// <param name="request">The generate token request containing the appointment ID.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>
+        /// An ApiResponse containing the AgoraTokenResponse with the generated token and session details.
+        /// </returns>
+        /// <response code="200">Token generated successfully.</response>
+        /// <response code="400">Invalid request or validation failed.</response>
+        /// <response code="401">User is not authenticated.</response>
+        /// <response code="403">User is not authorized to access this appointment.</response>
+        /// <response code="404">Appointment not found.</response>
+        [HttpPost("generate-token")]
+        [ProducesResponseType(typeof(ApiResponse<AgoraTokenResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [EndpointName("GenerateAgoraToken")]
+        [EndpointSummary("Generates an Agora RTC token for video session access.")]
+        [EndpointDescription("Generates a token that allows the authenticated user to join a video channel for their appointment.")]
+        [Tags("Communication")]
+        public async Task<IResult> GenerateToken(
+            GenerateAgoraTokenRequest request,
+            CancellationToken ct)
+        {
+            var result = await _videoSessionService.GenerateTokenAsync(
+                request.AppointmentId,
+                ct);
+
+            return result.Match(
+                value =>
+                {
+                    var response = ApiResponse<AgoraTokenResponse>
+                        .SuccessResponse(
+                            value,
+                            "Agora token generated successfully.");
+
+                    return Results.Ok(response);
+                },
+
+                errors => errors.ToProblem());
+        }
+    }
+}

@@ -1,13 +1,14 @@
 using BoslaPlatform.Application;
+using BoslaPlatform.Application.Features.Conversations.Mappings;
+using BoslaPlatform.Application.Features.Conversations.Services;
 using BoslaPlatform.Application.Features.Lookup.Services;
 using BoslaPlatform.Application.Features.Specialists.Services;
+using BoslaPlatform.Application.Features.VideoSessions.Interfaces;
+using BoslaPlatform.Application.Features.VideoSessions.Services;
+using BoslaPlatform.Application.Interfaces.Conversation;
 using BoslaPlatform.Application.Interfaces.Lookup;
 using BoslaPlatform.Application.Interfaces.Specialists;
 using FluentValidation;
-
-using BoslaPlatform.Application.Features.Conversations.Mappings;
-using BoslaPlatform.Application.Features.Conversations.Services;
-using BoslaPlatform.Application.Interfaces.Conversation;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -17,6 +18,7 @@ public static class DependencyInjection
     {
         services.AddScoped<IConversationService, ConversationService>();
         services.AddScoped<IMessageService, MessageService>();
+        services.AddScoped<IVideoSessionService, VideoSessionService>();
 
         services.AddAutoMapper(cfg =>{}, typeof(ConversationMappingProfile).Assembly);
         //services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());

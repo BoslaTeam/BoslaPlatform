@@ -11,8 +11,12 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
             base.Configure(builder);
             builder.Property(vp => vp.Role).HasConversion<string>().HasMaxLength(20).IsRequired();
 
+            builder.Property(vp => vp.AgoraUid)
+                .IsRequired();
+
             builder.HasOne(vp => vp.VideoSession).WithMany(v => v.Participants)
                 .HasForeignKey(vp => vp.VideoSessionId).OnDelete(DeleteBehavior.Cascade);
+
             builder.HasOne(vp => vp.User)
                 .WithMany(u => u.VideoSessionParticipants)
                 .HasForeignKey(vp => vp.UserId)
