@@ -7,24 +7,21 @@ namespace BoslaPlatform.Application.Features.Specialists.Validators
     {
         public AddAvailabilityRequestValidator()
         {
-            RuleFor(x => x.Day)
-                .NotEmpty().WithMessage("Day is required.")
-                .Must(BeAValidDay).WithMessage("Invalid day name. Please enter a valid day of the week (e.g., Monday).");
+            RuleFor(x => x.Start)
+                            .NotEmpty()
+                            .WithMessage("Start date is required.");
 
-            RuleFor(x => x.StartTime)
-                .NotEmpty().WithMessage("Start time is required.")
-                .Matches(@"^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$")
-                .WithMessage("Start time must be in HH:mm format (e.g., 09:00).");
-
-            RuleFor(x => x.EndTime)
-                .NotEmpty().WithMessage("End time is required.")
-                .Matches(@"^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$")
-                .WithMessage("End time must be in HH:mm format (e.g., 12:00).");
+            RuleFor(x => x.End)
+                .NotEmpty()
+                .WithMessage("End date is required.");
 
             RuleFor(x => x)
-                .Must(x => BeAfterStartTime(x.StartTime, x.EndTime))
-                .WithMessage("End time must be greater than start time.")
-                .When(x => !string.IsNullOrEmpty(x.StartTime) && !string.IsNullOrEmpty(x.EndTime));
+                .Must(x => x.End > x.Start)
+                .WithMessage("End time must be greater than start time.");
+
+            RuleFor(x => x.Start)
+                .GreaterThan(DateTimeOffset.UtcNow)
+                .WithMessage("Start must be in the future.");
         }
 
         private bool BeAValidDay(string day)

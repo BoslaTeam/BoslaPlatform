@@ -2,8 +2,6 @@
 {
     public sealed record AvailabilityResponse(
         Guid Id,
-        string Day,       
-        string StartTime, 
-        string EndTime    
-    );
+   DateTimeOffset Start,
+    DateTimeOffset End);  
 }

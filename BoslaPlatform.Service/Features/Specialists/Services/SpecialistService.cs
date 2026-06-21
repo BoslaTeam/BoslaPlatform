@@ -115,9 +115,11 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         public async Task<Result<List<AvailabilityResponse>>> GetMyAvailabilityAsync(CancellationToken ct = default)
         {
             if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
-                return Error.Unauthorized(description: "User is not authenticated.");
+                return Error.Unauthorized(
+                    description: "User is not authenticated.");
 
             var specialist = await GetCurrentSpecialistAsync(ct);
+
             if (specialist is null)
                 return Error.NotFound(description: "Specialist profile not found.");
 
@@ -140,53 +142,32 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 return Error.Unauthorized(description: "User is not authenticated.");
 
             var specialist = await GetCurrentSpecialistAsync(ct);
+
             if (specialist is null)
                 return Error.NotFound(description: "Specialist profile not found.");
 
-            if (!Enum.TryParse<DayOfWeek>(request.Day, true, out var targetDay))
-            {
-                return Error.Validation(description: "Invalid day name. Please use standard names (e.g., 'Monday').");
-            }
-
-            if (!TimeSpan.TryParse(request.StartTime, out var startTimeSpan) ||
-                !TimeSpan.TryParse(request.EndTime, out var endTimeSpan))
-            {
-                return Error.Validation(description: "Invalid time format. Please use 'HH:mm' (e.g., 09:00).");
-            }
-
-            if (endTimeSpan <= startTimeSpan)
-            {
-                return Error.Validation(description: "End time must be greater than start time.");
-            }
-
-            DateTime today = DateTime.UtcNow.Date;
-            int daysUntilTarget = ((int)targetDay - (int)today.DayOfWeek + 7) % 7;
-
-            DateTime targetDate = today.AddDays(daysUntilTarget);
-            if (daysUntilTarget == 0 && startTimeSpan < DateTime.UtcNow.TimeOfDay)
-            {
-                targetDate = targetDate.AddDays(7);
-            }
-
-            DateTimeOffset startDateTimeOffset = new DateTimeOffset(targetDate.Add(startTimeSpan), TimeSpan.Zero);
-            DateTimeOffset endDateTimeOffset = new DateTimeOffset(targetDate.Add(endTimeSpan), TimeSpan.Zero);
+            if (request.Start.Offset != TimeSpan.Zero || request.End.Offset != TimeSpan.Zero)
+                return Error.Validation(description: "Availability dates must be UTC.");
 
             var hasOverlap = await context.AvailabilitySlots
                     .AnyAsync(
                         x => x.SpecialistId == specialist.Id &&
-                             startDateTimeOffset < x.End &&
-                             endDateTimeOffset > x.Start,
+                             request.Start < x.End &&
+                             request.End > x.Start,
                         ct);
 
             if (hasOverlap)
-                return Error.Conflict(description: "Availability slot overlaps with an existing slot.");
+                return Error.Conflict(description:"Availability slot overlaps with an existing slot.");
 
-            var availability = Availability.Create(
-                specialist.Id,
-                startDateTimeOffset,
-                endDateTimeOffset);
+            var availability =
+                Availability.Create(
+                    specialist.Id,
+                    request.Start,
+                    request.End);
 
-            await context.AvailabilitySlots.AddAsync(availability, ct);
+            await context.AvailabilitySlots
+                .AddAsync(availability, ct);
+
             await context.SaveChangesAsync(ct);
 
             return availability.Id;
@@ -215,10 +196,13 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
             if (availability is null)
             {
-                return Error.NotFound(description: "Availability slot not found.");
+                return Error.NotFound(
+                    description: "Availability slot not found.");
             }
 
-            context.AvailabilitySlots.Remove(availability);
+            context.AvailabilitySlots
+                .Remove(availability);
+
             await context.SaveChangesAsync(ct);
 
             return Result.Success();
