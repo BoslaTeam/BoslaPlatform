@@ -849,7 +849,70 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         }
 
 
+        public async Task<Result<IReadOnlyList<SpecialistAvailabilityResponse>>>
+            GetSpecialistAvailabilityAsync( Guid specialistId, CancellationToken ct)
+        {
+            var specialistExists = await context.Specialists
+                .AnyAsync(
+                    x => x.Id == specialistId,
+                    ct);
+
+            if (!specialistExists)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist not found.");
+            }
+
+            var availability = await context.AvailabilitySlots
+                .AsNoTracking()
+                .Where(x => x.SpecialistId == specialistId)
+                .OrderBy(x => x.Start)
+                .Select(x => new SpecialistAvailabilityResponse
+                {
+                    Id = x.Id,
+                    Start = x.Start,
+                    End = x.End
+                })
+                .ToListAsync(ct);
+
+            return availability;
+        }
 
 
+
+
+        public async Task<Result<IReadOnlyList<SpecialistReviewResponse>>> GetSpecialistReviewsAsync(
+    Guid specialistId,
+    CancellationToken ct)
+        {
+            var specialistExists = await context.Specialists
+                .AnyAsync(x => x.Id == specialistId, ct);
+
+            if (!specialistExists)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist not found.");
+            }
+
+            var reviews = await context.Reviews
+                .AsNoTracking()
+                .Include(x => x.Reviewer)
+                .Where(x => x.SpecialistId == specialistId)
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .Select(x => new SpecialistReviewResponse
+                {
+                    Id = x.Id,
+                    UserId = x.ReviewerId,
+                    UserName = x.Reviewer.Name,
+                    Rating = x.Rating,
+                    Comment = x.Comment,
+                    CreatedOnUtc = x.CreatedAtUtc
+                })
+                .ToListAsync(ct);
+
+            return reviews;
+        }
     }
 }

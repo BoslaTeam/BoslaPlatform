@@ -352,6 +352,38 @@ namespace BoslaPlatform.API.Controllers.v1
                 errors => errors.ToProblem());
         }
 
+
+        [HttpGet("{id:guid}/availability")]
+        [AllowAnonymous]
+        public async Task<IResult> GetSpecialistAvailability(Guid id,CancellationToken ct)
+        {
+            var result = await specialistService
+                .GetSpecialistAvailabilityAsync(id, ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<SpecialistAvailabilityResponse>>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+
+
+
+        [HttpGet("{id:guid}/reviews")]
+        [AllowAnonymous]
+        public async Task<IResult> GetSpecialistReviews(Guid id, CancellationToken ct)
+        {
+            var result = await specialistService
+                .GetSpecialistReviewsAsync(id, ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<SpecialistReviewResponse>>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
     }
 }
 //Khaled$123
