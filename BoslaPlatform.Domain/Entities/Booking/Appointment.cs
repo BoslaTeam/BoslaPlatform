@@ -153,5 +153,27 @@ namespace BoslaPlatform.Domain.Models.Booking
         {
             VideoSession = videoSession;
         }
+        public Result CanStartVideoSession(DateTimeOffset currentTime)
+        {
+            var allowedStart = Start.AddMinutes(-15);
+
+            var allowedEnd = Start.AddMinutes(15);
+
+            if (currentTime < allowedStart)
+            {
+                return Error.Validation(
+                    "Appointment.TooEarly",
+                    "Video session cannot start yet.");
+            }
+
+            if (currentTime > allowedEnd)
+            {
+                return Error.Validation(
+                    "Appointment.StartWindowExpired",
+                    "Video session start window has expired.");
+            }
+
+            return Result.Success();
+        }
     }
 }

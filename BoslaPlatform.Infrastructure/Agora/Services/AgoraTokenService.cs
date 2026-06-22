@@ -80,9 +80,19 @@ namespace BoslaPlatform.Infrastructure.Agora.Services
             //        "Appointment.NotConfirmed",
             //        "Only confirmed appointments can start video sessions.");
             //}
+            var specialist = await _context.Specialists
+                .FirstOrDefaultAsync(
+                    s => s.UserId == _currentUser.Id,
+                    ct);
 
-            if (appointment.UserId != _currentUser.Id &&
-                appointment.SpecialistId != _currentUser.Id)
+            var isSpecialist =
+                specialist is not null &&
+                appointment.SpecialistId == specialist.Id;
+
+            var isClient =
+                appointment.UserId == _currentUser.Id;
+
+            if (!isSpecialist && !isClient)
             {
                 return Error.Forbidden(
                     "Appointment.AccessDenied",
@@ -129,10 +139,9 @@ namespace BoslaPlatform.Infrastructure.Agora.Services
                 privilegeExpiredTs,
                 privilegeExpiredTs);
 
-            var role =
-                appointment.SpecialistId == _currentUser.Id
-                    ? VideoParticipantRole.Host
-                    : VideoParticipantRole.Participant;
+            var role = isSpecialist
+                ? VideoParticipantRole.Host
+                : VideoParticipantRole.Participant;
 
             var alreadyJoined = videoSession.Participants
                 .Any(x => x.UserId == _currentUser.Id);

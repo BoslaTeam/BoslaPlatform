@@ -29,7 +29,7 @@ namespace BoslaPlatform.API.Controllers.v1
         /// <exception cref="ArgumentNullException">Thrown when videoSessionService is null.</exception>
         public VideoSessionsController(IVideoSessionService videoSessionService)
         {
-            _videoSessionService = videoSessionService ?? throw new ArgumentNullException(nameof(videoSessionService));
+            _videoSessionService = videoSessionService;
         }
 
         /// <summary>
@@ -82,6 +82,92 @@ namespace BoslaPlatform.API.Controllers.v1
                 },
 
                 errors => errors.ToProblem());
+        }
+    //    [HttpPost("{id:guid}/join")]
+    //    public async Task<IActionResult> Join(
+    //Guid id,
+    //CancellationToken ct)
+    //    {
+    //        var result = await _videoSessionService
+    //            .JoinAsync(id, ct);
+
+    //        return result.ToApiResponse();
+    //    }
+
+        /// <summary>
+        /// Starts a video session.
+        /// </summary>
+        /// <remarks>
+        /// Only the assigned specialist can start the session.
+        /// </remarks>
+        /// <response code="200">Session started successfully.</response>
+        /// <response code="401">User is not authenticated.</response>
+        /// <response code="403">Only specialist can start the session.</response>
+        /// <response code="404">Video session not found.</response>
+        [HttpPost("{id:guid}/start")]
+        [ProducesResponseType(typeof(ApiResponse<StartVideoSessionResponse>),StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails),StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ProblemDetails),StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails),StatusCodes.Status404NotFound)]
+        [EndpointSummary("Starts a video session.")]
+        [EndpointDescription("Allows the assigned specialist to start the video consultation session.")]
+        [Tags("Communication")]
+        public async Task<IResult> Start(
+            Guid id,
+            CancellationToken ct)
+        {
+            var result = await _videoSessionService
+                .StartAsync(id, ct);
+
+
+            return result.Match(
+               value =>
+               {
+                   var response = ApiResponse<StartVideoSessionResponse>
+                       .SuccessResponse(
+                           value,
+                           "Video Session has been started successfully.");
+
+                   return Results.Ok(response);
+               },
+
+               errors => errors.ToProblem());
+        }
+
+        /// <summary>
+        /// Ends a video session.
+        /// </summary>
+        /// <remarks>
+        /// Ends the active video session and publishes a VideoSessionEndedEvent.
+        /// </remarks>
+        [HttpPost("{id:guid}/end")]
+        [ProducesResponseType(typeof(ApiResponse<EndVideoSessionResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType( typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType( typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType( typeof(ProblemDetails),   StatusCodes.Status404NotFound)]
+        [EndpointName("EndVideoSession")]
+        [EndpointSummary("Ends a video consultation session.")]
+        [EndpointDescription("Allows the assigned specialist to end the video consultation session.")]
+        [Tags("Communication")]
+        public async Task<IResult> End(
+            Guid id,
+            CancellationToken ct)
+        {
+            var result = await _videoSessionService
+                .EndAsync(id, ct);
+
+            return result.Match(
+               value =>
+               {
+                   var response = ApiResponse<EndVideoSessionResponse>
+                       .SuccessResponse(
+                           value,
+                           "Video Session has been ended successfully.");
+
+                   return Results.Ok(response);
+               },
+
+               errors => errors.ToProblem());
         }
     }
 }
