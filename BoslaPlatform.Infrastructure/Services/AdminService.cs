@@ -9,6 +9,7 @@ using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Enums;
+using BoslaPlatform.Domain.Models;
 using BoslaPlatform.Shared;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -145,7 +146,7 @@ namespace BoslaPlatform.Infrastructure.Services
         public async Task<Result<List<AuditLogDto>>> GetAuditLogsAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
         {
             var skip = (page - 1) * pageSize;
-            var logs = await _context.Set<BoslaPlatform.Domain.Models.AuditLog>()
+            var logs = await _context.Set<AuditLog>()
                 .OrderByDescending(a => a.Timestamp)
                 .Skip(skip)
                 .Take(pageSize)
