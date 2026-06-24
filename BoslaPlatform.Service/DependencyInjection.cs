@@ -33,6 +33,9 @@ public static class DependencyInjection
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IPaymentGateway, StripePaymentGateway>();
 
+        services.AddMemoryCache();
+        services.AddSingleton<IOnlineUserTracker, OnlineUserTracker>();
+
         // Admin service implementation is registered in Infrastructure DI
 
         return services;

@@ -22,7 +22,8 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
     public class SpecialistService(
         IAppDbContext context,
         IUser currentUser,
-        UserManager<User> userManager) : ISpecialistService
+        UserManager<User> userManager,
+        IOnlineUserTracker onlineUserTracker) : ISpecialistService
     {
         #region Onboard & Profile Methods
 
@@ -794,9 +795,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
             var query = context.Specialists
                 .AsNoTracking()
-                .Where(x => x.VerificationStatus == VerificationStatus.Approved)
-                .Include(x => x.User)
-                .AsQueryable();
+                .Where(x => x.VerificationStatus == VerificationStatus.Approved);
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
@@ -851,21 +850,48 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
             var projectedQuery = query
                 .OrderBy(x => x.User.Name)
-                .Select(x => new SpecialistListItemResponse
+                .Select(x => new
                 {
-                    Id = x.Id,
+                    x.Id,
+                    x.UserId,
                     Name = x.User.Name,
                     Title = x.User.Title,
                     ProfileImageUrl = x.User.ProfileImageUrl,
-                    HourlyRate = x.HourlyRate,
-                    ExperienceLevel = x.ExperienceLevel,
-                    VerificationStatus = x.VerificationStatus
+                    x.HourlyRate,
+                    x.ExperienceLevel,
+                    x.VerificationStatus,
+
+                    Rating = x.Reviews
+                        .Select(r => (decimal?)r.Rating)
+                        .Average() ?? 0m
                 });
 
-            return await projectedQuery.ToPaginatedResultAsync(
-                pageNumber,
-                pageSize,
-                ct);
+            var pagedResult = await projectedQuery
+                .ToPaginatedResultAsync(
+                    pageNumber,
+                    pageSize,
+                    ct);
+
+            var items = pagedResult.Items
+                .Select(x => new SpecialistListItemResponse
+                {
+                    Id = x.Id,
+                    Name = x.Name,
+                    Title = x.Title,
+                    ProfileImageUrl = x.ProfileImageUrl,
+                    HourlyRate = x.HourlyRate,
+                    ExperienceLevel = x.ExperienceLevel,
+                    VerificationStatus = x.VerificationStatus,
+
+                    Rating = Math.Round(x.Rating, 1),
+
+                    IsOnline = onlineUserTracker.IsOnline(x.UserId)
+                })
+                .ToList();
+
+            return new PaginatedResult<SpecialistListItemResponse>(
+                items,
+                pagedResult.Metadata);
         }
 
 
@@ -874,11 +900,15 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             var specialist = await context.Specialists
                 .AsNoTracking()
                 .Include(x => x.User)
-                .Include(x => x.SpecialistTools).ThenInclude(st => st.Tool)
-                .Include(x => x.SpecialistSkills).ThenInclude(ss => ss.Skill)
-                .FirstOrDefaultAsync(x => x.Id == specialistId && x.VerificationStatus == VerificationStatus.Approved, ct);
-
-
+                .Include(x => x.Reviews)
+                .Include(x => x.SpecialistTools)
+                    .ThenInclude(st => st.Tool)
+                .Include(x => x.SpecialistSkills)
+                    .ThenInclude(ss => ss.Skill)
+                .FirstOrDefaultAsync(
+                    x => x.Id == specialistId &&
+                         x.VerificationStatus == VerificationStatus.Approved,
+                    ct);
 
             if (specialist is null)
             {
@@ -904,8 +934,25 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 HourlyRate = specialist.HourlyRate,
                 IntroVideoUrl = specialist.IntroVideoUrl,
                 VerificationStatus = specialist.VerificationStatus,
-                Tools = specialist.SpecialistTools.Select(st => st.Tool.Name).ToList(),
-                Skills = specialist.SpecialistSkills.Select(ss => ss.Skill.Name).ToList(),
+
+                Rating = specialist.Reviews.Count == 0
+                    ? 0m
+                    : Math.Round(
+                        specialist.Reviews.Average(x => (decimal)x.Rating),
+                        1),
+
+                ReviewsCount = specialist.Reviews.Count,
+
+                IsOnline = onlineUserTracker.IsOnline(
+                    specialist.UserId),
+
+                Tools = specialist.SpecialistTools
+                    .Select(st => st.Tool.Name)
+                    .ToList(),
+
+                Skills = specialist.SpecialistSkills
+                    .Select(ss => ss.Skill.Name)
+                    .ToList()
             };
         }
 

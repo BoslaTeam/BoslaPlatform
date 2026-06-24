@@ -1,7 +1,4 @@
 ﻿using BoslaPlatform.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace BoslaPlatform.Application.Features.Specialists.DTOs
 {
@@ -21,5 +18,9 @@ namespace BoslaPlatform.Application.Features.Specialists.DTOs
         public ExperienceLevel ExperienceLevel { get; init; }
 
         public VerificationStatus VerificationStatus { get; init; }
+
+        public decimal Rating { get; init; }
+
+        public bool IsOnline { get; init; }
     }
 }
