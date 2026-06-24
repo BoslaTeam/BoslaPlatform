@@ -12,6 +12,8 @@ using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Junctions;
 using BoslaPlatform.Domain.Models.Profile;
 using BoslaPlatform.Shared;
+using BoslaPlatform.Shared.Pagination;
+using Dapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -114,8 +116,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         public async Task<Result<List<AvailabilityResponse>>> GetMyAvailabilityAsync(CancellationToken ct = default)
         {
             if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
-                return Error.Unauthorized(
-                    description: "User is not authenticated.");
+                return Error.Unauthorized(description: "User is not authenticated.");
 
             var specialist = await GetCurrentSpecialistAsync(ct);
 
@@ -128,7 +129,8 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                     .Select(x => new AvailabilityResponse(
                         x.Id,
                         x.Start,
-                        x.End))
+                        x.End
+                    ))
                     .ToListAsync(ct);
 
             return availability;
@@ -155,7 +157,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                         ct);
 
             if (hasOverlap)
-                return Error.Conflict(description:"Availability slot overlaps with an existing slot.");
+                return Error.Conflict(description: "Availability slot overlaps with an existing slot.");
 
             var availability =
                 Availability.Create(
@@ -195,7 +197,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             if (availability is null)
             {
                 return Error.NotFound(
-                        description: "Availability slot not found.");
+                    description: "Availability slot not found.");
             }
 
             context.AvailabilitySlots
@@ -239,10 +241,10 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 return Error.Conflict(description: "Expertise already assigned.");
 
             var specialistExpertise = new SpecialistExpertise
-                {
-                    SpecialistId = specialist.Id,
-                    ExpertiseId = request.ExpertiseId
-                };
+            {
+                SpecialistId = specialist.Id,
+                ExpertiseId = request.ExpertiseId
+            };
 
             await context.SpecialistExpertise
                 .AddAsync(specialistExpertise, ct);
@@ -254,7 +256,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             return Result.Success();
         }
 
-        public async Task<Result> DeleteExpertiseAsync(Guid expertiseId,CancellationToken ct = default)
+        public async Task<Result> DeleteExpertiseAsync(Guid expertiseId, CancellationToken ct = default)
         {
             if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
                 return Error.Unauthorized(description: "User is not authenticated.");
@@ -326,7 +328,69 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
         #endregion
 
+        #region specialist earnings
+        public async Task<Result<SpecialistEarningsDto>> GetEarningsAsync(CancellationToken ct = default)
+        {
+            if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
+            {
+                return Error.Unauthorized("Auth.Unauthorized", "User must be authenticated.");
+            }
 
+            var specialistId = await context.Specialists
+                .Where(s => s.UserId == currentUser.Id.Value)
+                .Select(s => (Guid?)s.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (specialistId is null)
+            {
+                return Error.NotFound("Specialist.NotFound", "The authenticated user is not registered as a specialist.");
+            }
+
+            if (context is not DbContext dbContext)
+            {
+                return Error.Unexpected("Database.ConnectionError", "Could not establish a database connection.");
+            }
+
+            var connection = dbContext.Database.GetDbConnection();
+
+            const string sql = @"
+                SELECT 
+                    ISNULL(SUM(p.SpecialistAmount), 0) AS TotalEarnings,
+                    ISNULL(SUM(CASE WHEN a.Status = 'Completed' THEN p.SpecialistAmount ELSE 0 END), 0) AS WithdrawableBalance,
+                    ISNULL(SUM(CASE WHEN a.Status != 'Completed' THEN p.SpecialistAmount ELSE 0 END), 0) AS PendingBalance
+                FROM Payments p
+                INNER JOIN Appointments a ON p.AppointmentId = a.Id
+                WHERE a.SpecialistId = @SpecialistId AND p.Status = 'Completed';
+
+                SELECT TOP 10
+                    p.Id AS PaymentId,
+                    p.AppointmentId,
+                    p.SpecialistAmount AS Amount,
+                    p.Currency,
+                    p.PaidAt,
+                    u.Name AS ClientName
+                FROM Payments p
+                INNER JOIN Appointments a ON p.AppointmentId = a.Id
+                INNER JOIN AspNetUsers u ON a.UserId = u.Id
+                WHERE a.SpecialistId = @SpecialistId AND p.Status = 'Completed'
+                ORDER BY p.PaidAt DESC;";
+
+            using var multi = await connection.QueryMultipleAsync(sql, new { SpecialistId = specialistId });
+
+            var summary = await multi.ReadSingleOrDefaultAsync<dynamic>();
+            var history = (await multi.ReadAsync<EarningHistoryItemDto>()).ToList();
+
+            var result = new SpecialistEarningsDto
+            {
+                TotalEarnings = summary?.TotalEarnings ?? 0,
+                WithdrawableBalance = summary?.WithdrawableBalance ?? 0,
+                PendingBalance = summary?.PendingBalance ?? 0,
+                History = history
+            };
+
+            return result;
+        }
+        #endregion
 
         #region cancellation-policy
 
@@ -421,7 +485,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         #endregion
 
         #region AddExperience
-        public async Task<Result<Guid>> AddExperienceAsync( AddExperienceRequestDTO request, CancellationToken ct)
+        public async Task<Result<Guid>> AddExperienceAsync(AddExperienceRequestDTO request, CancellationToken ct)
         {
             var specialist = await context.Specialists
                 .FirstOrDefaultAsync(
@@ -460,9 +524,9 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
 
         public async Task<Result<bool>> UpdateExperienceAsync(
-     Guid experienceId,
-     UpdateExperienceRequest request,
-     CancellationToken ct)
+             Guid experienceId,
+             UpdateExperienceRequest request,
+             CancellationToken ct)
         {
             var specialist = await GetCurrentSpecialistAsync(ct);
 
@@ -504,7 +568,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
 
 
-        public async Task<Result> DeleteExperienceAsync( Guid experienceId,CancellationToken ct)
+        public async Task<Result> DeleteExperienceAsync(Guid experienceId, CancellationToken ct)
         {
             var specialist = await GetCurrentSpecialistAsync(ct);
 
@@ -540,7 +604,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         }
 
 
-        public async Task<Result> AddSkillAsync( AddSkillRequest request, CancellationToken ct)
+        public async Task<Result> AddSkillAsync(AddSkillRequest request, CancellationToken ct)
         {
             var specialist = await GetCurrentSpecialistAsync(ct);
 
@@ -581,8 +645,8 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 {
                     SpecialistId = specialist.Id,
                     SkillId = request.SkillId
-                },
-                ct);
+                }, ct);
+
 
             specialist.AddDomainEvent(
                 new SpecialistProfileUpdatedEvent(
@@ -594,9 +658,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         }
 
 
-        public async Task<Result> DeleteSkillAsync(
-    Guid skillId,
-    CancellationToken ct)
+        public async Task<Result> DeleteSkillAsync(Guid skillId, CancellationToken ct)
         {
             var specialist = await GetCurrentSpecialistAsync(ct);
 
@@ -630,6 +692,287 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             await context.SaveChangesAsync(ct);
 
             return Result.Success();
+        }
+
+
+        public async Task<Result> AddToolAsync(AddToolRequest request, CancellationToken ct)
+        {
+            var specialist = await GetCurrentSpecialistAsync(ct);
+
+            if (specialist is null)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist not found.");
+            }
+
+            var toolExists = await context.Tools
+                .AnyAsync(x => x.Id == request.ToolId, ct);
+
+            if (!toolExists)
+            {
+                return Error.NotFound(
+                    "Tool.NotFound",
+                    "Tool not found.");
+            }
+
+            var alreadyAssigned = await context.SpecialistTools
+                .AnyAsync(
+                    x => x.SpecialistId == specialist.Id &&
+                         x.ToolId == request.ToolId,
+                    ct);
+
+            if (alreadyAssigned)
+            {
+                return Error.Conflict(
+                    "Tool.AlreadyAssigned",
+                    "Tool already assigned.");
+            }
+
+            var specialistTool = new SpecialistTool
+            {
+                SpecialistId = specialist.Id,
+                ToolId = request.ToolId
+            };
+
+            await context.SpecialistTools
+                .AddAsync(specialistTool, ct);
+
+            specialist.AddDomainEvent(
+                new SpecialistProfileUpdatedEvent(
+                    specialist.Id));
+
+            await context.SaveChangesAsync(ct);
+
+            return Result.Success();
+        }
+
+
+
+
+        public async Task<Result> DeleteToolAsync(Guid toolId, CancellationToken ct)
+        {
+            var specialist = await GetCurrentSpecialistAsync(ct);
+
+            if (specialist is null)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist not found.");
+            }
+
+            var specialistTool = await context.SpecialistTools
+                .FirstOrDefaultAsync(
+                    x => x.SpecialistId == specialist.Id &&
+                         x.ToolId == toolId,
+                    ct);
+
+            if (specialistTool is null)
+            {
+                return Error.NotFound(
+                    "Tool.NotFound",
+                    "Tool assignment not found.");
+            }
+
+            context.SpecialistTools.Remove(
+                specialistTool);
+
+            specialist.AddDomainEvent(
+                new SpecialistProfileUpdatedEvent(
+                    specialist.Id));
+
+            await context.SaveChangesAsync(ct);
+
+            return Result.Success();
+        }
+
+
+        public async Task<Result<PaginatedResult<SpecialistListItemResponse>>> GetSpecialistsAsync(GetSpecialistsRequest request, CancellationToken ct)
+        {
+            var pageNumber = request.NormalizePageNumber();
+            var pageSize = request.NormalizePageSize();
+
+            var query = context.Specialists
+                .AsNoTracking()
+                .Where(x => x.VerificationStatus == VerificationStatus.Approved)
+                .Include(x => x.User)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+            {
+                var search = request.SearchTerm.Trim();
+
+                query = query.Where(x =>
+                    EF.Functions.Like(x.User.Name, $"%{search}%") ||
+                    (x.User.Title != null &&
+                     EF.Functions.Like(x.User.Title, $"%{search}%")) ||
+                    (x.User.Bio != null &&
+                     EF.Functions.Like(x.User.Bio, $"%{search}%")));
+            }
+
+            if (request.ExperienceLevel.HasValue)
+            {
+                query = query.Where(
+                    x => x.ExperienceLevel == request.ExperienceLevel.Value);
+            }
+
+            if (request.MinHourlyRate.HasValue)
+            {
+                query = query.Where(
+                    x => x.HourlyRate >= request.MinHourlyRate.Value);
+            }
+
+            if (request.MaxHourlyRate.HasValue)
+            {
+                query = query.Where(
+                    x => x.HourlyRate <= request.MaxHourlyRate.Value);
+            }
+
+            if (request.SkillId.HasValue)
+            {
+                query = query.Where(x =>
+                    x.SpecialistSkills.Any(
+                        s => s.SkillId == request.SkillId.Value));
+            }
+
+            if (request.ToolId.HasValue)
+            {
+                query = query.Where(x =>
+                    x.SpecialistTools.Any(
+                        t => t.ToolId == request.ToolId.Value));
+            }
+
+            if (request.ExpertiseId.HasValue)
+            {
+                query = query.Where(x =>
+                    x.SpecialistExpertise.Any(
+                        e => e.ExpertiseId == request.ExpertiseId.Value));
+            }
+
+            var projectedQuery = query
+                .OrderBy(x => x.User.Name)
+                .Select(x => new SpecialistListItemResponse
+                {
+                    Id = x.Id,
+                    Name = x.User.Name,
+                    Title = x.User.Title,
+                    ProfileImageUrl = x.User.ProfileImageUrl,
+                    HourlyRate = x.HourlyRate,
+                    ExperienceLevel = x.ExperienceLevel,
+                    VerificationStatus = x.VerificationStatus
+                });
+
+            return await projectedQuery.ToPaginatedResultAsync(
+                pageNumber,
+                pageSize,
+                ct);
+        }
+
+
+        public async Task<Result<SpecialistDetailsResponse>> GetSpecialistByIdAsync(Guid specialistId, CancellationToken ct)
+        {
+            var specialist = await context.Specialists
+                .AsNoTracking()
+                .Include(x => x.User)
+                .Include(x => x.SpecialistTools).ThenInclude(st => st.Tool)
+                .Include(x => x.SpecialistSkills).ThenInclude(ss => ss.Skill)
+                .FirstOrDefaultAsync(x => x.Id == specialistId && x.VerificationStatus == VerificationStatus.Approved, ct);
+
+
+
+            if (specialist is null)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist not found.");
+            }
+
+            return new SpecialistDetailsResponse
+            {
+                Id = specialist.Id,
+                UserId = specialist.UserId,
+                Email = specialist.User.Email ?? string.Empty,
+                Name = specialist.User.Name,
+                Title = specialist.User.Title,
+                Bio = specialist.User.Bio,
+                ProfileImageUrl = specialist.User.ProfileImageUrl,
+                Country = specialist.User.Country,
+                Gender = specialist.User.Gender!,
+                PreferredLanguage = specialist.User.PreferredLanguage,
+                ExperienceYears = specialist.ExperienceYears,
+                ExperienceLevel = specialist.ExperienceLevel,
+                HourlyRate = specialist.HourlyRate,
+                IntroVideoUrl = specialist.IntroVideoUrl,
+                VerificationStatus = specialist.VerificationStatus,
+                Tools = specialist.SpecialistTools.Select(st => st.Tool.Name).ToList(),
+                Skills = specialist.SpecialistSkills.Select(ss => ss.Skill.Name).ToList(),
+            };
+        }
+
+
+        public async Task<Result<IReadOnlyList<SpecialistAvailabilityResponse>>>
+            GetSpecialistAvailabilityAsync(Guid specialistId, CancellationToken ct)
+        {
+            var specialistExists = await context.Specialists
+                .Where(x => x.VerificationStatus == VerificationStatus.Approved)
+                .AnyAsync(x => x.Id == specialistId, ct);
+
+            if (!specialistExists)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist not found.");
+            }
+
+            var availability = await context.AvailabilitySlots
+                .AsNoTracking()
+                .Where(x => x.SpecialistId == specialistId)
+                .OrderBy(x => x.Start)
+                .Select(x => new SpecialistAvailabilityResponse
+                {
+                    Id = x.Id,
+                    Start = x.Start,
+                    End = x.End
+                })
+                .ToListAsync(ct);
+
+            return availability;
+        }
+
+
+
+
+        public async Task<Result<IReadOnlyList<SpecialistReviewResponse>>> GetSpecialistReviewsAsync(
+    Guid specialistId,
+    CancellationToken ct)
+        {
+            var specialistExists = await context.Specialists
+                .AnyAsync(x => x.Id == specialistId, ct);
+
+            if (!specialistExists)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist not found.");
+            }
+
+            var reviews = await context.Reviews
+                .AsNoTracking()
+                .Include(x => x.Reviewer)
+                .Where(x => x.SpecialistId == specialistId)
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .Select(x => new SpecialistReviewResponse
+                {
+                    Id = x.Id,
+                    UserId = x.ReviewerId,
+                    UserName = x.Reviewer.Name,
+                    Rating = x.Rating,
+                    Comment = x.Comment,
+                    CreatedOnUtc = x.CreatedAtUtc
+                })
+                .ToListAsync(ct);
+
+            return reviews;
         }
     }
 }

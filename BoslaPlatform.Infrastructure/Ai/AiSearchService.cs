@@ -4,11 +4,7 @@ using BoslaPlatform.Service.Features.AI.Requests;
 using BoslaPlatform.Infrastructure.AI.Tokenizers;
 using BoslaPlatform.Service.Features.AI.Responses;
 using BoslaPlatform.Domain.Models;
-using BoslaPlatform.Domain.Models.Profile;
-
 using BoslaPlatform.Domain.Entities.Profile;
-using BoslaPlatform.Domain.Entities;
-using System.Linq;
 using BoslaPlatform.Application.Interfaces.Authentication;
 namespace BoslaPlatform.Infrastructure.AI;
 

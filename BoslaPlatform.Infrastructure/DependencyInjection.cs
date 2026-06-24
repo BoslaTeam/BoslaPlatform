@@ -40,6 +40,8 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("DefaultConnection");
         ArgumentNullException.ThrowIfNull(connectionString);
 
+        services.Configure<StripeSettings>(configuration.GetSection("StripeSettings"));
+
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationAssemblyReference).Assembly));
 
             services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
