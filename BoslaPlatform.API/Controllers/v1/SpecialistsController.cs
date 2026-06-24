@@ -34,14 +34,14 @@ namespace BoslaPlatform.API.Controllers.v1
                 errors => errors.ToProblem());
         }
 
-        [HttpPost("me/embedding/refresh")]
-        [Authorize(Roles = nameof(UserRole.Specialist))]
-        public async Task<IResult> RefreshMyEmbeddings(CancellationToken ct)
-        {
-            var result = await embeddingAdmin.RebuildSelfAsync(ct);
-            if (result.IsSuccess) return Results.Ok(ApiResponse.SuccessResponse("Embedding refreshed."));
-            return result.Errors.ToProblem();
-        }
+        //[HttpPost("me/embedding/refresh")]
+        //[Authorize(Roles = nameof(UserRole.Specialist))]
+        //public async Task<IResult> RefreshMyEmbeddings(CancellationToken ct)
+        //{
+        //    var result = await embeddingAdmin.RebuildSelfAsync(ct);
+        //    if (result.IsSuccess) return Results.Ok(ApiResponse.SuccessResponse("Embedding refreshed."));
+        //    return result.Errors.ToProblem();
+        //}
 
         [HttpGet("me")]
         [Authorize(Roles = nameof(UserRole.Specialist))]

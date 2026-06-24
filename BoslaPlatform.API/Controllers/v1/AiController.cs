@@ -8,7 +8,7 @@ namespace BoslaPlatform.API.Controllers.V1;
 
 [ApiController]
 [Route("api/v1/ai")]
-//[Authorize]
+[Authorize]
 /// <summary>
 /// AI endpoints (Smart Search, RAG)
 /// </summary>

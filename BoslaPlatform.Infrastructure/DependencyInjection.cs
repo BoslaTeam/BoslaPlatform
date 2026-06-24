@@ -56,6 +56,9 @@ public static class DependencyInjection
 
         services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
 
+        services.AddScoped<BoslaPlatform.Application.Features.Admin.Repositories.IDashboardRepository>(provider =>
+            new BoslaPlatform.Infrastructure.Data.DapperDashboardRepository(connectionString));
+
         services.AddScoped<BoslaPlatform.Application.Features.Admin.Services.IAdminService, BoslaPlatform.Infrastructure.Services.AdminService>();
 
         services.AddScoped<IAppointmentService, AppointmentService>();
