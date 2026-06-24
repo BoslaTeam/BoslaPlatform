@@ -7,6 +7,7 @@ using BoslaPlatform.Application.Features.Specialists.Response;
 using BoslaPlatform.Application.Features.Specialists.Services;
 using BoslaPlatform.Application.Interfaces.Specialists;
 using BoslaPlatform.Domain.Enums;
+using BoslaPlatform.Shared.Pagination;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -84,8 +85,8 @@ namespace BoslaPlatform.API.Controllers.v1
         [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
         public async Task<IResult> AddAvailability([FromBody] AddAvailabilityRequest request, CancellationToken ct)
         {
-             var result = await specialistService
-                    .AddAvailabilityAsync(request, ct);
+            var result = await specialistService
+                   .AddAvailabilityAsync(request, ct);
 
             return result.Match(
                 value => Results.Ok(
@@ -124,7 +125,7 @@ namespace BoslaPlatform.API.Controllers.v1
 
         [HttpDelete("me/expertise/{id:guid}")]
         [Authorize(Roles = nameof(UserRole.Specialist))]
-        public async Task<IResult> DeleteExpertise(Guid id,CancellationToken ct)
+        public async Task<IResult> DeleteExpertise(Guid id, CancellationToken ct)
         {
             var result = await specialistService
                     .DeleteExpertiseAsync(id, ct);
@@ -211,7 +212,7 @@ namespace BoslaPlatform.API.Controllers.v1
 
 
         [HttpPost("me/experience")]
-        public async Task<IResult> AddExperience(AddExperienceRequestDTO request,CancellationToken ct)
+        public async Task<IResult> AddExperience(AddExperienceRequestDTO request, CancellationToken ct)
         {
             var result =
                 await specialistService
@@ -225,10 +226,10 @@ namespace BoslaPlatform.API.Controllers.v1
 
 
         [HttpPut("me/experience/{id:guid}")]
-        public async Task<IResult> UpdateExperience( Guid id,UpdateExperienceRequest request, CancellationToken ct)
+        public async Task<IResult> UpdateExperience(Guid id, UpdateExperienceRequest request, CancellationToken ct)
         {
             var result =
-                await specialistService.UpdateExperienceAsync( id,request,ct);
+                await specialistService.UpdateExperienceAsync(id, request, ct);
 
             return result.Match(
                 value => Results.Ok(
@@ -238,7 +239,7 @@ namespace BoslaPlatform.API.Controllers.v1
 
 
         [HttpDelete("me/experience/{id:guid}")]
-        public async Task<IResult> DeleteExperience(Guid id,CancellationToken ct)
+        public async Task<IResult> DeleteExperience(Guid id, CancellationToken ct)
         {
             var result = await specialistService
                 .DeleteExperienceAsync(id, ct);
@@ -255,7 +256,7 @@ namespace BoslaPlatform.API.Controllers.v1
 
 
         [HttpPost("me/skills")]
-        public async Task<IResult> AddSkill(AddSkillRequest request,CancellationToken ct)
+        public async Task<IResult> AddSkill(AddSkillRequest request, CancellationToken ct)
         {
             var result = await specialistService
                 .AddSkillAsync(request, ct);
@@ -307,7 +308,7 @@ namespace BoslaPlatform.API.Controllers.v1
 
 
         [HttpDelete("me/tools/{id:guid}")]
-        public async Task<IResult> DeleteTool(Guid id,CancellationToken ct)    
+        public async Task<IResult> DeleteTool(Guid id, CancellationToken ct)
         {
             var result = await specialistService
                 .DeleteToolAsync(id, ct);
@@ -326,22 +327,21 @@ namespace BoslaPlatform.API.Controllers.v1
 
         [HttpGet]
         [AllowAnonymous]
-        public async Task<IResult> GetSpecialists( CancellationToken ct)
+        public async Task<IResult> GetSpecialists([FromQuery] GetSpecialistsRequest request, CancellationToken ct)
         {
-            var result = await specialistService
-                .GetSpecialistsAsync(ct);
+            var result = await specialistService.GetSpecialistsAsync(request, ct);
 
             return result.Match(
                 value => Results.Ok(
-                    ApiResponse<IReadOnlyList<SpecialistListItemResponse>>
+                    ApiResponse<PaginatedResult<SpecialistListItemResponse>>
                         .SuccessResponse(value)),
                 errors => errors.ToProblem());
         }
 
         [HttpGet("{id:guid}")]
         [AllowAnonymous]
-        public async Task<IResult> GetSpecialistById( Guid id,CancellationToken ct)
-         {
+        public async Task<IResult> GetSpecialistById(Guid id, CancellationToken ct)
+        {
             var result = await specialistService
                 .GetSpecialistByIdAsync(id, ct);
 
@@ -355,7 +355,7 @@ namespace BoslaPlatform.API.Controllers.v1
 
         [HttpGet("{id:guid}/availability")]
         [AllowAnonymous]
-        public async Task<IResult> GetSpecialistAvailability(Guid id,CancellationToken ct)
+        public async Task<IResult> GetSpecialistAvailability(Guid id, CancellationToken ct)
         {
             var result = await specialistService
                 .GetSpecialistAvailabilityAsync(id, ct);
@@ -386,5 +386,3 @@ namespace BoslaPlatform.API.Controllers.v1
 
     }
 }
-//Khaled$123
-//    KH@gmail.com

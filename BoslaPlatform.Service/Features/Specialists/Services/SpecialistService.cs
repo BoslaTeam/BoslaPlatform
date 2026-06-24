@@ -12,9 +12,10 @@ using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Junctions;
 using BoslaPlatform.Domain.Models.Profile;
 using BoslaPlatform.Shared;
+using BoslaPlatform.Shared.Pagination;
+using Dapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Dapper;
 
 namespace BoslaPlatform.Application.Features.Specialists.Services
 {
@@ -127,8 +128,8 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                     .OrderBy(x => x.Start)
                     .Select(x => new AvailabilityResponse(
                         x.Id,
-                        x.Start, 
-                        x.End     
+                        x.Start,
+                        x.End
                     ))
                     .ToListAsync(ct);
 
@@ -156,7 +157,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                         ct);
 
             if (hasOverlap)
-                return Error.Conflict(description:"Availability slot overlaps with an existing slot.");
+                return Error.Conflict(description: "Availability slot overlaps with an existing slot.");
 
             var availability =
                 Availability.Create(
@@ -786,11 +787,69 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         }
 
 
-        public async Task<Result<IReadOnlyList<SpecialistListItemResponse>>> GetSpecialistsAsync(CancellationToken ct)
+        public async Task<Result<PaginatedResult<SpecialistListItemResponse>>> GetSpecialistsAsync(GetSpecialistsRequest request, CancellationToken ct)
         {
-            var specialists = await context.Specialists
+            var pageNumber = request.NormalizePageNumber();
+            var pageSize = request.NormalizePageSize();
+
+            var query = context.Specialists
                 .AsNoTracking()
+                .Where(x => x.VerificationStatus == VerificationStatus.Approved)
                 .Include(x => x.User)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+            {
+                var search = request.SearchTerm.Trim();
+
+                query = query.Where(x =>
+                    EF.Functions.Like(x.User.Name, $"%{search}%") ||
+                    (x.User.Title != null &&
+                     EF.Functions.Like(x.User.Title, $"%{search}%")) ||
+                    (x.User.Bio != null &&
+                     EF.Functions.Like(x.User.Bio, $"%{search}%")));
+            }
+
+            if (request.ExperienceLevel.HasValue)
+            {
+                query = query.Where(
+                    x => x.ExperienceLevel == request.ExperienceLevel.Value);
+            }
+
+            if (request.MinHourlyRate.HasValue)
+            {
+                query = query.Where(
+                    x => x.HourlyRate >= request.MinHourlyRate.Value);
+            }
+
+            if (request.MaxHourlyRate.HasValue)
+            {
+                query = query.Where(
+                    x => x.HourlyRate <= request.MaxHourlyRate.Value);
+            }
+
+            if (request.SkillId.HasValue)
+            {
+                query = query.Where(x =>
+                    x.SpecialistSkills.Any(
+                        s => s.SkillId == request.SkillId.Value));
+            }
+
+            if (request.ToolId.HasValue)
+            {
+                query = query.Where(x =>
+                    x.SpecialistTools.Any(
+                        t => t.ToolId == request.ToolId.Value));
+            }
+
+            if (request.ExpertiseId.HasValue)
+            {
+                query = query.Where(x =>
+                    x.SpecialistExpertise.Any(
+                        e => e.ExpertiseId == request.ExpertiseId.Value));
+            }
+
+            var projectedQuery = query
                 .OrderBy(x => x.User.Name)
                 .Select(x => new SpecialistListItemResponse
                 {
@@ -801,10 +860,12 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                     HourlyRate = x.HourlyRate,
                     ExperienceLevel = x.ExperienceLevel,
                     VerificationStatus = x.VerificationStatus
-                })
-                .ToListAsync(ct);
+                });
 
-            return specialists;
+            return await projectedQuery.ToPaginatedResultAsync(
+                pageNumber,
+                pageSize,
+                ct);
         }
 
 
@@ -815,7 +876,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 .Include(x => x.User)
                 .Include(x => x.SpecialistTools).ThenInclude(st => st.Tool)
                 .Include(x => x.SpecialistSkills).ThenInclude(ss => ss.Skill)
-                .FirstOrDefaultAsync(x => x.Id == specialistId, ct);
+                .FirstOrDefaultAsync(x => x.Id == specialistId && x.VerificationStatus == VerificationStatus.Approved, ct);
 
 
 
@@ -850,12 +911,11 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
 
         public async Task<Result<IReadOnlyList<SpecialistAvailabilityResponse>>>
-            GetSpecialistAvailabilityAsync( Guid specialistId, CancellationToken ct)
+            GetSpecialistAvailabilityAsync(Guid specialistId, CancellationToken ct)
         {
             var specialistExists = await context.Specialists
-                .AnyAsync(
-                    x => x.Id == specialistId,
-                    ct);
+                .Where(x => x.VerificationStatus == VerificationStatus.Approved)
+                .AnyAsync(x => x.Id == specialistId, ct);
 
             if (!specialistExists)
             {
