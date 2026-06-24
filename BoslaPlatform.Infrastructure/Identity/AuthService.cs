@@ -257,6 +257,10 @@ namespace BoslaPlatform.Infrastructure.Identity
                 {
                     user.EmailConfirmed = true;
                     await _userManager.UpdateAsync(user);
+                    
+                    // Publish welcome event since the email is now verified
+                    await _publisher.Publish(
+                        new EmailVerifiedEvent(user.Id, user.Email!, user.Name), ct);
                 }
 
                 return await _tokenService.CreateTokenAsync(user, ct);
@@ -334,28 +338,29 @@ namespace BoslaPlatform.Infrastructure.Identity
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
             
-            var resetLink = $"https://localhost:44397/reset-password?email={Uri.EscapeDataString(request.Email)}&token={Uri.EscapeDataString(token)}";
+            var resetLink = $"http://localhost:4200/auth/reset-password?email={Uri.EscapeDataString(request.Email)}&token={Uri.EscapeDataString(token)}";
             
             var body = $@"
-<div style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; background-color: #f9f9fc; padding: 40px 20px; text-align: center;'>
+<div style='font-family: ""Inter"", ""Cairo"", Tahoma, Geneva, Verdana, sans-serif; background-color: #F7F9FA; padding: 40px 20px; text-align: center; direction: ltr;'>
     <div style='max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #eaeaea;'>
         <div style='margin-bottom: 30px;'>
-            <h1 style='color: #2c3e50; font-size: 24px; margin: 0;'>Bosla Platform</h1>
+            <h1 style='color: #1B4F72; font-size: 28px; font-weight: 700; margin: 0;'>Bosla</h1>
         </div>
-        <h2 style='color: #333333; font-size: 20px; margin-bottom: 15px;'>Reset Your Password</h2>
-        <p style='color: #555555; font-size: 16px; line-height: 1.6; margin-bottom: 30px;'>
+        <h2 style='color: #2C3E50; font-size: 22px; margin-bottom: 15px;'>Reset Your Password</h2>
+        <p style='color: #2C3E50; font-size: 16px; line-height: 1.6; margin-bottom: 30px;'>
             We received a request to reset the password for your account. Click the button below to choose a new password. If you didn't request this, you can safely ignore this email.
         </p>
-        <a href='{resetLink}' style='display: inline-block; background-color: #4361ee; color: #ffffff; text-decoration: none; padding: 14px 32px; font-size: 16px; font-weight: 600; border-radius: 6px; transition: background-color 0.3s;'>
+        <a href='{resetLink}' style='display: inline-block; background-color: #F39C12; color: #ffffff; text-decoration: none; padding: 14px 32px; font-size: 16px; font-weight: 600; border-radius: 6px; transition: background-color 0.3s;'>
             Reset Password
         </a>
-        <p style='color: #888888; font-size: 14px; margin-top: 35px; line-height: 1.5;'>
+        <p style='color: #95A5A6; font-size: 14px; margin-top: 35px; line-height: 1.5;'>
             Or copy and paste this link into your browser:<br>
-            <a href='{resetLink}' style='color: #4361ee; word-break: break-all; text-decoration: underline;'>{resetLink}</a>
+            <a href='{resetLink}' style='color: #2E86AB; word-break: break-all; text-decoration: underline;'>{resetLink}</a>
         </p>
         <hr style='border: none; border-top: 1px solid #eeeeee; margin: 30px 0;'>
-        <p style='color: #aaaaaa; font-size: 12px; margin: 0;'>
-            &copy; {DateTime.UtcNow.Year} Bosla Platform. All rights reserved.
+        <p style='color: #95A5A6; font-size: 12px; margin: 0;'>
+            &copy; {DateTime.UtcNow.Year} Bosla Platform. All rights reserved.<br>
+            Your Compass to the Right Expert.
         </p>
     </div>
 </div>";
@@ -388,37 +393,35 @@ namespace BoslaPlatform.Infrastructure.Identity
         {
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
 
-            var confirmLink = $"https://localhost:44397/verify-email?email={Uri.EscapeDataString(user.Email!)}&token={Uri.EscapeDataString(token)}";
+            var confirmLink = $"http://localhost:4200/auth/verify-email?email={Uri.EscapeDataString(user.Email!)}&token={Uri.EscapeDataString(token)}";
 
             var body = $@"
-<div style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; background-color: #f9f9fc; padding: 40px 20px; text-align: center;'>
+<div style='font-family: ""Inter"", ""Cairo"", Tahoma, Geneva, Verdana, sans-serif; background-color: #F7F9FA; padding: 40px 20px; text-align: center; direction: ltr;'>
     <div style='max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #eaeaea;'>
         <div style='margin-bottom: 30px;'>
-            <h1 style='color: #2c3e50; font-size: 24px; margin: 0;'>Bosla Platform</h1>
+            <h1 style='color: #1B4F72; font-size: 28px; font-weight: 700; margin: 0;'>Bosla</h1>
         </div>
-        <div style='margin-bottom: 20px;'>
-            <span style='font-size: 48px;'>✉️</span>
-        </div>
-        <h2 style='color: #333333; font-size: 22px; margin-bottom: 15px;'>Verify Your Email Address</h2>
-        <p style='color: #555555; font-size: 16px; line-height: 1.6; margin-bottom: 10px;'>
+        <h2 style='color: #2C3E50; font-size: 22px; margin-bottom: 15px;'>Verify Your Email Address</h2>
+        <p style='color: #2C3E50; font-size: 16px; line-height: 1.6; margin-bottom: 10px;'>
             Hi <strong>{user.Name}</strong>,
         </p>
-        <p style='color: #555555; font-size: 16px; line-height: 1.6; margin-bottom: 30px;'>
-            Thank you for registering with Bosla Platform! Please click the button below to verify your email address and activate your account.
+        <p style='color: #2C3E50; font-size: 16px; line-height: 1.6; margin-bottom: 30px;'>
+            Thank you for registering with Bosla! Please click the button below to verify your email address and activate your account.
         </p>
-        <a href='{confirmLink}' style='display: inline-block; background-color: #4361ee; color: #ffffff; text-decoration: none; padding: 14px 32px; font-size: 16px; font-weight: 600; border-radius: 6px;'>
+        <a href='{confirmLink}' style='display: inline-block; background-color: #F39C12; color: #ffffff; text-decoration: none; padding: 14px 32px; font-size: 16px; font-weight: 600; border-radius: 6px;'>
             Verify Email
         </a>
-        <p style='color: #888888; font-size: 14px; margin-top: 35px; line-height: 1.5;'>
+        <p style='color: #95A5A6; font-size: 14px; margin-top: 35px; line-height: 1.5;'>
             Or copy and paste this link into your browser:<br>
-            <a href='{confirmLink}' style='color: #4361ee; word-break: break-all; text-decoration: underline;'>{confirmLink}</a>
+            <a href='{confirmLink}' style='color: #2E86AB; word-break: break-all; text-decoration: underline;'>{confirmLink}</a>
         </p>
         <hr style='border: none; border-top: 1px solid #eeeeee; margin: 30px 0;'>
-        <p style='color: #aaaaaa; font-size: 12px; margin: 0;'>
+        <p style='color: #95A5A6; font-size: 12px; margin: 0;'>
             If you didn't create an account, you can safely ignore this email.
         </p>
-        <p style='color: #aaaaaa; font-size: 12px; margin: 5px 0 0;'>
-            &copy; {DateTime.UtcNow.Year} Bosla Platform. All rights reserved.
+        <p style='color: #95A5A6; font-size: 12px; margin: 5px 0 0;'>
+            &copy; {DateTime.UtcNow.Year} Bosla Platform. All rights reserved.<br>
+            Your Compass to the Right Expert.
         </p>
     </div>
 </div>";
