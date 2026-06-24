@@ -1,4 +1,6 @@
-﻿using BoslaPlatform.Application.Features.VideoSessions.Interfaces;
+using AutoMapper;
+using BoslaPlatform.Application.Features.VideoSessions.Dtos;
+using BoslaPlatform.Application.Features.VideoSessions.Interfaces;
 using BoslaPlatform.Application.Features.VideoSessions.Responses;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Persistence;
@@ -19,6 +21,7 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
         private readonly IAppDbContext _context;
         private readonly IUser _currentUser;
         private readonly IAgoraTokenService _agoraTokenService;
+        private readonly IMapper _mapper;
 
         /// <summary>
         /// Initializes a new instance of the VideoSessionService.
@@ -26,11 +29,81 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
         /// <param name="context">The application database context.</param>
         /// <param name="currentUser">The current authenticated user context.</param>
         /// <param name="agoraTokenService">The Agora token generation service.</param>
-        public VideoSessionService(IAppDbContext context,IUser currentUser,IAgoraTokenService agoraTokenService)
+        /// <param name="mapper">The AutoMapper instance.</param>
+        public VideoSessionService(
+            IAppDbContext context,
+            IUser currentUser,
+            IAgoraTokenService agoraTokenService,
+            IMapper mapper)
         {
             _context = context;
             _currentUser = currentUser;
             _agoraTokenService = agoraTokenService;
+            _mapper = mapper;
+        }
+
+        /// <summary>
+        /// Retrieves a video session by its unique identifier.
+        /// Validates authentication and appointment membership before returning session details.
+        /// </summary>
+        /// <param name="sessionId">The unique identifier of the video session.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>A Result containing the VideoSessionDto or an appropriate error.</returns>
+        public async Task<Result<VideoSessionDto>> GetByIdAsync(
+            Guid sessionId,
+            CancellationToken ct = default)
+        {
+            // 1. Validate authentication
+            if (!_currentUser.IsAuthenticated || _currentUser.Id is null)
+            {
+                return Error.Unauthorized(
+                    "User.Unauthorized",
+                    "User is not authenticated.");
+            }
+
+            // 2. Retrieve session with participants and their user information
+            var session = await _context.VideoSessions
+                .AsNoTracking()
+                .Include(x => x.Participants)
+                    .ThenInclude(p => p.User)
+                .Include(x => x.Appointment)
+                .FirstOrDefaultAsync(
+                    x => x.Id == sessionId,
+                    ct);
+
+            // 3. Validate session exists
+            if (session is null)
+            {
+                return Error.NotFound(
+                    "VideoSession.NotFound",
+                    "Video session was not found.");
+            }
+
+            // 4. Validate current user belongs to the appointment
+            var appointment = session.Appointment!;
+            var isClient = appointment.UserId == _currentUser.Id;
+
+            var specialist = await _context.Specialists
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    s => s.UserId == _currentUser.Id,
+                    ct);
+
+            var isSpecialist =
+                specialist is not null &&
+                appointment.SpecialistId == specialist.Id;
+
+            if (!isClient && !isSpecialist)
+            {
+                return Error.Forbidden(
+                    "VideoSession.AccessDenied",
+                    "You are not authorized to access this video session.");
+            }
+
+            // 5. Map and return
+            var dto = _mapper.Map<VideoSessionDto>(session);
+
+            return Result<VideoSessionDto>.Success(dto);
         }
 
         /// <summary>
