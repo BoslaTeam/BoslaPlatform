@@ -34,6 +34,12 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("DefaultConnection");
         ArgumentNullException.ThrowIfNull(connectionString);
 
+        // Register Dapper-based dashboard repository using same connection string
+        services.AddScoped<BoslaPlatform.Application.Features.Admin.Repositories.IDashboardRepository>(_ =>
+            new BoslaPlatform.Infrastructure.Data.DapperDashboardRepository(connectionString));
+
+        services.Configure<StripeSettings>(configuration.GetSection("StripeSettings"));
+
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationAssemblyReference).Assembly));
 
         services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
@@ -117,22 +123,43 @@ public static class DependencyInjection
         services.AddAuthorization();
         services.AddHttpContextAccessor();
 
-        services.Configure<OpenAISettings>(configuration.GetSection("OpenAISettings"));
-        services.AddHttpClient("openai").ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(10));
-        services.AddScoped<IChatService, OpenAiChatService>();
-        
-        services.AddHttpClient<BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiEmbeddingService>();
-        services.AddScoped<IEmbeddingService, BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiEmbeddingService>();
-        
-        services.AddHttpClient<BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiChatService>();
-        services.AddSingleton<BoslaPlatform.Infrastructure.AI.Tokenizers.ITokenizer, BoslaPlatform.Infrastructure.AI.Tokenizers.SimpleTokenizer>();
-        
+        var aiProvider = configuration["AI:Provider"] ?? "OpenAI";
+
+        if (aiProvider.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
+        {
+            services.Configure<GeminiSettings>(configuration.GetSection("GeminiSettings"));
+            services.AddHttpClient("gemini").ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30));
+
+            services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Gemini.GeminiEmbeddingService>();
+            services.AddScoped<IEmbeddingService, BoslaPlatform.Infrastructure.AI.Gemini.GeminiEmbeddingService>();
+
+            services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Gemini.GeminiChatService>();
+            services.AddScoped<IChatService, BoslaPlatform.Infrastructure.AI.Gemini.GeminiChatService>();
+        }
+        else
+        {
+            services.Configure<OpenAISettings>(configuration.GetSection("OpenAISettings"));
+            services.AddHttpClient("openai").ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30));
+            services.AddScoped<IChatService, OpenAiChatService>();
+
+            services.AddHttpClient<BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiEmbeddingService>();
+            services.AddScoped<IEmbeddingService, BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiEmbeddingService>();
+
+            services.AddHttpClient<BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiChatService>();
+            services.AddSingleton<BoslaPlatform.Infrastructure.AI.Tokenizers.ITokenizer, BoslaPlatform.Infrastructure.AI.Tokenizers.SimpleTokenizer>();
+        }
+
         services.Configure<QdrantSettings>(configuration.GetSection("QdrantSettings"));
-        services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Qdrant.QdrantClient>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(10));
+        services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Qdrant.QdrantClient>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30));
 
         services.AddScoped<IVectorStore, BoslaPlatform.Infrastructure.AI.Qdrant.QdrantVectorStore>();
         services.AddScoped<IAiSearchService, BoslaPlatform.Infrastructure.AI.AiSearchService>();
+        services.AddScoped<ISummaryService, BoslaPlatform.Infrastructure.AI.SummaryService>();
+        services.AddScoped<IEmbeddingAdminService, BoslaPlatform.Infrastructure.AI.EmbeddingAdminService>();
+                        
+            services.AddAuthorization();
 
-        return services;
+
+            return services;
+        }
     }
-}

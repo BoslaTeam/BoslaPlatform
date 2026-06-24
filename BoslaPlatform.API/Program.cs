@@ -7,6 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<FluentValidationFilter>();
+    options.Conventions.Add(new BoslaPlatform.API.OpenApi.AddDefaultResponseConvention());
 });
 
 builder.Services.AddOpenApi();
@@ -22,6 +23,8 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    // Show developer exception page so OpenAPI generation errors are visible during development
+    app.UseDeveloperExceptionPage();
     app.MapOpenApi();
     app.UseSwaggerUI(options =>
     {
