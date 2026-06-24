@@ -7,6 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Services\Specialist\**" />
+    <EmbeddedResource Remove="Services\Specialist\**" />
+    <None Remove="Services\Specialist\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
@@ -41,7 +47,6 @@
 	  <Folder Include="AI\" />
 	  <Folder Include="Realtime\" />
 	  <Folder Include="Observability\" />
-	  <Folder Include="Services\Specialist\" />
 	</ItemGroup>
 
 </Project>

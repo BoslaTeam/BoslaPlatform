@@ -1,4 +1,5 @@
 ﻿using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Models.Lookup;
 using Microsoft.AspNetCore.Builder;
@@ -127,7 +128,19 @@ namespace BoslaPlatform.Infrastructure.Data
                         var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                         throw new Exception($"Failed to create user '{userData.Email}': {errors}");
                     }
+                    if (userData.Role == nameof(UserRole.Specialist))
+                    {
+                        var specialist = new Specialist
+                        {
+                            UserId = newUser.Id,
+                            ExperienceYears = 5,
+                            HourlyRate = 100,
+                            VerificationStatus = VerificationStatus.Approved
+                        };
 
+                        _context.Specialists.Add(specialist);
+                        await _context.SaveChangesAsync();
+                    }
                     if (!string.IsNullOrWhiteSpace(newUser.Name))
                     {
                         await _userManager.AddToRolesAsync(newUser, new[] { userData.Role });

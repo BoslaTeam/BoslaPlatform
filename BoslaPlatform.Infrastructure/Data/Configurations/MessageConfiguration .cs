@@ -1,19 +1,41 @@
-﻿using BoslaPlatform.Domain.Models.Conversations;
+﻿using BoslaPlatform.Domain.Models.Communication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace BoslaPlatform.Infrastructure.Data.Configurations
 {
-    public class MessageConfiguration : BaseEntityConfiguration<Message>
+    public class MessageConfiguration
+        : BaseEntityConfiguration<Message>
     {
         public override void Configure(EntityTypeBuilder<Message> builder)
         {
             base.Configure(builder);
-            builder.Property(m => m.MessageText).IsRequired();
 
-            builder.HasOne(m => m.Conversation).WithMany(c => c.Messages)
-                .HasForeignKey(m => m.ConversationId).OnDelete(DeleteBehavior.Cascade);
-            builder.HasOne(m => m.Sender).WithMany().HasForeignKey(m => m.SenderId)
+            builder.Property(x => x.MessageText)
+                .IsRequired()
+                .HasMaxLength(4000);
+
+            builder.Property(x => x.IsEdited)
+                .HasDefaultValue(false);
+
+            builder.HasIndex(x => x.SenderId);
+
+            builder.HasIndex(x => x.ConversationId);
+
+            builder.HasIndex(x => new
+            {
+                x.ConversationId,
+                x.CreatedAtUtc
+            });
+
+            builder.HasOne(x => x.Conversation)
+                .WithMany(x => x.Messages)
+                .HasForeignKey(x => x.ConversationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(x => x.Sender)
+                .WithMany()
+                .HasForeignKey(x => x.SenderId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }

@@ -64,11 +64,11 @@ namespace BoslaPlatform.Infrastructure.Identity
                     description: "Your account is disabled.");
             }
 
-            if (!user.EmailConfirmed)
-            {
-                return Error.Forbidden(
-                    description: "Please confirm your email first.");
-            }
+            //if (!user.EmailConfirmed)
+            //{
+            //    return Error.Forbidden(
+            //        description: "Please confirm your email first.");
+            //}
 
             var signInResult =
                 await _signInManager.CheckPasswordSignInAsync(
@@ -323,11 +323,13 @@ namespace BoslaPlatform.Infrastructure.Identity
             var user = await _userManager.FindByEmailAsync(request.Email);
             if (user == null)
             {
-                throw new Exception($"DEBUG: User not found for email: {request.Email}");
+                // Return success even if user doesn't exist to prevent email enumeration
+                return Result<bool>.Success(true);
             }
             if (!user.IsActive)
             {
-                throw new Exception($"DEBUG: User is not active for email: {request.Email}");
+                // Return success to prevent account status enumeration
+                return Result<bool>.Success(true);
             }
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
