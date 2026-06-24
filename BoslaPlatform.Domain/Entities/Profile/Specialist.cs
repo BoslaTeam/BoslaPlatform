@@ -54,7 +54,7 @@ namespace BoslaPlatform.Domain.Entities.Profile
             decimal hourlyRate,
             string? bookingPolicy)
         {
-            return new Specialist
+            var specialist = new Specialist
             {
                 UserId = userId,
                 ExperienceYears = experienceYears,
@@ -63,6 +63,10 @@ namespace BoslaPlatform.Domain.Entities.Profile
                 BookingPolicy = bookingPolicy,
                 VerificationStatus = VerificationStatus.Pending
             };
+
+            specialist.AddDomainEvent(new SpecialistOnboardedEvent(userId));
+
+            return specialist;
         }
 
         public void UpdateProfile(
@@ -88,8 +92,7 @@ namespace BoslaPlatform.Domain.Entities.Profile
             IntroVideoUrl = introVideoUrl;
             BookingPolicy = bookingPolicy;
 
-            AddDomainEvent(
-                new SpecialistProfileUpdatedEvent(Id));
+            AddDomainEvent(new SpecialistProfileUpdatedEvent(Id));
         }
     }
 }

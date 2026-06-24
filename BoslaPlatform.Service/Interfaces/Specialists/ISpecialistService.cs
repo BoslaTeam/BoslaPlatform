@@ -2,6 +2,7 @@
 using BoslaPlatform.Application.Features.Specialists.Request;
 using BoslaPlatform.Application.Features.Specialists.Response;
 using BoslaPlatform.Shared;
+using BoslaPlatform.Shared.Pagination;
 
 namespace BoslaPlatform.Application.Interfaces.Specialists
 {
@@ -44,7 +45,7 @@ namespace BoslaPlatform.Application.Interfaces.Specialists
         Task<Result> AddToolAsync(AddToolRequest request, CancellationToken ct);
 
         Task<Result> DeleteToolAsync( Guid toolId, CancellationToken ct);
-        Task<Result<IReadOnlyList<SpecialistListItemResponse>>> GetSpecialistsAsync(CancellationToken ct);
+        Task<Result<PaginatedResult<SpecialistListItemResponse>>> GetSpecialistsAsync(GetSpecialistsRequest request, CancellationToken ct);
         Task<Result<SpecialistDetailsResponse>> GetSpecialistByIdAsync( Guid specialistId,CancellationToken ct);
         Task<Result<SpecialistEarningsDto>> GetEarningsAsync(CancellationToken ct = default);
 

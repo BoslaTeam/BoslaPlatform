@@ -1,6 +1,6 @@
 ﻿namespace BoslaPlatform.Shared.Pagination
 {
-    public sealed class PaginationRequest
+    public class PaginationRequest
     {
         private const int MaxPageSize = 100;
         public int PageNumber { get; init; } = 1;
