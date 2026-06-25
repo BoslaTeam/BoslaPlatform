@@ -30,7 +30,7 @@ namespace BoslaPlatform.Service.Features.Users.Validators
             RuleFor(x => x.Degree).NotEmpty();
             RuleFor(x => x.Institution).NotEmpty();
             RuleFor(x => x.StartYear).GreaterThan(1900);
-            RuleFor(x => x.EndYear).GreaterThanOrEqualTo(x => x.StartYear);
+            RuleFor(x => x.EndYear).GreaterThanOrEqualTo(x => x.StartYear).When(x => x.EndYear.HasValue);
         }
     }
 
@@ -41,7 +41,7 @@ namespace BoslaPlatform.Service.Features.Users.Validators
             RuleFor(x => x.Degree).NotEmpty();
             RuleFor(x => x.Institution).NotEmpty();
             RuleFor(x => x.StartYear).GreaterThan(1900);
-            RuleFor(x => x.EndYear).GreaterThanOrEqualTo(x => x.StartYear);
+            RuleFor(x => x.EndYear).GreaterThanOrEqualTo(x => x.StartYear).When(x => x.EndYear.HasValue);
         }
     }
 

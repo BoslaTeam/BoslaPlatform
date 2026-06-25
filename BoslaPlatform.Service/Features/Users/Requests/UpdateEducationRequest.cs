@@ -4,5 +4,5 @@ namespace BoslaPlatform.Application.Features.Users.Requests
         string Degree,
         string Institution,
         int StartYear,
-        int EndYear);
+        int? EndYear);
 }

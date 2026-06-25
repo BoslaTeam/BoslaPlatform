@@ -143,7 +143,7 @@ namespace BoslaPlatform.Infrastructure.Identity
                 FieldOfStudy = request.Degree,
                 InstitutionName = request.Institution,
                 StartDate = new DateOnly(request.StartYear, 1, 1),
-                EndDate = new DateOnly(request.EndYear, 1, 1)
+                EndDate = request.EndYear.HasValue ? new DateOnly(request.EndYear.Value, 1, 1) : null
             };
 
             _context.Set<Education>().Add(education);
@@ -171,7 +171,7 @@ namespace BoslaPlatform.Infrastructure.Identity
             education.FieldOfStudy = request.Degree;
             education.InstitutionName = request.Institution;
             education.StartDate = new DateOnly(request.StartYear, 1, 1);
-            education.EndDate = new DateOnly(request.EndYear, 1, 1);
+            education.EndDate = request.EndYear.HasValue ? new DateOnly(request.EndYear.Value, 1, 1) : null;
 
             await _context.SaveChangesAsync(ct);
 
