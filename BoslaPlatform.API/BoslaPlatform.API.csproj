@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -30,6 +30,12 @@
   <ItemGroup>
     <Folder Include="Common\Filters\" />
     <Folder Include="Services\" />
+  </ItemGroup>
+
+  <!-- Exclude user-uploaded images from static web assets tracking -->
+  <ItemGroup>
+    <Content Remove="wwwroot\images\**" />
+    <None Include="wwwroot\images\**" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
