@@ -4,6 +4,13 @@ using BoslaPlatform.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+if (!Directory.Exists(webRootPath))
+{
+    Directory.CreateDirectory(webRootPath);
+}
+builder.Environment.WebRootPath = webRootPath;
+
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<FluentValidationFilter>();
