@@ -1,0 +1,447 @@
+﻿[
+    {
+        "Controller":  "Admin",
+        "Method":  "GET",
+        "Path":  "/api/v1/admin/users"
+    },
+    {
+        "Controller":  "Admin",
+        "Method":  "GET",
+        "Path":  "/api/v1/admin/users/{id:guid}"
+    },
+    {
+        "Controller":  "Admin",
+        "Method":  "PUT",
+        "Path":  "/api/v1/admin/users/{id:guid}/roles"
+    },
+    {
+        "Controller":  "Admin",
+        "Method":  "POST",
+        "Path":  "/api/v1/admin/users/{id:guid}/deactivate"
+    },
+    {
+        "Controller":  "Admin",
+        "Method":  "POST",
+        "Path":  "/api/v1/admin/users/{id:guid}/reactivate"
+    },
+    {
+        "Controller":  "Admin",
+        "Method":  "POST",
+        "Path":  "/api/v1/admin/specialists/{id:guid}/verify"
+    },
+    {
+        "Controller":  "Admin",
+        "Method":  "GET",
+        "Path":  "/api/v1/admin/audit-logs"
+    },
+    {
+        "Controller":  "Ai",
+        "Method":  "POST",
+        "Path":  "/api/v1/ai/search"
+    },
+    {
+        "Controller":  "Ai",
+        "Method":  "GET",
+        "Path":  "/api/v1/ai/search/history"
+    },
+    {
+        "Controller":  "Ai",
+        "Method":  "POST",
+        "Path":  "/api/v1/ai/search/{id}/feedback"
+    },
+    {
+        "Controller":  "Appointments",
+        "Method":  "POST",
+        "Path":  "/api/v1/[controller]"
+    },
+    {
+        "Controller":  "Appointments",
+        "Method":  "GET",
+        "Path":  "/api/v1/[controller]/{id:guid}"
+    },
+    {
+        "Controller":  "Appointments",
+        "Method":  "GET",
+        "Path":  "/api/v1/[controller]/my-appointments"
+    },
+    {
+        "Controller":  "Appointments",
+        "Method":  "GET",
+        "Path":  "/api/v1/[controller]/specialist/{specialistId:guid}"
+    },
+    {
+        "Controller":  "Appointments",
+        "Method":  "GET",
+        "Path":  "/api/v1/[controller]/upcoming"
+    },
+    {
+        "Controller":  "Appointments",
+        "Method":  "GET",
+        "Path":  "/api/v1/[controller]/{id:guid}/history"
+    },
+    {
+        "Controller":  "Appointments",
+        "Method":  "PUT",
+        "Path":  "/api/v1/[controller]/{id:guid}/confirm"
+    },
+    {
+        "Controller":  "Appointments",
+        "Method":  "PUT",
+        "Path":  "/api/v1/[controller]/{id:guid}/cancel"
+    },
+    {
+        "Controller":  "Appointments",
+        "Method":  "PUT",
+        "Path":  "/api/v1/[controller]/{id:guid}/reschedule"
+    },
+    {
+        "Controller":  "Appointments",
+        "Method":  "PUT",
+        "Path":  "/api/v1/[controller]/{id:guid}/complete"
+    },
+    {
+        "Controller":  "Appointments",
+        "Method":  "PUT",
+        "Path":  "/api/v1/[controller]/{id:guid}/reject"
+    },
+    {
+        "Controller":  "Appointments",
+        "Method":  "PATCH",
+        "Path":  "/api/v1/[controller]/{id:guid}/notes"
+    },
+    {
+        "Controller":  "Auth",
+        "Method":  "POST",
+        "Path":  "/api/v1/auth/login"
+    },
+    {
+        "Controller":  "Auth",
+        "Method":  "POST",
+        "Path":  "/api/v1/auth/register"
+    },
+    {
+        "Controller":  "Auth",
+        "Method":  "POST",
+        "Path":  "/api/v1/auth/confirm-email"
+    },
+    {
+        "Controller":  "Auth",
+        "Method":  "POST",
+        "Path":  "/api/v1/auth/resend-confirmation-email"
+    },
+    {
+        "Controller":  "Auth",
+        "Method":  "POST",
+        "Path":  "/api/v1/auth/google-login"
+    },
+    {
+        "Controller":  "Auth",
+        "Method":  "POST",
+        "Path":  "/api/v1/auth/refresh"
+    },
+    {
+        "Controller":  "Auth",
+        "Method":  "POST",
+        "Path":  "/api/v1/auth/logout"
+    },
+    {
+        "Controller":  "Auth",
+        "Method":  "POST",
+        "Path":  "/api/v1/auth/forgot-password"
+    },
+    {
+        "Controller":  "Auth",
+        "Method":  "POST",
+        "Path":  "/api/v1/auth/reset-password"
+    },
+    {
+        "Controller":  "Conversations",
+        "Method":  "POST",
+        "Path":  "/api/v1/conversations"
+    },
+    {
+        "Controller":  "Conversations",
+        "Method":  "GET",
+        "Path":  "/api/v1/conversations/{id:guid}"
+    },
+    {
+        "Controller":  "Conversations",
+        "Method":  "GET",
+        "Path":  "/api/v1/conversations"
+    },
+    {
+        "Controller":  "Lookup",
+        "Method":  "GET",
+        "Path":  "/api/v1/lookup/expertise"
+    },
+    {
+        "Controller":  "Lookup",
+        "Method":  "GET",
+        "Path":  "/api/v1/lookup/industries"
+    },
+    {
+        "Controller":  "Lookup",
+        "Method":  "GET",
+        "Path":  "/api/v1/lookup/skills"
+    },
+    {
+        "Controller":  "Lookup",
+        "Method":  "GET",
+        "Path":  "/api/v1/lookup/tools"
+    },
+    {
+        "Controller":  "Messages",
+        "Method":  "GET",
+        "Path":  "/api/v1/conversations/{conversationId:guid}/messages"
+    },
+    {
+        "Controller":  "Messages",
+        "Method":  "POST",
+        "Path":  "/api/v1/conversations/{conversationId:guid}/messages"
+    },
+    {
+        "Controller":  "Messages",
+        "Method":  "PUT",
+        "Path":  "/api/v1/conversations/{conversationId:guid}/messages/{messageId:guid}"
+    },
+    {
+        "Controller":  "Messages",
+        "Method":  "DELETE",
+        "Path":  "/api/v1/conversations/{conversationId:guid}/messages/{messageId:guid}"
+    },
+    {
+        "Controller":  "Notifications",
+        "Method":  "GET",
+        "Path":  "/api/v1/notifications"
+    },
+    {
+        "Controller":  "Notifications",
+        "Method":  "PUT",
+        "Path":  "/api/v1/notifications/{id}/read"
+    },
+    {
+        "Controller":  "Notifications",
+        "Method":  "PUT",
+        "Path":  "/api/v1/notifications/read"
+    },
+    {
+        "Controller":  "Payments",
+        "Method":  "POST",
+        "Path":  "/api/v1/[controller]"
+    },
+    {
+        "Controller":  "Payments",
+        "Method":  "GET",
+        "Path":  "/api/v1/[controller]/{id:guid}"
+    },
+    {
+        "Controller":  "Payments",
+        "Method":  "GET",
+        "Path":  "/api/v1/[controller]/appointments/{appointmentId:guid}/payment"
+    },
+    {
+        "Controller":  "Payments",
+        "Method":  "POST",
+        "Path":  "/api/v1/[controller]/webhook"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "POST",
+        "Path":  "/api/v1/specialists/onboard"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "GET",
+        "Path":  "/api/v1/specialists/me"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "PUT",
+        "Path":  "/api/v1/specialists/me"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "GET",
+        "Path":  "/api/v1/specialists/me/availability"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "POST",
+        "Path":  "/api/v1/specialists/me/availability"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "DELETE",
+        "Path":  "/api/v1/specialists/me/availability/{id:guid}"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "POST",
+        "Path":  "/api/v1/specialists/me/expertise"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "DELETE",
+        "Path":  "/api/v1/specialists/me/expertise/{id:guid}"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "GET",
+        "Path":  "/api/v1/specialists/me/earnings"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "PUT",
+        "Path":  "/api/v1/specialists/me/cancellation-policy"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "PUT",
+        "Path":  "/api/v1/specialists/me/booking-policy"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "GET",
+        "Path":  "/api/v1/specialists/me/experience"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "POST",
+        "Path":  "/api/v1/specialists/me/experience"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "PUT",
+        "Path":  "/api/v1/specialists/me/experience/{id:guid}"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "DELETE",
+        "Path":  "/api/v1/specialists/me/experience/{id:guid}"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "POST",
+        "Path":  "/api/v1/specialists/me/skills"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "DELETE",
+        "Path":  "/api/v1/specialists/me/skills/{id:guid}"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "POST",
+        "Path":  "/api/v1/specialists/me/tools"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "DELETE",
+        "Path":  "/api/v1/specialists/me/tools/{id:guid}"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "GET",
+        "Path":  "/api/v1/specialists"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "GET",
+        "Path":  "/api/v1/specialists/{id:guid}"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "GET",
+        "Path":  "/api/v1/specialists/{id:guid}/availability"
+    },
+    {
+        "Controller":  "Specialists",
+        "Method":  "GET",
+        "Path":  "/api/v1/specialists/{id:guid}/reviews"
+    },
+    {
+        "Controller":  "Users",
+        "Method":  "GET",
+        "Path":  "/api/v1/users/me"
+    },
+    {
+        "Controller":  "Users",
+        "Method":  "PUT",
+        "Path":  "/api/v1/users/me"
+    },
+    {
+        "Controller":  "Users",
+        "Method":  "PUT",
+        "Path":  "/api/v1/users/me/password"
+    },
+    {
+        "Controller":  "Users",
+        "Method":  "GET",
+        "Path":  "/api/v1/users/me/education"
+    },
+    {
+        "Controller":  "Users",
+        "Method":  "POST",
+        "Path":  "/api/v1/users/me/education"
+    },
+    {
+        "Controller":  "Users",
+        "Method":  "PUT",
+        "Path":  "/api/v1/users/me/education/{id}"
+    },
+    {
+        "Controller":  "Users",
+        "Method":  "DELETE",
+        "Path":  "/api/v1/users/me/education/{id}"
+    },
+    {
+        "Controller":  "Users",
+        "Method":  "GET",
+        "Path":  "/api/v1/users/me/social-links"
+    },
+    {
+        "Controller":  "Users",
+        "Method":  "POST",
+        "Path":  "/api/v1/users/me/social-links"
+    },
+    {
+        "Controller":  "Users",
+        "Method":  "DELETE",
+        "Path":  "/api/v1/users/me/social-links/{id}"
+    },
+    {
+        "Controller":  "Users",
+        "Method":  "POST",
+        "Path":  "/api/v1/users/me/profile-picture"
+    },
+    {
+        "Controller":  "Users",
+        "Method":  "GET",
+        "Path":  "/api/v1/users/{id}"
+    },
+    {
+        "Controller":  "VideoSessions",
+        "Method":  "GET",
+        "Path":  "/api/v1/video-sessions/{id:guid}"
+    },
+    {
+        "Controller":  "VideoSessions",
+        "Method":  "POST",
+        "Path":  "/api/v1/video-sessions/generate-token"
+    },
+    {
+        "Controller":  "VideoSessions",
+        "Method":  "POST",
+        "Path":  "/api/v1/video-sessions/{id:guid}/join"
+    },
+    {
+        "Controller":  "VideoSessions",
+        "Method":  "POST",
+        "Path":  "/api/v1/video-sessions/{id:guid}/start"
+    },
+    {
+        "Controller":  "VideoSessions",
+        "Method":  "POST",
+        "Path":  "/api/v1/video-sessions/{id:guid}/end"
+    }
+]
