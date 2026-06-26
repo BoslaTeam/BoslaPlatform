@@ -345,5 +345,54 @@ namespace BoslaPlatform.Application.Services
             await _context.SaveChangesAsync(ct);
             return Result.Success();
         }
+
+
+
+
+        public async Task<Result<Guid>> AddReviewAsync(Guid appointmentId,AddReviewRequest request,CancellationToken ct)
+        {
+            if (!_currentUser.IsAuthenticated || !_currentUser.Id.HasValue)
+                return Error.Unauthorized(description: "User is not authenticated.");
+
+            if (request.Rating < 1 || request.Rating > 5)
+            {
+                return Error.Validation(description: "Rating must be between 1 and 5.");
+            }
+
+            var appointment = await _context.Appointments
+                .Include(x => x.Review)
+                .FirstOrDefaultAsync(
+                    x => x.Id == appointmentId,
+                    ct);
+
+            if (appointment is null)
+                return Error.NotFound(description: "Appointment not found.");
+
+            if (appointment.UserId != _currentUser.Id.Value)
+                return Error.Forbidden(description: "You can only review your own appointments.");
+
+            if (appointment.Status != AppointmentStatus.Completed)
+                return Error.Validation(
+                    description: "Only completed appointments can be reviewed.");
+
+            if (appointment.Review is not null)
+                return Error.Conflict(
+                    description: "A review already exists for this appointment.");
+
+            var review = new Review
+            {
+                AppointmentId = appointment.Id,
+                ReviewerId = _currentUser.Id.Value,
+                SpecialistId = appointment.SpecialistId,
+                Rating = request.Rating,
+                Comment = request.Comment
+            };
+
+            await _context.Reviews.AddAsync(review, ct);
+
+            await _context.SaveChangesAsync(ct);
+
+            return review.Id;
+        }
     }
 }

@@ -58,7 +58,7 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
             options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
-            options.UseSqlServer(connectionString);
+            options.UseSqlServer(connectionString, sqlOptions => sqlOptions.CommandTimeout(60));
         });
 
         services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
