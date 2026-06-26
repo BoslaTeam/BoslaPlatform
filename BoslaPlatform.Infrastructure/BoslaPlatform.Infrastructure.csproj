@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -17,7 +17,10 @@
   </ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Google.Apis.Auth" Version="1.69.0" />
+		<PackageReference Include="Google.Apis.Auth" Version="1.75.0" />
+		<PackageReference Include="Microsoft.SemanticKernel.Connectors.Google" Version="1.77.0-alpha" />
+		<PackageReference Include="Microsoft.SemanticKernel.Connectors.Qdrant" Version="1.74.0-preview" />
+		<PackageReference Include="Microsoft.SemanticKernel.Core" Version="1.77.0" />
 		<PackageReference Include="Stripe.net" Version="52.0.0" />
 		<PackageReference Include="Dapper" Version="2.1.79" />
 		<PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.1" />
@@ -34,15 +37,20 @@
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-	<!-- Removed Polly packages in favor of a lightweight retry handler to avoid package compatibility issues -->
+	<!-- Polly packages can be added if desired: Polly v8+ and Polly.Contrib.WaitAndRetry. Not adding by default. -->
 	</ItemGroup>
 
-	<ItemGroup>
-    <ProjectReference Include="..\BoslaPlatform.Domain\BoslaPlatform.Domain.csproj" />
-    <ProjectReference Include="..\BoslaPlatform.Service\BoslaPlatform.Application.csproj" />
+  <ItemGroup>
+	<PackageReference Include="Microsoft.SemanticKernel" Version="1.77.0" />
   </ItemGroup>
 
 	<ItemGroup>
+	<ProjectReference Include="..\BoslaPlatform.Domain\BoslaPlatform.Domain.csproj" />
+	<ProjectReference Include="..\BoslaPlatform.Service\BoslaPlatform.Application.csproj" />
+  </ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Ai\OpenAi\" />
 	  <Folder Include="BackgroundJobs\" />
 	  <Folder Include="AI\" />
 	  <Folder Include="Realtime\" />

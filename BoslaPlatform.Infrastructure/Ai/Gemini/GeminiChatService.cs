@@ -3,25 +3,21 @@ using BoslaPlatform.Infrastructure.Settings;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace BoslaPlatform.Infrastructure.AI.Gemini;
 
 public class GeminiChatService : IChatService
 {
     private readonly GeminiSettings _settings;
-    private readonly HttpClient _http;
+    private readonly GeminiHttpClient _client;
+    private readonly ILogger<GeminiChatService> _logger;
 
-    public GeminiChatService(IOptions<GeminiSettings> options, IHttpClientFactory factory)
+    public GeminiChatService(IOptions<GeminiSettings> options, GeminiHttpClient client, ILogger<GeminiChatService> logger)
     {
         _settings = options.Value;
-        _http = factory.CreateClient("gemini");
-        if (!string.IsNullOrEmpty(_settings.BaseUrl))
-            _http.BaseAddress = new Uri(_settings.BaseUrl);
-        if (!string.IsNullOrEmpty(_settings.ApiKey))
-        {
-            if (!_http.DefaultRequestHeaders.Contains("x-goog-api-key"))
-                _http.DefaultRequestHeaders.Add("x-goog-api-key", _settings.ApiKey);
-        }
+        _client = client ?? throw new ArgumentNullException(nameof(client));
+        _logger = logger;
     }
 
         public async Task<string> ChatAsync(string prompt, CancellationToken cancellationToken = default)
@@ -29,8 +25,8 @@ public class GeminiChatService : IChatService
         if (string.IsNullOrEmpty(_settings.ApiKey))
             return string.Empty;
 
-        var payload = new { model = _settings.ChatModel, input = prompt };
-        var resp = await _http.PostAsJsonAsync(_settings.ChatEndpoint, payload, cancellationToken);
+        var payload = new GeminiInteractionsRequest(_settings.ChatModel, prompt);
+        var resp = await _logger.TrackRequestAsync("Gemini.Chat", () => _client.PostJsonAsync(_settings.ChatEndpoint, payload, cancellationToken));
         resp.EnsureSuccessStatusCode();
 
         using var stream = await resp.Content.ReadAsStreamAsync(cancellationToken);

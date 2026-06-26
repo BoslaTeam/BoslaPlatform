@@ -10,7 +10,7 @@ using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Application.Services;
 using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
-using BoslaPlatform.Infrastructure.AI.OpenAi;
+using BoslaPlatform.Infrastructure.AI.SemanticKernel;
 using BoslaPlatform.Infrastructure.Communication;
 using BoslaPlatform.Infrastructure.Data;
 using BoslaPlatform.Infrastructure.Data.Interceptors;
@@ -123,41 +123,35 @@ public static class DependencyInjection
         services.AddAuthorization();
         services.AddHttpContextAccessor();
 
-        var aiProvider = configuration["AI:Provider"] ?? "OpenAI";
+        // Gemini is the only AI provider (mandatory)
+        services.Configure<GeminiSettings>(configuration.GetSection("GeminiSettings"));
+        services.AddHttpClient("gemini").ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30));
 
-        if (aiProvider.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
-        {
-            services.Configure<GeminiSettings>(configuration.GetSection("GeminiSettings"));
-            services.AddHttpClient("gemini").ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30));
+        services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Gemini.GeminiEmbeddingService>();
+        services.AddScoped<IEmbeddingService, BoslaPlatform.Infrastructure.AI.Gemini.GeminiEmbeddingService>();
 
-            services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Gemini.GeminiEmbeddingService>();
-            services.AddScoped<IEmbeddingService, BoslaPlatform.Infrastructure.AI.Gemini.GeminiEmbeddingService>();
+        services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Gemini.GeminiChatService>();
+        services.AddScoped<IChatService, BoslaPlatform.Infrastructure.AI.Gemini.GeminiChatService>();
 
-            services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Gemini.GeminiChatService>();
-            services.AddScoped<IChatService, BoslaPlatform.Infrastructure.AI.Gemini.GeminiChatService>();
-        }
-        else
-        {
-            services.Configure<OpenAISettings>(configuration.GetSection("OpenAISettings"));
-            services.AddHttpClient("openai").ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30));
-            services.AddScoped<IChatService, OpenAiChatService>();
-
-            services.AddHttpClient<BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiEmbeddingService>();
-            services.AddScoped<IEmbeddingService, BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiEmbeddingService>();
-
-            services.AddHttpClient<BoslaPlatform.Infrastructure.AI.OpenAi.OpenAiChatService>();
-            services.AddSingleton<BoslaPlatform.Infrastructure.AI.Tokenizers.ITokenizer, BoslaPlatform.Infrastructure.AI.Tokenizers.SimpleTokenizer>();
-        }
+        // Register Semantic Kernel v1.77 with Gemini plugins
+        services.AddSemanticKernelForGemini();
 
         services.Configure<QdrantSettings>(configuration.GetSection("QdrantSettings"));
         services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Qdrant.QdrantClient>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30));
 
         services.AddScoped<IVectorStore, BoslaPlatform.Infrastructure.AI.Qdrant.QdrantVectorStore>();
         services.AddScoped<IAiSearchService, BoslaPlatform.Infrastructure.AI.AiSearchService>();
-                        
+
+        // Tokenizer implementation used by AiSearchService
+        services.AddSingleton<BoslaPlatform.Infrastructure.AI.Tokenizers.ITokenizer, BoslaPlatform.Infrastructure.AI.Tokenizers.SimpleTokenizer>();
+
+        // Summary service (used by controllers to regenerate/fetch session summaries)
+        services.AddScoped<BoslaPlatform.Application.Interfaces.AI.ISummaryService, BoslaPlatform.Infrastructure.AI.SummaryService>();
+
             services.AddAuthorization();
 
 
             return services;
         }
     }
+

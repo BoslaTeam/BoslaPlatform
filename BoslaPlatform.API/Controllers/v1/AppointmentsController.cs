@@ -6,6 +6,8 @@ using BoslaPlatform.Application.Features.Appointments.DTOs;
 using BoslaPlatform.API.Common.Extensions;
 using BoslaPlatform.API.Common.Responses;
 using BoslaPlatform.Shared;
+using BoslaPlatform.Application.Interfaces.AI;
+using BoslaPlatform.Domain.Models;
 
 namespace BoslaPlatform.API.Controllers.V1
 {
@@ -15,10 +17,12 @@ namespace BoslaPlatform.API.Controllers.V1
     public class AppointmentsController : ControllerBase
     {
         private readonly IAppointmentService _appointmentService;
+        private readonly BoslaPlatform.Application.Interfaces.AI.ISummaryService _summaryService;
 
-        public AppointmentsController(IAppointmentService appointmentService)
+        public AppointmentsController(IAppointmentService appointmentService, BoslaPlatform.Application.Interfaces.AI.ISummaryService summaryService)
         {
             _appointmentService = appointmentService;
+            _summaryService = summaryService;
         }
 
         // 1. POST: api/v1/appointments
@@ -179,6 +183,34 @@ namespace BoslaPlatform.API.Controllers.V1
             var result = await _appointmentService.UpdateNotesAsync(id, request.Notes, ct);
             if (result.IsError) return DetermineStatusCode(result.Errors[0].Type, result.ToApiResponse());
             return Ok(result.ToApiResponse("Appointment notes updated successfully."));
+        }
+
+        [HttpGet("{id:guid}/summary")]
+        [ProducesResponseType(typeof(ApiResponse<BoslaPlatform.Application.Features.Appointments.DTOs.SessionSummaryDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetSummary([FromRoute] Guid id, CancellationToken ct)
+        {
+            var result = await _summaryService.GetAsync(id, ct);
+            if (result.IsError) return DetermineStatusCode(result.Errors[0].Type, result.ToApiResponse());
+
+            var summaryDto = new SessionSummaryDto
+            {
+                Id = result.Value.Id,
+                AppointmentId = result.Value.AppointmentId,
+                TranscriptId = result.Value.TranscriptId,
+                KeyTakeaways = result.Value.KeyTakeaways,
+                ActionItemsForUser = result.Value.ActionItemsForUser,
+                ActionItemsForSpec = result.Value.ActionItemsForSpec,
+                LlmProvider = result.Value.LlmProvider,
+                Status = result.Value.Status,
+                CreatedAtUtc = result.Value.CreatedAtUtc,
+                CreatedBy = result.Value.CreatedBy,
+                LastModifiedUtc = result.Value.LastModifiedUtc,
+                LastModifiedBy = result.Value.LastModifiedBy
+            };
+
+            return Ok(ApiResponse<SessionSummaryDto>.SuccessResponse(summaryDto, "Summary retrieved successfully."));
         }
 
         private IActionResult DetermineStatusCode(ErrorKind type, object responseBody)

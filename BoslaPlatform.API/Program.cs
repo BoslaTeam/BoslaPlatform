@@ -1,6 +1,7 @@
 using BoslaPlatform.Infrastructure.Realtime;
 using BoslaPlatform.API.Common.Filters;
 using BoslaPlatform.Infrastructure.Data;
+using BoslaPlatform.Infrastructure.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,8 @@ builder.Services.AddApplication()
     .AddInfrastructure(builder.Configuration)
     .AddPresentation();
 
+// Gemini AI is now the mandatory provider
+builder.Services.AddGeminiAI();
 
 builder.Services.AddSignalR();
 // Rate limiting (disabled for now) — policy code previously added removed per request
