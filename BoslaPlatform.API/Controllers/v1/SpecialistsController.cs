@@ -7,6 +7,7 @@ using BoslaPlatform.Application.Features.Specialists.Response;
 using BoslaPlatform.Application.Features.Specialists.Services;
 using BoslaPlatform.Application.Interfaces.Specialists;
 using BoslaPlatform.Domain.Enums;
+using BoslaPlatform.Shared.Constants;
 using BoslaPlatform.Shared.Pagination;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -368,21 +369,61 @@ namespace BoslaPlatform.API.Controllers.v1
         }
 
 
+        [HttpGet("me/dashboard")]
+        [Authorize(Roles = nameof(UserRole.Specialist))]
+        public async Task<IResult> GetDashboard(CancellationToken cancellationToken)
+    
+        {
+            var result = await specialistService.GetDashboardAsync(
+                cancellationToken);
+
+            return result.Match(
+                value => Results.Ok(ApiResponse<SpecialistDashboardDto>
+                    .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
 
 
         [HttpGet("{id:guid}/reviews")]
-        [AllowAnonymous]
-        public async Task<IResult> GetSpecialistReviews(Guid id, CancellationToken ct)
+        public async Task<IResult> GetReviews(
+            Guid id,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken ct = default)
         {
-            var result = await specialistService
-                .GetSpecialistReviewsAsync(id, ct);
+            var result = await specialistService.GetReviewsAsync(
+                id,
+                pageNumber,
+                pageSize,
+                ct);
 
             return result.Match(
                 value => Results.Ok(
-                    ApiResponse<IReadOnlyList<SpecialistReviewResponse>>
+                    ApiResponse<SpecialistReviewsResponse>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        [HttpGet("me/reviews")]
+        [Authorize(Roles = nameof(UserRole.Specialist))]
+        public async Task<IResult> GetMyReviews(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken ct = default)
+        {
+            var result = await specialistService.GetMyReviewsAsync(
+                pageNumber,
+                pageSize,
+                ct);
+                
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<SpecialistReviewsResponse>
                         .SuccessResponse(value)),
                 errors => errors.ToProblem());
         }
 
     }
 }
+ //Khaled$123
+ //KH@gmail.com

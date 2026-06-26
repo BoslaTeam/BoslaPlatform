@@ -194,5 +194,30 @@ namespace BoslaPlatform.API.Controllers.V1
                 _ => StatusCode(500, responseBody)
             };
         }
+
+
+        [HttpPost("{appointmentId:guid}/review")]
+        [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> AddReview(
+            [FromRoute] Guid appointmentId,
+            [FromBody] AddReviewRequest request,
+            CancellationToken ct)
+        {
+            var result = await _appointmentService
+                .AddReviewAsync(  appointmentId,  request, ct);
+
+            if (result.IsError)
+                return DetermineStatusCode(
+                    result.Errors[0].Type,
+                    result.ToApiResponse());
+
+            return Ok(
+                result.ToApiResponse("Review added successfully."));
+                   
+        }
     }
 }

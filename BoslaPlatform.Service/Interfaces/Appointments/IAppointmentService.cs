@@ -45,5 +45,10 @@ namespace BoslaPlatform.Application.Features.Appointments.Services
 
         // 12. Update Notes
         Task<Result> UpdateNotesAsync(Guid id, string notes, CancellationToken ct);
+        // 13. Add Review
+        Task<Result<Guid>> AddReviewAsync( Guid appointmentId,AddReviewRequest request, CancellationToken ct);
+   
+    
+   
     }
 }

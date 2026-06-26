@@ -355,13 +355,32 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             var connection = dbContext.Database.GetDbConnection();
 
             const string sql = @"
-                SELECT 
+                    SELECT 
                     ISNULL(SUM(p.SpecialistAmount), 0) AS TotalEarnings,
-                    ISNULL(SUM(CASE WHEN a.Status = 'Completed' THEN p.SpecialistAmount ELSE 0 END), 0) AS WithdrawableBalance,
-                    ISNULL(SUM(CASE WHEN a.Status != 'Completed' THEN p.SpecialistAmount ELSE 0 END), 0) AS PendingBalance
+
+                    ISNULL(SUM(
+                        CASE 
+                            WHEN p.Status = 'Completed'
+                            THEN p.SpecialistAmount
+                            ELSE 0
+                        END
+                    ), 0) AS WithdrawableBalance,
+
+                    ISNULL(SUM(
+                        CASE 
+                            WHEN p.Status = 'Pending'
+                            THEN p.SpecialistAmount
+                            ELSE 0
+                        END
+                    ), 0) AS PendingBalance
+
                 FROM Payments p
-                INNER JOIN Appointments a ON p.AppointmentId = a.Id
-                WHERE a.SpecialistId = @SpecialistId AND p.Status = 'Completed';
+                INNER JOIN Appointments a
+                    ON p.AppointmentId = a.Id
+
+                WHERE a.SpecialistId = @SpecialistId;
+
+
 
                 SELECT TOP 10
                     p.Id AS PaymentId,
@@ -1021,5 +1040,303 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
             return reviews;
         }
-    }
+
+        public async Task<Result<SpecialistDashboardDto>> GetDashboardAsync(
+            CancellationToken cancellationToken = default)
+        {
+            var specialist = await context.Specialists
+                .FirstOrDefaultAsync(
+                    x => x.UserId == currentUser.Id.Value,
+                    cancellationToken);
+
+            if (specialist is null)
+            {
+                return Error.NotFound(description: "Specialist profile not found.");
+    
+            }
+
+            var now = DateTimeOffset.UtcNow;
+
+            var upcomingAppointments = await context.Appointments
+                .CountAsync(
+                    x => x.SpecialistId == specialist.Id &&
+                         x.Start > now &&
+                         x.Status != AppointmentStatus.Cancelled,
+                    cancellationToken);
+
+            var completedAppointments = await context.Appointments
+                .CountAsync(
+                    x => x.SpecialistId == specialist.Id &&
+                         x.Status == AppointmentStatus.Completed,
+                    cancellationToken);
+
+            var averageRating = await context.Reviews
+                .Where(x => x.SpecialistId == specialist.Id)
+                .AverageAsync(
+                    x => (double?)x.Rating,
+                    cancellationToken) ?? 0;
+
+            var totalReviews = await context.Reviews
+                .CountAsync(
+                    x => x.SpecialistId == specialist.Id,
+                    cancellationToken);
+
+var currentMonth = DateTime.UtcNow.Month;
+            var currentYear = DateTime.UtcNow.Year;
+
+            var previousMonthDate = DateTime.UtcNow.AddMonths(-1);
+            var previousMonth = previousMonthDate.Month;
+
+            var previousYear = previousMonthDate.Year;
+
+            var monthlyEarnings = await context.Payments
+                .Where(x =>
+                    x.Appointment.SpecialistId == specialist.Id &&
+                    x.Status == PaymentStatus.Completed &&
+                    x.PaidAt.HasValue &&
+                    x.PaidAt.Value.Month == currentMonth &&
+                    x.PaidAt.Value.Year == currentYear)
+                .SumAsync(
+                    x => (decimal?)x.SpecialistAmount,
+                    cancellationToken) ?? 0;
+
+            var previousMonthEarnings = await context.Payments
+                .Where(x =>
+                    x.Appointment.SpecialistId == specialist.Id &&
+                    x.Status == PaymentStatus.Completed &&
+                    x.PaidAt.HasValue &&
+                    x.PaidAt.Value.Month == previousMonth &&
+                    x.PaidAt.Value.Year == previousYear)
+                .SumAsync(
+                    x => (decimal?)x.SpecialistAmount,
+                    cancellationToken) ?? 0;
+
+            double earningsGrowthPercentage =
+                previousMonthEarnings == 0
+                    ? (monthlyEarnings > 0 ? 100 : 0)
+                    : (double)((monthlyEarnings - previousMonthEarnings)
+                        / previousMonthEarnings * 100);
+
+            var currentMonthCompletedAppointments = await context.Appointments
+                .CountAsync(
+                    x => x.SpecialistId == specialist.Id &&
+                         x.Status == AppointmentStatus.Completed &&
+                         x.Start.Month == currentMonth &&
+                         x.Start.Year == currentYear,
+                    cancellationToken);
+
+            var previousMonthCompletedAppointments = await context.Appointments
+                .CountAsync(
+                    x => x.SpecialistId == specialist.Id &&
+                         x.Status == AppointmentStatus.Completed &&
+                         x.Start.Month == previousMonth &&
+                         x.Start.Year == previousYear,
+                    cancellationToken);
+
+            double completedAppointmentsGrowthPercentage =
+                previousMonthCompletedAppointments == 0
+                    ? (currentMonthCompletedAppointments > 0 ? 100 : 0)
+                    : ((double)(currentMonthCompletedAppointments -
+                        previousMonthCompletedAppointments)
+                        / previousMonthCompletedAppointments * 100);
+
+            var currentMonthUpcomingAppointments = await context.Appointments
+                .CountAsync(
+                    x => x.SpecialistId == specialist.Id &&
+                         x.Start > now &&
+                         x.Start.Month == currentMonth &&
+                         x.Start.Year == currentYear,
+                    cancellationToken);
+
+            var previousMonthUpcomingAppointments = await context.Appointments
+                .CountAsync(
+                    x => x.SpecialistId == specialist.Id &&
+                         x.Start.Month == previousMonth &&
+                         x.Start.Year == previousYear,
+                    cancellationToken);
+
+            double upcomingAppointmentsGrowthPercentage =
+                previousMonthUpcomingAppointments == 0
+                    ? (currentMonthUpcomingAppointments > 0 ? 100 : 0)
+                    : ((double)(currentMonthUpcomingAppointments -
+                        previousMonthUpcomingAppointments)
+                        / previousMonthUpcomingAppointments * 100);
+
+            var currentMonthAverageRating = await context.Reviews
+                .Where(x =>
+                    x.SpecialistId == specialist.Id &&
+                    x.CreatedAtUtc.Month == currentMonth &&
+                    x.CreatedAtUtc.Year == currentYear)
+                .AverageAsync(
+                    x => (double?)x.Rating,
+                    cancellationToken) ?? 0;
+
+            var previousMonthAverageRating = await context.Reviews
+                .Where(x =>
+                    x.SpecialistId == specialist.Id &&
+                    x.CreatedAtUtc.Month == previousMonth &&
+                    x.CreatedAtUtc.Year == previousYear)
+                .AverageAsync(
+                    x => (double?)x.Rating,
+                    cancellationToken) ?? 0;
+
+            double averageRatingGrowthPercentage =
+                previousMonthAverageRating == 0
+                    ? (currentMonthAverageRating > 0 ? 100 : 0)
+                    : ((currentMonthAverageRating -
+                        previousMonthAverageRating)
+                        / previousMonthAverageRating * 100);
+
+            var upcoming = await context.Appointments
+                .Where(x =>
+                    x.SpecialistId == specialist.Id &&
+                    x.Start > now)
+                .OrderBy(x => x.Start)
+                .Take(5)
+                .Select(x => new UpcomingAppointmentDto
+                {
+                    AppointmentId = x.Id,
+                    ClientId = x.UserId,
+                    ClientName = x.User.Name,
+                    ServiceName = x.SessionTopic ?? string.Empty,
+                    StartTimeUtc = x.Start,
+                    Status = x.Status.ToString()
+                })
+                .ToListAsync(cancellationToken);
+
+            var monthlyRevenue = new List<MonthlyRevenueDto>();
+
+            for (var month = 1; month <= 12; month++)
+            {
+                var amount = await context.Payments
+                    .Where(x =>
+                        x.Appointment.SpecialistId == specialist.Id &&
+                        x.Status == PaymentStatus.Completed &&
+                        x.PaidAt.HasValue &&
+                        x.PaidAt.Value.Month == month &&
+                        x.PaidAt.Value.Year == currentYear)
+                    .SumAsync(
+                        x => (decimal?)x.SpecialistAmount,
+                        cancellationToken) ?? 0;
+
+                monthlyRevenue.Add(new MonthlyRevenueDto
+                {
+                    Month = new DateTime(currentYear, month, 1)
+                        .ToString("MMM"),
+                    Amount = amount
+                });
+            }
+
+            return new SpecialistDashboardDto
+            {
+                MonthlyEarnings = monthlyEarnings,
+                EarningsGrowthPercentage =
+                    Math.Round(earningsGrowthPercentage, 1),
+
+                UpcomingAppointments = upcomingAppointments,
+                UpcomingAppointmentsGrowthPercentage =
+                    Math.Round(upcomingAppointmentsGrowthPercentage, 1),
+
+                CompletedAppointments = completedAppointments,
+                CompletedAppointmentsGrowthPercentage =
+                    Math.Round(completedAppointmentsGrowthPercentage, 1),
+
+                AverageRating = Math.Round(averageRating, 1),
+                AverageRatingGrowthPercentage =
+                    Math.Round(averageRatingGrowthPercentage, 1),
+
+                TotalReviews = totalReviews,
+
+                MonthlyRevenue = monthlyRevenue,
+
+                UpcomingAppointmentsList = upcoming
+            };
+
+        }
+
+
+        public async Task<Result<SpecialistReviewsResponse>> GetReviewsAsync(
+            Guid specialistId,
+            int pageNumber,
+            int pageSize,
+            CancellationToken ct = default)
+        {
+            var specialistExists = await context.Specialists
+                .AnyAsync(x => x.Id == specialistId, ct);
+
+            if (!specialistExists)return Error.NotFound(description: "Specialist not found.");
+
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 50)pageSize = 50;
+                
+            var reviewsQuery = context.Reviews
+                .AsNoTracking()
+                .Include(x => x.Reviewer)
+                .Where(x => x.SpecialistId == specialistId);
+
+            var totalReviews = await reviewsQuery.CountAsync(ct);
+
+            var averageRating = totalReviews == 0
+            ? 0: await reviewsQuery.AverageAsync(x => (double)x.Rating, ct);
+           
+               
+
+            var items = await reviewsQuery
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(x => new ReviewDto
+                {
+                    ReviewerName = x.Reviewer.Name,
+                    Rating = x.Rating,
+                    Comment = x.Comment,
+                    CreatedAtUtc = x.CreatedAtUtc
+                })
+                .ToListAsync(ct);
+
+            var metadata = PaginationMetadata.Create(
+               pageNumber,
+               pageSize,
+               totalReviews);
+
+            var paginated = new PaginatedList<ReviewDto>(
+                items,
+                metadata);
+
+            return new SpecialistReviewsResponse
+            {
+                AverageRating = Math.Round(averageRating, 1),
+                TotalReviews = totalReviews,
+                Reviews = paginated
+            };
+        }
+
+
+
+
+
+        public async Task<Result<SpecialistReviewsResponse>> GetMyReviewsAsync(
+            int pageNumber,
+            int pageSize,
+            CancellationToken ct = default)
+        {
+            if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
+                return Error.Unauthorized(description: "User is not authenticated.");
+
+            var specialistId = await context.Specialists
+                .Where(x => x.UserId == currentUser.Id.Value)
+                .Select(x => x.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (specialistId == Guid.Empty)
+                return Error.NotFound(description: "Specialist profile not found.");
+
+            return await GetReviewsAsync(
+                specialistId,
+                pageNumber,
+                pageSize,
+                ct);
+        }
+    } 
 }

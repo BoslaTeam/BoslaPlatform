@@ -52,8 +52,17 @@ namespace BoslaPlatform.Application.Interfaces.Specialists
         Task<Result<IReadOnlyList<SpecialistAvailabilityResponse>>>  GetSpecialistAvailabilityAsync( Guid specialistId, CancellationToken ct);
 
         Task<Result<IReadOnlyList<SpecialistReviewResponse>>> GetSpecialistReviewsAsync(Guid specialistId,CancellationToken ct);
-     
-     
+
+        Task<Result<SpecialistDashboardDto>> GetDashboardAsync(CancellationToken cancellationToken = default);
+
+        Task<Result<SpecialistReviewsResponse>>GetReviewsAsync(Guid specialistId, int pageNumber,int pageSize, CancellationToken ct = default);
+
+        Task<Result<SpecialistReviewsResponse>> GetMyReviewsAsync(int pageNumber,int pageSize,CancellationToken ct = default);
+        
+        
+        
+
+
 
     }
 }
