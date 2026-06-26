@@ -84,14 +84,13 @@ namespace BoslaPlatform.API.Controllers.v1
         [HttpPost("me/availability")]
         [Authorize(Roles = nameof(UserRole.Specialist))]
         [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
-        public async Task<IResult> AddAvailability([FromBody] AddAvailabilityRequest request, CancellationToken ct)
+        public async Task<IResult> AddAvailabilities(AddAvailabilitiesRequest request, CancellationToken ct)
         {
-            var result = await specialistService
-                   .AddAvailabilityAsync(request, ct);
+            var result = await specialistService.AddAvailabilitiesAsync(request, ct);
 
             return result.Match(
                 value => Results.Ok(
-                    ApiResponse<Guid>.SuccessResponse(value, "Availability created successfully.")),
+                    ApiResponse<IReadOnlyList<Guid>>.SuccessResponse(value, "Availabilities created successfully.")),
                 errors => errors.ToProblem());
         }
 
@@ -213,15 +212,15 @@ namespace BoslaPlatform.API.Controllers.v1
 
 
         [HttpPost("me/experience")]
-        public async Task<IResult> AddExperience(AddExperienceRequestDTO request, CancellationToken ct)
+        public async Task<IResult> AddExperiences(AddExperiencesRequest request, CancellationToken ct)
         {
             var result =
                 await specialistService
-                    .AddExperienceAsync(request, ct);
+                    .AddExperiencesAsync(request, ct);
 
             return result.Match(
                 value => Results.Ok(
-                    ApiResponse<Guid>.SuccessResponse(value)),
+                    ApiResponse<IReadOnlyList<Guid>>.SuccessResponse(value)),
                 errors => errors.ToProblem());
         }
 
@@ -257,10 +256,10 @@ namespace BoslaPlatform.API.Controllers.v1
 
 
         [HttpPost("me/skills")]
-        public async Task<IResult> AddSkill(AddSkillRequest request, CancellationToken ct)
+        public async Task<IResult> AddSkills(AddSkillRequest request, CancellationToken ct)
         {
             var result = await specialistService
-                .AddSkillAsync(request, ct);
+                .AddSkillsAsync(request, ct);
 
             if (result.IsSuccess)
             {
@@ -295,7 +294,7 @@ namespace BoslaPlatform.API.Controllers.v1
         public async Task<IResult> AddTool(AddToolRequest request, CancellationToken ct)
         {
             var result = await specialistService
-                .AddToolAsync(request, ct);
+                .AddToolsAsync(request, ct);
 
             if (result.IsSuccess)
             {
@@ -372,7 +371,7 @@ namespace BoslaPlatform.API.Controllers.v1
         [HttpGet("me/dashboard")]
         [Authorize(Roles = nameof(UserRole.Specialist))]
         public async Task<IResult> GetDashboard(CancellationToken cancellationToken)
-    
+
         {
             var result = await specialistService.GetDashboardAsync(
                 cancellationToken);
@@ -415,7 +414,7 @@ namespace BoslaPlatform.API.Controllers.v1
                 pageNumber,
                 pageSize,
                 ct);
-                
+
             return result.Match(
                 value => Results.Ok(
                     ApiResponse<SpecialistReviewsResponse>
@@ -425,5 +424,5 @@ namespace BoslaPlatform.API.Controllers.v1
 
     }
 }
- //Khaled$123
- //KH@gmail.com
+//Khaled$123
+//KH@gmail.com

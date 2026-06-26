@@ -4,9 +4,9 @@ using FluentValidation;
 
 namespace BoslaPlatform.Application.Features.Specialists.Validators
 {
-    public sealed class AddExpertiseRequestValidator : AbstractValidator<AddExperienceRequestDTO>
+    public sealed class AddExperienceRequestValidator : AbstractValidator<AddExperienceRequestDTO>
     {
-        public AddExpertiseRequestValidator()
+        public AddExperienceRequestValidator()
         {
             //RuleFor(x => x.ExpertiseId)
             //    .NotEmpty();
