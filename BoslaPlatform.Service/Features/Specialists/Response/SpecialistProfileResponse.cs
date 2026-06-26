@@ -1,4 +1,5 @@
-﻿using BoslaPlatform.Domain.Enums;
+﻿using BoslaPlatform.Application.Features.Lookup.Response;
+using BoslaPlatform.Domain.Enums;
 
 namespace BoslaPlatform.Application.Features.Specialists.Response
 {
@@ -23,6 +24,9 @@ namespace BoslaPlatform.Application.Features.Specialists.Response
     int MaxSessionsPerDay,
     int MaxSessionsPerWeek,
     int CancellationDeadlineHours,
-    decimal CancellationFeePercent
+    decimal CancellationFeePercent,
+    List<LookupItemResponse>? Tools,
+    List<LookupItemResponse>? Skills,
+    List<LookupItemResponse>? Industries
 );
 }

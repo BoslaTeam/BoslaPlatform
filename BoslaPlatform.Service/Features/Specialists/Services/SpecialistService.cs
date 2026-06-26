@@ -1,4 +1,5 @@
-﻿using BoslaPlatform.Application.Features.Specialists.DTOs;
+﻿using BoslaPlatform.Application.Features.Lookup.Response;
+using BoslaPlatform.Application.Features.Specialists.DTOs;
 using BoslaPlatform.Application.Features.Specialists.Request;
 using BoslaPlatform.Application.Features.Specialists.Response;
 using BoslaPlatform.Application.Interfaces.Authentication;
@@ -10,6 +11,7 @@ using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Events.Specialists;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Junctions;
+using BoslaPlatform.Domain.Models.Lookup;
 using BoslaPlatform.Domain.Models.Profile;
 using BoslaPlatform.Shared;
 using BoslaPlatform.Shared.Pagination;
@@ -77,8 +79,13 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 return Error.Unauthorized(description: "User is not authenticated.");
 
             var specialist = await context.Specialists
-                .Include(x => x.User)
-                .FirstOrDefaultAsync(x => x.UserId == currentUser.Id.Value, ct);
+                .Include(x => x.User).Include(x => x.SpecialistTools)
+                .ThenInclude(x => x.Tool).Include(x => x.SpecialistSkills)
+                .ThenInclude(x => x.Skill)
+                
+                .FirstOrDefaultAsync(
+                    x => x.UserId == currentUser.Id.Value,
+                    ct);
 
             if (specialist is null)
                 return Error.NotFound(description: "Specialist profile not found.");
@@ -323,7 +330,25 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 specialist.MaxSessionsPerDay,
                 specialist.MaxSessionsPerWeek,
                 specialist.CancellationDeadlineHours,
-                specialist.CancellationFeePercent
+                specialist.CancellationFeePercent,
+
+                specialist.SpecialistTools
+            .Select(x => new LookupItemResponse(
+                x.ToolId,
+                x.Tool.Name))
+            .ToList(),
+
+            specialist.SpecialistSkills
+                .Select(x => new LookupItemResponse(
+                    x.SkillId,
+                    x.Skill.Name))
+                .ToList(),
+
+            specialist.SpecialistIndustries
+                .Select(x => new LookupItemResponse(
+                    x.IndustryId,
+                    x.Industry.Name))
+                .ToList()
             );
         }
 
@@ -966,8 +991,12 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                     specialist.UserId),
 
                 Tools = specialist.SpecialistTools
-                    .Select(st => st.Tool.Name)
-                    .ToList(),
+                    .Select(x => new ToolResponse
+                    {
+                        Id = x.ToolId,
+                        Name = x.Tool.Name
+                    }).ToList(),
+                   
 
                 Skills = specialist.SpecialistSkills
                     .Select(ss => ss.Skill.Name)
@@ -1288,10 +1317,12 @@ var currentMonth = DateTime.UtcNow.Month;
                 .Take(pageSize)
                 .Select(x => new ReviewDto
                 {
+                    Id = x.Id,
+                    UserId = x.ReviewerId,
                     ReviewerName = x.Reviewer.Name,
                     Rating = x.Rating,
                     Comment = x.Comment,
-                    CreatedAtUtc = x.CreatedAtUtc
+                    CreatedOnUtc = x.CreatedAtUtc
                 })
                 .ToListAsync(ct);
 
