@@ -2,17 +2,21 @@
 using BoslaPlatform.Application.Features.Conversations.Dtos;
 using BoslaPlatform.Shared.Constants;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 
 namespace BoslaPlatform.Infrastructure.Realtime
 {
     public sealed class SignalRChatNotifier : IChatNotifier
     {
         private readonly IHubContext<ChatHub> _hubContext;
+        private readonly ILogger<SignalRChatNotifier> _logger;
 
         public SignalRChatNotifier(
-            IHubContext<ChatHub> hubContext)
+            IHubContext<ChatHub> hubContext,
+            ILogger<SignalRChatNotifier> logger)
         {
             _hubContext = hubContext;
+           _logger = logger;
         }
 
         public async Task MessageSentAsync(
@@ -39,6 +43,10 @@ namespace BoslaPlatform.Infrastructure.Realtime
 
         public async Task MessageDeletedAsync(Guid conversationId,Guid messageId,CancellationToken ct = default)
         {
+            _logger.LogInformation(
+     "Sending MessageDeleted to group {Group}",
+        conversationId);
+
             await _hubContext.Clients
                 .Group(conversationId.ToString())
                 .SendAsync(
@@ -47,6 +55,9 @@ namespace BoslaPlatform.Infrastructure.Realtime
                         conversationId,
                         messageId),
                     ct);
+
+            _logger.LogInformation(
+    "MessageDeleted sent.");
         }
     }
 }
