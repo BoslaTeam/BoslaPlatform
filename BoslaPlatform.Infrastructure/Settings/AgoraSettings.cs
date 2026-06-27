@@ -54,5 +54,7 @@ namespace BoslaPlatform.Infrastructure.Settings
         /// Default: 300 seconds (5 minutes).
         /// </summary>
         public int WebhookReplayWindowSeconds { get; set; } = 300;
+
+        public bool SkipSignatureValidation { get; set; } = true;
     }
 }

@@ -1,9 +1,11 @@
-using System.Security.Cryptography;
-using System.Text;
 using BoslaPlatform.Infrastructure.Agora.Interfaces;
 using BoslaPlatform.Infrastructure.Settings;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace BoslaPlatform.Infrastructure.Agora.Services
 {
@@ -63,7 +65,8 @@ namespace BoslaPlatform.Infrastructure.Agora.Services
         /// <param name="logger">Structured logger.</param>
         public AgoraWebhookSignatureVerifier(
             IOptions<AgoraSettings> options,
-            ILogger<AgoraWebhookSignatureVerifier> logger)
+            ILogger<AgoraWebhookSignatureVerifier> logger
+            )
         {
             _settings = options?.Value
                 ?? throw new ArgumentNullException(nameof(options));
@@ -80,6 +83,10 @@ namespace BoslaPlatform.Infrastructure.Agora.Services
             // ------------------------------------------------------------------
             // Guard: Empty secret = development bypass
             // ------------------------------------------------------------------
+            if (_settings.SkipSignatureValidation)
+            {
+                return true;
+            }
             if (string.IsNullOrWhiteSpace(_settings.WebhookSecret))
             {
                 _logger.LogWarning(
