@@ -128,14 +128,19 @@ public class AiSearchService : IAiSearchService
         // 6. record SearchInteraction (best-effort)
         try
         {
-            var si = new SearchInteraction
+            var userId = _currentUser.Id ?? Guid.Empty;
+            // Only record if user is authenticated (not Guid.Empty)
+            if (userId != Guid.Empty)
             {
-                RawQuery = request.Query,
-                ResultSpecialistIds = string.Join(',', results.Select(r => r.SpecialistId)),
-                UserId = _currentUser.Id ?? Guid.Empty,
-            };
-            _db.Set<SearchInteraction>().Add(si);
-            await _db.SaveChangesAsync(cancellationToken);
+                var si = new SearchInteraction
+                {
+                    RawQuery = request.Query,
+                    ResultSpecialistIds = string.Join(',', results.Select(r => r.SpecialistId)),
+                    UserId = userId,
+                };
+                _db.Set<SearchInteraction>().Add(si);
+                await _db.SaveChangesAsync(cancellationToken);
+            }
         }
         catch (Exception ex)
         {

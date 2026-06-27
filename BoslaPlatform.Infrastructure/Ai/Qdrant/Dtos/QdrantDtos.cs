@@ -21,7 +21,7 @@ public class UpsertRequest
 public class SearchRequest
 {
     public float[] vector { get; set; } = Array.Empty<float>();
-    public int top { get; set; }
+    public int limit { get; set; }
 }
 
 public class SearchResultItem

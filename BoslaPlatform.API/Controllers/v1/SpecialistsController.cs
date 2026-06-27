@@ -15,7 +15,7 @@ namespace BoslaPlatform.API.Controllers.v1
     [ApiController]
     [ApiVersion("1.0")]
     [Route("api/v{version:apiVersion}/specialists")]
-    //[Authorize]
+    [Authorize]
     [ApiConventionType(typeof(DefaultApiConventions))]
     public class SpecialistsController(ISpecialistService specialistService, BoslaPlatform.Application.Interfaces.AI.IEmbeddingAdminService embeddingAdmin) : ControllerBase
     {

@@ -3,10 +3,16 @@ using System.Text.Json.Serialization;
 namespace BoslaPlatform.Infrastructure.AI.Gemini;
 
 // Interactions request
-public record GeminiInteractionsRequest(string Model, object Input)
+public class GeminiInteractionsRequest
 {
-    [JsonPropertyName("model")] public string model { get; init; } = Model;
-    [JsonPropertyName("input")] public object input { get; init; } = Input;
+    public GeminiInteractionsRequest(string model, object input)
+    {
+        Model = model;
+        Input = input;
+    }
+
+    [JsonPropertyName("model")] public string Model { get; set; }
+    [JsonPropertyName("input")] public object Input { get; set; }
 }
 
 // Interactions response shapes (simplified)

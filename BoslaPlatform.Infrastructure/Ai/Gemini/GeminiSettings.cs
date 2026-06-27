@@ -7,8 +7,10 @@ public class GeminiSettings
     public string BaseUrl { get; set; } = "https://generativelanguage.googleapis.com";
     public string EmbeddingModel { get; set; } = "text-embedding-004";
     public string ChatModel { get; set; } = "gemini-2.5-flash";
-    // Chat API endpoint
+    // Chat API endpoint (OpenAI-compatible chat completions)
     public string ChatEndpoint { get; set; } = "/v1beta/chat/completions";
+    // Interactions API endpoint (recommended) — accepts { model, input } payloads
+    public string InteractionsEndpoint { get; set; } = "/v1beta/interactions";
     // Embeddings endpoint template; '{model}' will be replaced with the model name
     public string EmbeddingEndpoint { get; set; } = "/v1beta/models/{model}:embedContent";
     // Concurrency limit for embedding requests (simple batching control)

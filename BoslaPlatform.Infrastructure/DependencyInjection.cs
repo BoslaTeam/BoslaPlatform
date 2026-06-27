@@ -141,11 +141,12 @@ public static class DependencyInjection
 
         services.AddScoped<IVectorStore, BoslaPlatform.Infrastructure.AI.Qdrant.QdrantVectorStore>();
         services.AddScoped<IAiSearchService, BoslaPlatform.Infrastructure.AI.AiSearchService>();
+        services.AddScoped<BoslaPlatform.Application.Interfaces.AI.IEmbeddingAdminService, BoslaPlatform.Infrastructure.AI.EmbeddingAdminService>();
 
         // Tokenizer implementation used by AiSearchService
         services.AddSingleton<BoslaPlatform.Infrastructure.AI.Tokenizers.ITokenizer, BoslaPlatform.Infrastructure.AI.Tokenizers.SimpleTokenizer>();
 
-        // Summary service (used by controllers to regenerate/fetch session summaries)
+        // Summary service
         services.AddScoped<BoslaPlatform.Application.Interfaces.AI.ISummaryService, BoslaPlatform.Infrastructure.AI.SummaryService>();
 
             services.AddAuthorization();

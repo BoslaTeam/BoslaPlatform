@@ -11,7 +11,7 @@ using BoslaPlatform.Domain.Models;
 
 namespace BoslaPlatform.API.Controllers.V1
 {
-    //[Authorize]
+    [Authorize]
     [ApiController]
     [Route("api/v1/[controller]")]
     public class AppointmentsController : ControllerBase
