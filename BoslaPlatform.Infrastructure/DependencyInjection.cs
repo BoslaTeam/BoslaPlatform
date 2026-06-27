@@ -9,10 +9,13 @@ using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Communication;
 using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Application.Interfaces.Video;
+using BoslaPlatform.Application.Features.VideoSessions.Interfaces;
+using BoslaPlatform.Application.Features.VideoSessions.Services;
 using BoslaPlatform.Application.Services;
 using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Infrastructure.Agora;
+using BoslaPlatform.Infrastructure.Agora.Interfaces;
 using BoslaPlatform.Infrastructure.Agora.Services;
 using BoslaPlatform.Infrastructure.AI.OpenAi;
 using BoslaPlatform.Infrastructure.Communication;
@@ -54,6 +57,14 @@ public static class DependencyInjection
             services.AddScoped<IChatNotifier, SignalRChatNotifier>();
             services.AddScoped<IAgoraTokenService, AgoraTokenService>();
 
+            // Agora Webhook — Phase 1
+            // IAgoraWebhookSignatureVerifier: Infrastructure concern (HMAC-SHA256 + replay window).
+            //   Registered as Singleton because it is stateless and only reads from IOptions<AgoraSettings>.
+            services.AddSingleton<IAgoraWebhookSignatureVerifier, AgoraWebhookSignatureVerifier>();
+
+            // IVideoSessionWebhookService: Application concern (business orchestration).
+            //   Registered as Scoped because it depends on the scoped IAppDbContext.
+            services.AddScoped<IVideoSessionWebhookService, VideoSessionWebhookService>();
 
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
@@ -117,7 +128,7 @@ public static class DependencyInjection
                 {
                     var accessToken = context.Request.Query["access_token"];
                     var path = context.HttpContext.Request.Path;
-                    if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/notifications"))
+                    if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
                     {
                         context.Token = accessToken;
                     }

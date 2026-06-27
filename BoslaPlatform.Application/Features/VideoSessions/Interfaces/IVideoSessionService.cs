@@ -45,11 +45,19 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Interfaces
             CancellationToken ct = default);
 
         /// <summary>
-        /// Starts a video session.
+        /// Prepares a video session for joining (validation and preparation step only).
+        ///
+        /// This does NOT activate the session. The session transitions to Active
+        /// exclusively when Agora fires the channel_created webhook callback
+        /// (handled by IVideoSessionWebhookService). Consider this a "prepare to join"
+        /// step that validates the appointment window and specialist permissions.
+        ///
+        /// The specialist can call EndAsync() after this to cancel a prepared session
+        /// that was never joined.
         /// </summary>
         /// <param name="videoSessionId">Video session identifier.</param>
         /// <param name="ct">Cancellation token.</param>
-        /// <returns>Started session details.</returns>
+        /// <returns>Preparation confirmation with acknowledgment timestamp.</returns>
         Task<Result<StartVideoSessionResponse>> StartAsync(
             Guid videoSessionId,
             CancellationToken ct = default);
