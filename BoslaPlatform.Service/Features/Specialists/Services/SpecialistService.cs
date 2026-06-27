@@ -23,7 +23,8 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         IAppDbContext context,
         IUser currentUser,
         UserManager<User> userManager,
-        IOnlineUserTracker onlineUserTracker) : ISpecialistService
+        IOnlineUserTracker onlineUserTracker,
+        ITokenService tokenService) : ISpecialistService
     {
         #region Onboard & Profile Methods
 
@@ -66,8 +67,19 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
             await context.SaveChangesAsync(ct);
 
+            var tokenResult = await tokenService.CreateTokenAsync(user, ct);
+
+            if (tokenResult.IsError)
+            {
+                return tokenResult.Errors;
+            }
+
             return Result<SpecialistOnboardResponse>.Success(
-                new SpecialistOnboardResponse(specialist.Id, specialist.VerificationStatus)
+                new SpecialistOnboardResponse(
+                    specialist.Id,
+                    specialist.VerificationStatus,
+                    tokenResult.Value
+                )
             );
         }
 
