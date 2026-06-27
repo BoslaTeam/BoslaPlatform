@@ -18,13 +18,31 @@ public class AdminController(
     IAdminService adminService) : ControllerBase
 {
     [HttpGet("users")]
-    [ProducesResponseType(typeof(ApiResponse<List<UserDto>>), StatusCodes.Status200OK)]
-    public async Task<IResult> ListUsers(int page = 1, int pageSize = 20, CancellationToken ct = default)
+    [ProducesResponseType(typeof(ApiResponse<BoslaPlatform.Shared.PaginatedList<UserDto>>), StatusCodes.Status200OK)]
+    public async Task<IResult> ListUsers(int page = 1, int pageSize = 20, string? search = null, int? role = null, bool? isActive = null, CancellationToken ct = default)
     {
-        var result = await adminService.ListUsersAsync(page, pageSize, ct);
+        var result = await adminService.ListUsersAsync(page, pageSize, search, role, isActive, ct);
         return result.Match(
-            value => Results.Ok(ApiResponse<List<UserDto>>.SuccessResponse(value)),
+            value => Results.Ok(ApiResponse<BoslaPlatform.Shared.PaginatedList<UserDto>>.SuccessResponse(value)),
             errors => errors.ToProblem());
+    }
+
+    [HttpPost("users")]
+    public async Task<IResult> CreateUser([FromBody] CreateUserRequest request, CancellationToken ct = default)
+    {
+        var result = await adminService.CreateUserAsync(request, ct);
+        if (result.IsSuccess)
+            return Results.Ok(ApiResponse.SuccessResponse("User created successfully."));
+        return result.Errors.ToProblem();
+    }
+
+    [HttpPut("users/{id:guid}")]
+    public async Task<IResult> UpdateUser(Guid id, [FromBody] UpdateUserRequest request, CancellationToken ct = default)
+    {
+        var result = await adminService.UpdateUserAsync(id, request, ct);
+        if (result.IsSuccess)
+            return Results.Ok(ApiResponse.SuccessResponse("User updated successfully."));
+        return result.Errors.ToProblem();
     }
 
     [HttpGet("users/{id:guid}")]
@@ -80,6 +98,16 @@ public class AdminController(
         var result = await adminService.GetAuditLogsAsync(page, pageSize, ct);
         return result.Match(
             value => Results.Ok(ApiResponse<List<AuditLogDto>>.SuccessResponse(value)),
+            errors => errors.ToProblem());
+    }
+
+    [HttpGet("dashboard")]
+    [ProducesResponseType(typeof(ApiResponse<AdminDashboardDto>), StatusCodes.Status200OK)]
+    public async Task<IResult> GetDashboardStats(CancellationToken ct = default)
+    {
+        var result = await adminService.GetDashboardStatsAsync(ct);
+        return result.Match(
+            value => Results.Ok(ApiResponse<AdminDashboardDto>.SuccessResponse(value)),
             errors => errors.ToProblem());
     }
 }

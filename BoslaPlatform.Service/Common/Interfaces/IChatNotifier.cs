@@ -8,9 +8,8 @@ namespace BoslaPlatform.Application.Common.Interfaces
             MessageDto message,
             CancellationToken ct = default);
         Task MessageEditedAsync(
-            Guid conversationId,
-            Guid messageId,
-            CancellationToken ct = default);
+            MessageDto message,
+            CancellationToken ct);
         Task MessageDeletedAsync(
             Guid conversationId,
             Guid messageId,

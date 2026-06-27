@@ -137,41 +137,96 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             return availability;
         }
 
-        public async Task<Result<Guid>> AddAvailabilityAsync(AddAvailabilityRequest request, CancellationToken ct = default)
+        public async Task<Result<IReadOnlyList<Guid>>> AddAvailabilitiesAsync(AddAvailabilitiesRequest request, CancellationToken ct = default)
         {
             if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
-                return Error.Unauthorized(description: "User is not authenticated.");
+            {
+                return Error.Unauthorized(
+                    description: "User is not authenticated.");
+            }
 
             var specialist = await GetCurrentSpecialistAsync(ct);
 
             if (specialist is null)
-                return Error.NotFound(description: "Specialist profile not found.");
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist profile not found.");
+            }
 
-            if (request.Start.Offset != TimeSpan.Zero || request.End.Offset != TimeSpan.Zero)
-                return Error.Validation(description: "Availability dates must be UTC.");
+            if (!request.Availabilities.Any())
+            {
+                return Array.Empty<Guid>();
+            }
 
-            var hasOverlap = await context.AvailabilitySlots
-                    .AnyAsync(
-                        x => x.SpecialistId == specialist.Id &&
-                             request.Start < x.End &&
-                             request.End > x.Start,
-                        ct);
+            var slots = request.Availabilities
+                .Distinct()
+                .OrderBy(x => x.Start)
+                .ToList();
 
-            if (hasOverlap)
-                return Error.Conflict(description: "Availability slot overlaps with an existing slot.");
+            foreach (var slot in slots)
+            {
+                if (slot.Start.Offset != TimeSpan.Zero ||
+                    slot.End.Offset != TimeSpan.Zero)
+                {
+                    return Error.Validation(
+                        description: "Availability dates must be UTC.");
+                }
+            }
 
-            var availability =
-                Availability.Create(
-                    specialist.Id,
-                    request.Start,
-                    request.End);
+            // Check overlap inside request
+            for (int i = 1; i < slots.Count; i++)
+            {
+                if (slots[i].Start < slots[i - 1].End)
+                {
+                    return Error.Validation(
+                        "Availability.Overlap",
+                        "Availability slots overlap with each other.");
+                }
+            }
+
+            var minStart = slots.First().Start;
+            var maxEnd = slots.Last().End;
+
+            var existingSlots = await context.AvailabilitySlots
+                .Where(x =>
+                    x.SpecialistId == specialist.Id &&
+                    x.Start < maxEnd &&
+                    x.End > minStart)
+                .ToListAsync(ct);
+
+            foreach (var slot in slots)
+            {
+                if (existingSlots.Any(existing =>
+                    slot.Start < existing.End &&
+                    slot.End > existing.Start))
+                {
+                    return Error.Conflict(
+                        "Availability.Overlap",
+                        "Availability slot overlaps with an existing slot.");
+                }
+            }
+
+            var entities = slots
+                .Select(slot =>
+                    Availability.Create(
+                        specialist.Id,
+                        slot.Start,
+                        slot.End))
+                .ToList();
 
             await context.AvailabilitySlots
-                .AddAsync(availability, ct);
+                .AddRangeAsync(entities, ct);
+
+            specialist.AddDomainEvent(
+                new SpecialistProfileUpdatedEvent(
+                    specialist.Id));
 
             await context.SaveChangesAsync(ct);
 
-            return availability.Id;
+            return entities
+                .Select(x => x.Id)
+                .ToList();
         }
 
         public async Task<Result> DeleteAvailabilityAsync(Guid availabilityId, CancellationToken ct = default)
@@ -355,13 +410,32 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             var connection = dbContext.Database.GetDbConnection();
 
             const string sql = @"
-                SELECT 
+                    SELECT 
                     ISNULL(SUM(p.SpecialistAmount), 0) AS TotalEarnings,
-                    ISNULL(SUM(CASE WHEN a.Status = 'Completed' THEN p.SpecialistAmount ELSE 0 END), 0) AS WithdrawableBalance,
-                    ISNULL(SUM(CASE WHEN a.Status != 'Completed' THEN p.SpecialistAmount ELSE 0 END), 0) AS PendingBalance
+
+                    ISNULL(SUM(
+                        CASE 
+                            WHEN p.Status = 'Completed'
+                            THEN p.SpecialistAmount
+                            ELSE 0
+                        END
+                    ), 0) AS WithdrawableBalance,
+
+                    ISNULL(SUM(
+                        CASE 
+                            WHEN p.Status = 'Pending'
+                            THEN p.SpecialistAmount
+                            ELSE 0
+                        END
+                    ), 0) AS PendingBalance
+
                 FROM Payments p
-                INNER JOIN Appointments a ON p.AppointmentId = a.Id
-                WHERE a.SpecialistId = @SpecialistId AND p.Status = 'Completed';
+                INNER JOIN Appointments a
+                    ON p.AppointmentId = a.Id
+
+                WHERE a.SpecialistId = @SpecialistId;
+
+
 
                 SELECT TOP 10
                     p.Id AS PaymentId,
@@ -486,12 +560,9 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         #endregion
 
         #region AddExperience
-        public async Task<Result<Guid>> AddExperienceAsync(AddExperienceRequestDTO request, CancellationToken ct)
+        public async Task<Result<IReadOnlyList<Guid>>> AddExperiencesAsync(AddExperiencesRequest request, CancellationToken ct)
         {
-            var specialist = await context.Specialists
-                .FirstOrDefaultAsync(
-                    x => x.UserId == currentUser.Id,
-                    ct);
+            var specialist = await GetCurrentSpecialistAsync(ct);
 
             if (specialist is null)
             {
@@ -500,22 +571,35 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                     "Specialist not found.");
             }
 
-            var experience = new SpecialistExperience
+            if (!request.Experiences.Any())
             {
-                SpecialistId = specialist.Id,
-                JobTitle = request.JobTitle,
-                CompanyName = request.CompanyName,
-                FromDate = request.FromDate,
-                ToDate = request.ToDate,
-                Description = request.Description
-            };
+                return Array.Empty<Guid>();
+            }
+
+            var experiences = request.Experiences
+                .Select(x => new SpecialistExperience
+                {
+                    SpecialistId = specialist.Id,
+                    JobTitle = x.JobTitle,
+                    CompanyName = x.CompanyName,
+                    FromDate = x.FromDate,
+                    ToDate = x.ToDate,
+                    Description = x.Description
+                })
+                .ToList();
 
             await context.SpecialistExperiences
-                .AddAsync(experience, ct);
+                .AddRangeAsync(experiences, ct);
+
+            specialist.AddDomainEvent(
+                new SpecialistProfileUpdatedEvent(
+                    specialist.Id));
 
             await context.SaveChangesAsync(ct);
 
-            return experience.Id;
+            return experiences
+                .Select(x => x.Id)
+                .ToList();
         }
         #endregion
 
@@ -605,7 +689,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         }
 
 
-        public async Task<Result> AddSkillAsync(AddSkillRequest request, CancellationToken ct)
+        public async Task<Result> AddSkillsAsync(AddSkillRequest request, CancellationToken ct)
         {
             var specialist = await GetCurrentSpecialistAsync(ct);
 
@@ -616,38 +700,49 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                     "Specialist not found.");
             }
 
-            var skillExists = await context.Skills
-                .AnyAsync(
-                    x => x.Id == request.SkillId,
-                    ct);
+            var requestedSkillIds = request.SkillIds
+                .Distinct()
+                .ToList();
 
-            if (!skillExists)
+            if (requestedSkillIds.Count == 0)
             {
-                return Error.NotFound(
-                    "Skill.NotFound",
-                    "Skill not found.");
+                return Result.Success();
             }
 
-            var alreadyAssigned = await context.SpecialistSkills
-                .AnyAsync(
-                    x => x.SpecialistId == specialist.Id &&
-                         x.SkillId == request.SkillId,
-                    ct);
+            var existingSkillIds = await context.Skills
+                .Where(x => requestedSkillIds.Contains(x.Id))
+                .Select(x => x.Id)
+                .ToListAsync(ct);
 
-            if (alreadyAssigned)
+            if (existingSkillIds.Count == 0)
             {
-                return Error.Conflict(
-                    "Skill.AlreadyAssigned",
-                    "Skill already assigned.");
+                return Result.Success();
             }
 
-            await context.SpecialistSkills.AddAsync(
-                new SpecialistSkill
+            var assignedSkillIds = await context.SpecialistSkills
+                .Where(x =>
+                    x.SpecialistId == specialist.Id &&
+                    existingSkillIds.Contains(x.SkillId))
+                .Select(x => x.SkillId)
+                .ToListAsync(ct);
+
+            var newSkills = existingSkillIds
+                .Except(assignedSkillIds)
+                .Select(skillId => new SpecialistSkill
                 {
                     SpecialistId = specialist.Id,
-                    SkillId = request.SkillId
-                }, ct);
+                    SkillId = skillId
+                })
+                .ToList();
 
+            if (newSkills.Count == 0)
+            {
+                return Result.Success();
+            }
+
+            await context.SpecialistSkills.AddRangeAsync(
+                newSkills,
+                ct);
 
             specialist.AddDomainEvent(
                 new SpecialistProfileUpdatedEvent(
@@ -696,7 +791,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         }
 
 
-        public async Task<Result> AddToolAsync(AddToolRequest request, CancellationToken ct)
+        public async Task<Result> AddToolsAsync(AddToolRequest request, CancellationToken ct)
         {
             var specialist = await GetCurrentSpecialistAsync(ct);
 
@@ -707,37 +802,49 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                     "Specialist not found.");
             }
 
-            var toolExists = await context.Tools
-                .AnyAsync(x => x.Id == request.ToolId, ct);
+            var requestedToolIds = request.ToolIds
+                .Distinct()
+                .ToList();
 
-            if (!toolExists)
+            if (requestedToolIds.Count == 0)
             {
-                return Error.NotFound(
-                    "Tool.NotFound",
-                    "Tool not found.");
+                return Result.Success();
             }
 
-            var alreadyAssigned = await context.SpecialistTools
-                .AnyAsync(
-                    x => x.SpecialistId == specialist.Id &&
-                         x.ToolId == request.ToolId,
-                    ct);
+            var existingToolIds = await context.Tools
+                .Where(x => requestedToolIds.Contains(x.Id))
+                .Select(x => x.Id)
+                .ToListAsync(ct);
 
-            if (alreadyAssigned)
+            if (existingToolIds.Count == 0)
             {
-                return Error.Conflict(
-                    "Tool.AlreadyAssigned",
-                    "Tool already assigned.");
+                return Result.Success();
             }
 
-            var specialistTool = new SpecialistTool
-            {
-                SpecialistId = specialist.Id,
-                ToolId = request.ToolId
-            };
+            var assignedToolIds = await context.SpecialistTools
+                .Where(x =>
+                    x.SpecialistId == specialist.Id &&
+                    existingToolIds.Contains(x.ToolId))
+                .Select(x => x.ToolId)
+                .ToListAsync(ct);
 
-            await context.SpecialistTools
-                .AddAsync(specialistTool, ct);
+            var specialistTools = existingToolIds
+                .Except(assignedToolIds)
+                .Select(toolId => new SpecialistTool
+                {
+                    SpecialistId = specialist.Id,
+                    ToolId = toolId
+                })
+                .ToList();
+
+            if (specialistTools.Count == 0)
+            {
+                return Result.Success();
+            }
+
+            await context.SpecialistTools.AddRangeAsync(
+                specialistTools,
+                ct);
 
             specialist.AddDomainEvent(
                 new SpecialistProfileUpdatedEvent(
@@ -747,9 +854,6 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
             return Result.Success();
         }
-
-
-
 
         public async Task<Result> DeleteToolAsync(Guid toolId, CancellationToken ct)
         {
@@ -1020,6 +1124,304 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 .ToListAsync(ct);
 
             return reviews;
+        }
+
+        public async Task<Result<SpecialistDashboardDto>> GetDashboardAsync(
+            CancellationToken cancellationToken = default)
+        {
+            var specialist = await context.Specialists
+                .FirstOrDefaultAsync(
+                    x => x.UserId == currentUser.Id.Value,
+                    cancellationToken);
+
+            if (specialist is null)
+            {
+                return Error.NotFound(description: "Specialist profile not found.");
+
+            }
+
+            var now = DateTimeOffset.UtcNow;
+
+            var upcomingAppointments = await context.Appointments
+                .CountAsync(
+                    x => x.SpecialistId == specialist.Id &&
+                         x.Start > now &&
+                         x.Status != AppointmentStatus.Cancelled,
+                    cancellationToken);
+
+            var completedAppointments = await context.Appointments
+                .CountAsync(
+                    x => x.SpecialistId == specialist.Id &&
+                         x.Status == AppointmentStatus.Completed,
+                    cancellationToken);
+
+            var averageRating = await context.Reviews
+                .Where(x => x.SpecialistId == specialist.Id)
+                .AverageAsync(
+                    x => (double?)x.Rating,
+                    cancellationToken) ?? 0;
+
+            var totalReviews = await context.Reviews
+                .CountAsync(
+                    x => x.SpecialistId == specialist.Id,
+                    cancellationToken);
+
+            var currentMonth = DateTime.UtcNow.Month;
+            var currentYear = DateTime.UtcNow.Year;
+
+            var previousMonthDate = DateTime.UtcNow.AddMonths(-1);
+            var previousMonth = previousMonthDate.Month;
+
+            var previousYear = previousMonthDate.Year;
+
+            var monthlyEarnings = await context.Payments
+                .Where(x =>
+                    x.Appointment.SpecialistId == specialist.Id &&
+                    x.Status == PaymentStatus.Completed &&
+                    x.PaidAt.HasValue &&
+                    x.PaidAt.Value.Month == currentMonth &&
+                    x.PaidAt.Value.Year == currentYear)
+                .SumAsync(
+                    x => (decimal?)x.SpecialistAmount,
+                    cancellationToken) ?? 0;
+
+            var previousMonthEarnings = await context.Payments
+                .Where(x =>
+                    x.Appointment.SpecialistId == specialist.Id &&
+                    x.Status == PaymentStatus.Completed &&
+                    x.PaidAt.HasValue &&
+                    x.PaidAt.Value.Month == previousMonth &&
+                    x.PaidAt.Value.Year == previousYear)
+                .SumAsync(
+                    x => (decimal?)x.SpecialistAmount,
+                    cancellationToken) ?? 0;
+
+            double earningsGrowthPercentage =
+                previousMonthEarnings == 0
+                    ? (monthlyEarnings > 0 ? 100 : 0)
+                    : (double)((monthlyEarnings - previousMonthEarnings)
+                        / previousMonthEarnings * 100);
+
+            var currentMonthCompletedAppointments = await context.Appointments
+                .CountAsync(
+                    x => x.SpecialistId == specialist.Id &&
+                         x.Status == AppointmentStatus.Completed &&
+                         x.Start.Month == currentMonth &&
+                         x.Start.Year == currentYear,
+                    cancellationToken);
+
+            var previousMonthCompletedAppointments = await context.Appointments
+                .CountAsync(
+                    x => x.SpecialistId == specialist.Id &&
+                         x.Status == AppointmentStatus.Completed &&
+                         x.Start.Month == previousMonth &&
+                         x.Start.Year == previousYear,
+                    cancellationToken);
+
+            double completedAppointmentsGrowthPercentage =
+                previousMonthCompletedAppointments == 0
+                    ? (currentMonthCompletedAppointments > 0 ? 100 : 0)
+                    : ((double)(currentMonthCompletedAppointments -
+                        previousMonthCompletedAppointments)
+                        / previousMonthCompletedAppointments * 100);
+
+            var currentMonthUpcomingAppointments = await context.Appointments
+                .CountAsync(
+                    x => x.SpecialistId == specialist.Id &&
+                         x.Start > now &&
+                         x.Start.Month == currentMonth &&
+                         x.Start.Year == currentYear,
+                    cancellationToken);
+
+            var previousMonthUpcomingAppointments = await context.Appointments
+                .CountAsync(
+                    x => x.SpecialistId == specialist.Id &&
+                         x.Start.Month == previousMonth &&
+                         x.Start.Year == previousYear,
+                    cancellationToken);
+
+            double upcomingAppointmentsGrowthPercentage =
+                previousMonthUpcomingAppointments == 0
+                    ? (currentMonthUpcomingAppointments > 0 ? 100 : 0)
+                    : ((double)(currentMonthUpcomingAppointments -
+                        previousMonthUpcomingAppointments)
+                        / previousMonthUpcomingAppointments * 100);
+
+            var currentMonthAverageRating = await context.Reviews
+                .Where(x =>
+                    x.SpecialistId == specialist.Id &&
+                    x.CreatedAtUtc.Month == currentMonth &&
+                    x.CreatedAtUtc.Year == currentYear)
+                .AverageAsync(
+                    x => (double?)x.Rating,
+                    cancellationToken) ?? 0;
+
+            var previousMonthAverageRating = await context.Reviews
+                .Where(x =>
+                    x.SpecialistId == specialist.Id &&
+                    x.CreatedAtUtc.Month == previousMonth &&
+                    x.CreatedAtUtc.Year == previousYear)
+                .AverageAsync(
+                    x => (double?)x.Rating,
+                    cancellationToken) ?? 0;
+
+            double averageRatingGrowthPercentage =
+                previousMonthAverageRating == 0
+                    ? (currentMonthAverageRating > 0 ? 100 : 0)
+                    : ((currentMonthAverageRating -
+                        previousMonthAverageRating)
+                        / previousMonthAverageRating * 100);
+
+            var upcoming = await context.Appointments
+                .Where(x =>
+                    x.SpecialistId == specialist.Id &&
+                    x.Start > now)
+                .OrderBy(x => x.Start)
+                .Take(5)
+                .Select(x => new UpcomingAppointmentDto
+                {
+                    AppointmentId = x.Id,
+                    ClientId = x.UserId,
+                    ClientName = x.User.Name,
+                    ServiceName = x.SessionTopic ?? string.Empty,
+                    StartTimeUtc = x.Start,
+                    Status = x.Status.ToString()
+                })
+                .ToListAsync(cancellationToken);
+
+            var monthlyRevenue = new List<MonthlyRevenueDto>();
+
+            for (var month = 1; month <= 12; month++)
+            {
+                var amount = await context.Payments
+                    .Where(x =>
+                        x.Appointment.SpecialistId == specialist.Id &&
+                        x.Status == PaymentStatus.Completed &&
+                        x.PaidAt.HasValue &&
+                        x.PaidAt.Value.Month == month &&
+                        x.PaidAt.Value.Year == currentYear)
+                    .SumAsync(
+                        x => (decimal?)x.SpecialistAmount,
+                        cancellationToken) ?? 0;
+
+                monthlyRevenue.Add(new MonthlyRevenueDto
+                {
+                    Month = new DateTime(currentYear, month, 1)
+                        .ToString("MMM"),
+                    Amount = amount
+                });
+            }
+
+            return new SpecialistDashboardDto
+            {
+                MonthlyEarnings = monthlyEarnings,
+                EarningsGrowthPercentage =
+                    Math.Round(earningsGrowthPercentage, 1),
+
+                UpcomingAppointments = upcomingAppointments,
+                UpcomingAppointmentsGrowthPercentage =
+                    Math.Round(upcomingAppointmentsGrowthPercentage, 1),
+
+                CompletedAppointments = completedAppointments,
+                CompletedAppointmentsGrowthPercentage =
+                    Math.Round(completedAppointmentsGrowthPercentage, 1),
+
+                AverageRating = Math.Round(averageRating, 1),
+                AverageRatingGrowthPercentage =
+                    Math.Round(averageRatingGrowthPercentage, 1),
+
+                TotalReviews = totalReviews,
+
+                MonthlyRevenue = monthlyRevenue,
+
+                UpcomingAppointmentsList = upcoming
+            };
+
+        }
+
+
+        public async Task<Result<SpecialistReviewsResponse>> GetReviewsAsync(
+            Guid specialistId,
+            int pageNumber,
+            int pageSize,
+            CancellationToken ct = default)
+        {
+            var specialistExists = await context.Specialists
+                .AnyAsync(x => x.Id == specialistId, ct);
+
+            if (!specialistExists) return Error.NotFound(description: "Specialist not found.");
+
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 50) pageSize = 50;
+
+            var reviewsQuery = context.Reviews
+                .AsNoTracking()
+                .Include(x => x.Reviewer)
+                .Where(x => x.SpecialistId == specialistId);
+
+            var totalReviews = await reviewsQuery.CountAsync(ct);
+
+            var averageRating = totalReviews == 0
+            ? 0 : await reviewsQuery.AverageAsync(x => (double)x.Rating, ct);
+
+
+
+            var items = await reviewsQuery
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(x => new ReviewDto
+                {
+                    ReviewerName = x.Reviewer.Name,
+                    Rating = x.Rating,
+                    Comment = x.Comment,
+                    CreatedAtUtc = x.CreatedAtUtc
+                })
+                .ToListAsync(ct);
+
+            var metadata = PaginationMetadata.Create(
+               pageNumber,
+               pageSize,
+               totalReviews);
+
+            var paginated = new PaginatedList<ReviewDto>(
+                items,
+                metadata);
+
+            return new SpecialistReviewsResponse
+            {
+                AverageRating = Math.Round(averageRating, 1),
+                TotalReviews = totalReviews,
+                Reviews = paginated
+            };
+        }
+
+
+
+
+
+        public async Task<Result<SpecialistReviewsResponse>> GetMyReviewsAsync(
+            int pageNumber,
+            int pageSize,
+            CancellationToken ct = default)
+        {
+            if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
+                return Error.Unauthorized(description: "User is not authenticated.");
+
+            var specialistId = await context.Specialists
+                .Where(x => x.UserId == currentUser.Id.Value)
+                .Select(x => x.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (specialistId == Guid.Empty)
+                return Error.NotFound(description: "Specialist profile not found.");
+
+            return await GetReviewsAsync(
+                specialistId,
+                pageNumber,
+                pageSize,
+                ct);
         }
     }
 }

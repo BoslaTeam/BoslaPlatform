@@ -6,6 +6,6 @@ namespace BoslaPlatform.Application.Features.Specialists.Request
 {
     public sealed class AddToolRequest
     {
-        public Guid ToolId { get; init; }
+        public IReadOnlyList<Guid> ToolIds { get; init; } = [];
     }
 }

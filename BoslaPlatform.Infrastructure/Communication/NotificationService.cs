@@ -145,5 +145,20 @@ namespace BoslaPlatform.Infrastructure.Communication
 
             return Result<bool>.Success(true);
         }
+
+        public async Task<Result<int>> GetUnreadCountAsync(CancellationToken ct = default)
+        {
+            var userIdResult = GetUserId();
+            if (userIdResult.IsError)
+            {
+                return userIdResult.Errors;
+            }
+
+            var userId = userIdResult.Value;
+            var count = await _context.Set<Notification>()
+                .CountAsync(n => n.UserId == userId && !n.IsRead, ct);
+
+            return Result<int>.Success(count);
+        }
     }
 }

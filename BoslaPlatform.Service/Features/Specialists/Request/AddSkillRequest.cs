@@ -6,6 +6,6 @@ namespace BoslaPlatform.Application.Features.Specialists.Request
 {
     public sealed class AddSkillRequest
     {
-        public Guid SkillId { get; init; }
+        public IReadOnlyList<Guid> SkillIds { get; init; } = [];
     }
 }

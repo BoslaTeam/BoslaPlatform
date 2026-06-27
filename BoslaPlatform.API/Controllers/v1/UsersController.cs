@@ -54,6 +54,16 @@ namespace BoslaPlatform.API.Controllers.v1
                 errors => errors.ToProblem());
         }
 
+        [HttpPost("me/set-password")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IResult> SetPassword([FromBody] SetPasswordRequest request, CancellationToken ct)
+        {
+            var result = await _userService.SetPasswordAsync(request, ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<bool>.SuccessResponse(value, "Password set successfully.")),
+                errors => errors.ToProblem());
+        }
+
         [HttpGet("me/education")]
         [ProducesResponseType(typeof(ApiResponse<List<EducationDto>>), StatusCodes.Status200OK)]
         public async Task<IResult> GetEducation(CancellationToken ct)

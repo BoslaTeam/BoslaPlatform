@@ -43,6 +43,11 @@ namespace BoslaPlatform.Application.Features.Appointments.Services
         Task<Result> RejectAsync(Guid id, string reason, CancellationToken ct);
 
         Task<Result> UpdateNotesAsync(Guid id, string notes, CancellationToken ct);
+        // 13. Add Review
+        Task<Result<Guid>> AddReviewAsync( Guid appointmentId,AddReviewRequest request, CancellationToken ct);
+   
+    
+   
 
         Task<Result<Guid>> SubmitReviewAsync(Guid appointmentId, SubmitReviewRequest request, CancellationToken ct);
 
