@@ -1,4 +1,4 @@
-﻿using BoslaPlatform.Application.Features.Payments.Requests;
+using BoslaPlatform.Application.Features.Payments.Requests;
 using BoslaPlatform.Application.Interfaces.Payments;
 using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Application.Settings;
@@ -52,6 +52,14 @@ namespace BoslaPlatform.API.Controllers.v1
         public async Task<IActionResult> GetByAppointment(Guid appointmentId)
         {
             var result = await _paymentService.GetByAppointmentAsync(appointmentId, HttpContext.RequestAborted);
+            if (result.IsError) return BadRequest(result.Errors);
+            return Ok(result.Value);
+        }
+
+        [HttpGet("me")]
+        public async Task<IActionResult> GetMyPayments()
+        {
+            var result = await _paymentService.GetMyPaymentsAsync(HttpContext.RequestAborted);
             if (result.IsError) return BadRequest(result.Errors);
             return Ok(result.Value);
         }
