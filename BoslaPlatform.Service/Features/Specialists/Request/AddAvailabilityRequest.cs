@@ -1,6 +1,7 @@
 ﻿namespace BoslaPlatform.Application.Features.Specialists.Request
 {
-    public sealed record AddAvailabilityRequest(
-    DateTimeOffset Start,
-    DateTimeOffset End); 
+    public sealed class AddAvailabilitiesRequest
+    {
+        public IReadOnlyList<AvailabilityItemRequest> Availabilities { get; init; } = [];
+    }
 }

@@ -89,7 +89,7 @@ public static class DependencyInjection
                 ctx.Context.Response.Headers.Append("Access-Control-Allow-Origin", "*");
             }
         });
-
+        app.UseRouting();
         app.UseAuthentication();
 
         app.UseAuthorization();

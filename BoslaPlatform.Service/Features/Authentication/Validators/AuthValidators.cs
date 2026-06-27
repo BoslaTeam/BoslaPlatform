@@ -1,4 +1,4 @@
-using BoslaPlatform.Application;
+    using BoslaPlatform.Application;
 using FluentValidation;
 
 namespace BoslaPlatform.Service.Features.Authentication.Validators
