@@ -58,7 +58,9 @@ namespace BoslaPlatform.Application.Interfaces.Specialists
 
         Task<Result<SpecialistReviewsResponse>> GetMyReviewsAsync(int pageNumber, int pageSize, CancellationToken ct = default);
 
+        Task<Result<IReadOnlyList<SkillResponse>>> GetSkillsAsync(CancellationToken ct = default);
 
+        Task<Result<IReadOnlyList<ToolResponse>>> GetToolsAsync(CancellationToken ct = default);
 
 
 
