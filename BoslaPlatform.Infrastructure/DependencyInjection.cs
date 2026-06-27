@@ -55,6 +55,7 @@ public static class DependencyInjection
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IChatNotifier, SignalRChatNotifier>();
+            services.AddScoped<IVideoNotifier, SignalRVideoNotifier>();
             services.AddScoped<IAgoraTokenService, AgoraTokenService>();
 
             // Agora Webhook — Phase 1

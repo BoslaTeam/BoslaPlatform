@@ -42,5 +42,6 @@ app.MapControllers();
 app.MapControllers();
 app.MapHub<BoslaPlatform.Infrastructure.RealTime.NotificationHub>("/hubs/notifications");
 app.MapHub<ChatHub>("/hubs/chat");
+app.MapHub<VideoHub>("/hubs/video");
 
 app.Run();
