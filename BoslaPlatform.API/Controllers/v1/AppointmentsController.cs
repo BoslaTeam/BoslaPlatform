@@ -181,6 +181,66 @@ namespace BoslaPlatform.API.Controllers.V1
             return Ok(result.ToApiResponse("Appointment notes updated successfully."));
         }
 
+        // 13. POST: api/v1/appointments/{id}/reviews
+        /// <summary>
+        /// Submits a review and rating for a completed appointment.
+        /// </summary>
+        [HttpPost("{id:guid}/reviews")]
+        [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> SubmitReview([FromRoute] Guid id, [FromBody] SubmitReviewRequest request, CancellationToken ct)
+        {
+            var result = await _appointmentService.SubmitReviewAsync(id, request, ct);
+            if (result.IsError) return DetermineStatusCode(result.Errors[0].Type, result.ToApiResponse());
+            return Ok(result.ToApiResponse("Review submitted successfully."));
+        }
+
+        // 14. GET: api/v1/appointments/{id}/reminders
+        /// <summary>
+        /// Retrieves all reminders set by the current user for a specific appointment.
+        /// </summary>
+        [HttpGet("{id:guid}/reminders")]
+        [ProducesResponseType(typeof(ApiResponse<List<ReminderDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetReminders([FromRoute] Guid id, CancellationToken ct)
+        {
+            var result = await _appointmentService.GetRemindersAsync(id, ct);
+            if (result.IsError) return DetermineStatusCode(result.Errors[0].Type, result.ToApiResponse());
+            return Ok(result.ToApiResponse("Reminders retrieved successfully."));
+        }
+
+        // 15. POST: api/v1/appointments/{id}/reminders
+        /// <summary>
+        /// Creates a new reminder for an appointment.
+        /// </summary>
+        [HttpPost("{id:guid}/reminders")]
+        [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status410Gone)]
+        public async Task<IActionResult> AddReminder([FromRoute] Guid id, [FromBody] AddReminderRequest request, CancellationToken ct)
+        {
+            var result = await _appointmentService.AddReminderAsync(id, request, ct);
+            if (result.IsError) return DetermineStatusCode(result.Errors[0].Type, result.ToApiResponse());
+            return Ok(result.ToApiResponse("Reminder added successfully."));
+        }
+
+        // 16. DELETE: api/v1/appointments/{id}/reminders/{rid}
+        /// <summary>
+        /// Deletes a specific reminder associated with an appointment.
+        /// </summary>
+        [HttpDelete("{id:guid}/reminders/{rid:guid}")]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> DeleteReminder([FromRoute] Guid id, [FromRoute] Guid rid, CancellationToken ct)
+        {
+            var result = await _appointmentService.DeleteReminderAsync(id, rid, ct);
+            if (result.IsError) return DetermineStatusCode(result.Errors[0].Type, result.ToApiResponse());
+            return Ok(result.ToApiResponse("Reminder deleted successfully."));
+        }
+
         private IActionResult DetermineStatusCode(ErrorKind type, object responseBody)
         {
             return type switch

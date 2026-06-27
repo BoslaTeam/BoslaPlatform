@@ -33,13 +33,13 @@ namespace BoslaPlatform.Domain.Models.Booking
 
         public ICollection<Reminder> Reminders { get; private set; } = new List<Reminder>();
 
-        public Review? Review { get; private set; }
-
-        public Payment? Payment { get; private set; }
+       public Payment? Payment { get; private set; }
 
         public SessionSummary? SessionSummary { get; private set; }
 
         public ScreenRecording? ScreenRecording { get; private set; }
+        public virtual ICollection<Review> Reviews { get; set; } = new List<Review>();
+        public virtual ICollection<ScreenRecording> ScreenRecordings { get; set; } = new List<ScreenRecording>();
 
         public Conversation? Conversation { get; private set; }
 

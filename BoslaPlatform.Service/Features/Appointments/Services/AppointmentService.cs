@@ -345,5 +345,135 @@ namespace BoslaPlatform.Application.Services
             await _context.SaveChangesAsync(ct);
             return Result.Success();
         }
+        // 13. Submit Review
+        public async Task<Result<Guid>> SubmitReviewAsync(Guid appointmentId, SubmitReviewRequest request, CancellationToken ct)
+        {
+            if (!_currentUser.IsAuthenticated || !_currentUser.Id.HasValue)
+            {
+                return Error.Unauthorized("Auth.Unauthorized", "User must be logged in to submit a review.");
+            }
+
+            var appointment = await _context.Appointments
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == appointmentId, ct);
+
+            if (appointment is null)
+            {
+                return Error.NotFound("Appointment.NotFound", "The appointment was not found.");
+            }
+
+
+            if (appointment.UserId != _currentUser.Id.Value)
+            {
+                return Error.Forbidden("Review.Forbidden", "You can only review appointments that belong to you.");
+            }
+
+
+            bool alreadyReviewed = await _context.Reviews
+                .AnyAsync(r => r.AppointmentId == appointmentId, ct);
+
+            if (alreadyReviewed)
+            {
+                return Error.Conflict("Review.AlreadyExists", "You have already submitted a review for this appointment.");
+            }
+
+            var review = new Review
+            {
+                
+                AppointmentId = appointmentId,
+                ReviewerId = _currentUser.Id.Value,
+                SpecialistId = appointment.SpecialistId,
+                Rating = (byte)request.Rating,
+                Comment = request.Comment
+            };
+
+            _context.Reviews.Add(review);
+            await _context.SaveChangesAsync(ct);
+
+            return review.Id;
+        }
+
+        // 14. Get Reminders for a Specific Appointment
+        public async Task<Result<List<ReminderDto>>> GetRemindersAsync(Guid appointmentId, CancellationToken ct)
+        {
+            if (!_currentUser.Id.HasValue)
+            {
+                return Error.Unauthorized("Auth.Unauthorized", "User identification missing.");
+            }
+
+            var reminders = await _context.Reminders
+                .AsNoTracking()
+                .Where(r => r.AppointmentId == appointmentId && r.UserId == _currentUser.Id.Value)
+                .Select(r => new ReminderDto
+                {
+                    Id = r.Id,
+                    AppointmentId = r.AppointmentId,
+                    ReminderTime = r.ReminderTime, 
+                    Message = "Appointment Reminder",
+                    IsSent = r.IsSent
+                })
+                .ToListAsync(ct);
+
+            return reminders;
+        }
+
+        // 15. Add New Reminder
+        public async Task<Result<Guid>> AddReminderAsync(Guid appointmentId, AddReminderRequest request, CancellationToken ct)
+        {
+            if (!_currentUser.IsAuthenticated || !_currentUser.Id.HasValue)
+            {
+                return Error.Unauthorized("Auth.Unauthorized", "User must be logged in to create reminders.");
+            }
+
+            var appointment = await _context.Appointments
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == appointmentId, ct);
+
+            if (appointment is null)
+            {
+                return Error.NotFound("Appointment.NotFound", "The appointment was not found.");
+            }
+
+            var reminder = new Reminder
+            {
+                Id = Guid.NewGuid(),
+                AppointmentId = appointmentId,
+                UserId = _currentUser.Id.Value,
+                ReminderTime = request.ReminderTime.UtcDateTime,
+                IsSent = false
+            };
+
+            _context.Reminders.Add(reminder);
+            await _context.SaveChangesAsync(ct);
+
+            return reminder.Id;
+        }
+
+        // 16. Delete Specific Reminder
+        public async Task<Result> DeleteReminderAsync(Guid appointmentId, Guid reminderId, CancellationToken ct)
+        {
+            if (!_currentUser.Id.HasValue)
+            {
+                return Error.Unauthorized("Auth.Unauthorized", "User identification missing.");
+            }
+
+            var reminder = await _context.Reminders
+                .FirstOrDefaultAsync(r => r.Id == reminderId && r.AppointmentId == appointmentId, ct);
+
+            if (reminder is null)
+            {
+                return Error.NotFound("Reminder.NotFound", "The requested reminder was not found.");
+            }
+
+            if (reminder.UserId != _currentUser.Id.Value)
+            {
+                return Error.Forbidden("Reminder.Forbidden", "You do not have permission to delete this reminder.");
+            }
+
+            _context.Reminders.Remove(reminder);
+            await _context.SaveChangesAsync(ct);
+
+            return Result.Success();
+        }
     }
 }
