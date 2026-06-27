@@ -45,6 +45,8 @@ namespace BoslaPlatform.Infrastructure.Identity
             new (JwtRegisteredClaimNames.Sub, user.Id.ToString()!),
             new (ClaimTypes.NameIdentifier, user.Id.ToString()!),
             new (JwtRegisteredClaimNames.Email, user.Email!),
+            new (ClaimTypes.Name, user.Name),
+            new ("avatar", user.ProfileImageUrl ?? string.Empty),
             new (JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
             var userRoles = await _userManager.GetRolesAsync(user);
