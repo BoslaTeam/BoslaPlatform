@@ -1,8 +1,15 @@
+using BoslaPlatform.Infrastructure.Realtime;
 using BoslaPlatform.API.Common.Filters;
 using BoslaPlatform.Infrastructure.Data;
 
-// Add services to the container.
 var builder = WebApplication.CreateBuilder(args);
+
+var webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+if (!Directory.Exists(webRootPath))
+{
+    Directory.CreateDirectory(webRootPath);
+}
+builder.Environment.WebRootPath = webRootPath;
 
 builder.Services.AddControllers(options =>
 {
@@ -15,6 +22,8 @@ builder.Services.AddApplication()
     .AddInfrastructure(builder.Configuration)
     .AddPresentation();
 
+
+builder.Services.AddSignalR();
 // Rate limiting (disabled for now) — policy code previously added removed per request
 
 var app = builder.Build();
@@ -33,9 +42,12 @@ if (app.Environment.IsDevelopment())
     });
     await app.InitialiseDatabaseAsync();
 }
-app.UseCoreMiddlewares(builder.Configuration);
 
+app.UseCoreMiddlewares(builder.Configuration);
 app.MapControllers();
+
 app.MapHub<BoslaPlatform.Infrastructure.RealTime.NotificationHub>("/hubs/notifications");
+app.MapHub<ChatHub>("/hubs/chat");
+app.MapControllers();
 
 app.Run();

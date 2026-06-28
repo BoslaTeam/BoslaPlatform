@@ -1,18 +1,19 @@
+using BoslaPlatform.Application;
+using BoslaPlatform.Application.Interfaces.Authentication;
+using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Models.Identity;
 using BoslaPlatform.Infrastructure.Settings;
 using BoslaPlatform.Shared;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
-using Microsoft.EntityFrameworkCore;
 using System.Text;
-using BoslaPlatform.Application;
-using BoslaPlatform.Application.Interfaces.Authentication;
-using BoslaPlatform.Application.Interfaces.Persistence;
 
 namespace BoslaPlatform.Infrastructure.Identity
 {
@@ -44,6 +45,8 @@ namespace BoslaPlatform.Infrastructure.Identity
             new (JwtRegisteredClaimNames.Sub, user.Id.ToString()!),
             new (ClaimTypes.NameIdentifier, user.Id.ToString()!),
             new (JwtRegisteredClaimNames.Email, user.Email!),
+            new (ClaimTypes.Name, user.Name),
+            new ("avatar", user.ProfileImageUrl ?? string.Empty),
             new (JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
             var userRoles = await _userManager.GetRolesAsync(user);
@@ -62,7 +65,9 @@ namespace BoslaPlatform.Infrastructure.Identity
                     new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Value.SecretKey)),
                     SecurityAlgorithms.HmacSha256),
             };
-
+            Console.WriteLine(_jwtSettings.Value.SecretKey);
+            Console.WriteLine(Encoding.UTF8.GetByteCount(_jwtSettings.Value.SecretKey));
+            Console.WriteLine(Encoding.UTF8.GetBytes(_jwtSettings.Value.SecretKey).Length);
             var tokenHandler = new JwtSecurityTokenHandler();
 
             var accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(descriptor));

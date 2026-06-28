@@ -6,6 +6,6 @@ namespace BoslaPlatform.Application.Interfaces.Communication
 {
     public interface INotificationSender
     {
-        Task SendToUserAsync(Guid userId, NotificationDto notification);
+        Task SendToUserAsync(Guid userId, NotificationDto notification,CancellationToken ct = default);
     }
 }

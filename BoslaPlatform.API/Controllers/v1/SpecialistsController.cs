@@ -7,6 +7,8 @@ using BoslaPlatform.Application.Features.Specialists.Response;
 using BoslaPlatform.Application.Features.Specialists.Services;
 using BoslaPlatform.Application.Interfaces.Specialists;
 using BoslaPlatform.Domain.Enums;
+using BoslaPlatform.Shared.Constants;
+using BoslaPlatform.Shared.Pagination;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,8 +19,7 @@ namespace BoslaPlatform.API.Controllers.v1
     [Route("api/v{version:apiVersion}/specialists")]
     [Authorize]
     [ApiConventionType(typeof(DefaultApiConventions))]
-    public class SpecialistsController(
-        ISpecialistService specialistService) : ControllerBase
+    public class SpecialistsController(ISpecialistService specialistService) : ControllerBase
     {
         #region Onboard & Profile 
 
@@ -72,7 +73,7 @@ namespace BoslaPlatform.API.Controllers.v1
         public async Task<IResult> GetMyAvailability(CancellationToken ct)
         {
             var result = await specialistService
-                    .GetMyAvailabilityAsync(ct);
+                .GetMyAvailabilityAsync(ct);
 
             return result.Match(
                 value => Results.Ok(
@@ -83,14 +84,13 @@ namespace BoslaPlatform.API.Controllers.v1
         [HttpPost("me/availability")]
         [Authorize(Roles = nameof(UserRole.Specialist))]
         [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
-        public async Task<IResult> AddAvailability([FromBody] AddAvailabilityRequest request, CancellationToken ct)
+        public async Task<IResult> AddAvailabilities(AddAvailabilitiesRequest request, CancellationToken ct)
         {
-            var result = await specialistService
-                    .AddAvailabilityAsync(request, ct);
+            var result = await specialistService.AddAvailabilitiesAsync(request, ct);
 
             return result.Match(
                 value => Results.Ok(
-                    ApiResponse<Guid>.SuccessResponse(value, "Availability created successfully.")),
+                    ApiResponse<IReadOnlyList<Guid>>.SuccessResponse(value, "Availabilities created successfully.")),
                 errors => errors.ToProblem());
         }
 
@@ -125,7 +125,7 @@ namespace BoslaPlatform.API.Controllers.v1
 
         [HttpDelete("me/expertise/{id:guid}")]
         [Authorize(Roles = nameof(UserRole.Specialist))]
-        public async Task<IResult> DeleteExpertise(Guid id,CancellationToken ct)
+        public async Task<IResult> DeleteExpertise(Guid id, CancellationToken ct)
         {
             var result = await specialistService
                     .DeleteExpertiseAsync(id, ct);
@@ -134,6 +134,22 @@ namespace BoslaPlatform.API.Controllers.v1
                 return Results.Ok(ApiResponse.SuccessResponse("Expertise deleted successfully."));
 
             return result.Errors.ToProblem();
+        }
+
+        #endregion
+
+        #region earnings
+
+        [HttpGet("me/earnings")]
+        public async Task<IActionResult> GetMyEarnings()
+        {
+            var result = await specialistService.GetEarningsAsync(HttpContext.RequestAborted);
+
+            if (result.IsError)
+            {
+                return BadRequest(result.Errors);
+            }
+            return Ok(result.Value);
         }
 
         #endregion
@@ -196,24 +212,24 @@ namespace BoslaPlatform.API.Controllers.v1
 
 
         [HttpPost("me/experience")]
-        public async Task<IResult> AddExperience(AddExperienceRequestDTO request,CancellationToken ct)
+        public async Task<IResult> AddExperiences(AddExperiencesRequest request, CancellationToken ct)
         {
             var result =
                 await specialistService
-                    .AddExperienceAsync(request, ct);
+                    .AddExperiencesAsync(request, ct);
 
             return result.Match(
                 value => Results.Ok(
-                    ApiResponse<Guid>.SuccessResponse(value)),
+                    ApiResponse<IReadOnlyList<Guid>>.SuccessResponse(value)),
                 errors => errors.ToProblem());
         }
 
 
         [HttpPut("me/experience/{id:guid}")]
-        public async Task<IResult> UpdateExperience( Guid id,UpdateExperienceRequest request, CancellationToken ct)
+        public async Task<IResult> UpdateExperience(Guid id, UpdateExperienceRequest request, CancellationToken ct)
         {
             var result =
-                await specialistService.UpdateExperienceAsync( id,request,ct);
+                await specialistService.UpdateExperienceAsync(id, request, ct);
 
             return result.Match(
                 value => Results.Ok(
@@ -223,7 +239,7 @@ namespace BoslaPlatform.API.Controllers.v1
 
 
         [HttpDelete("me/experience/{id:guid}")]
-        public async Task<IResult> DeleteExperience(Guid id,CancellationToken ct)
+        public async Task<IResult> DeleteExperience(Guid id, CancellationToken ct)
         {
             var result = await specialistService
                 .DeleteExperienceAsync(id, ct);
@@ -240,10 +256,10 @@ namespace BoslaPlatform.API.Controllers.v1
 
 
         [HttpPost("me/skills")]
-        public async Task<IResult> AddSkill( AddSkillRequest request,CancellationToken ct)
+        public async Task<IResult> AddSkills(AddSkillRequest request, CancellationToken ct)
         {
             var result = await specialistService
-                .AddSkillAsync(request, ct);
+                .AddSkillsAsync(request, ct);
 
             if (result.IsSuccess)
             {
@@ -272,7 +288,141 @@ namespace BoslaPlatform.API.Controllers.v1
 
             return result.Errors.ToProblem();
         }
+
+
+        [HttpPost("me/tools")]
+        public async Task<IResult> AddTool(AddToolRequest request, CancellationToken ct)
+        {
+            var result = await specialistService
+                .AddToolsAsync(request, ct);
+
+            if (result.IsSuccess)
+            {
+                return Results.Ok(
+                    ApiResponse.SuccessResponse(
+                        "Tool added successfully."));
+            }
+
+            return result.Errors.ToProblem();
+        }
+
+
+        [HttpDelete("me/tools/{id:guid}")]
+        public async Task<IResult> DeleteTool(Guid id, CancellationToken ct)
+        {
+            var result = await specialistService
+                .DeleteToolAsync(id, ct);
+
+            if (result.IsSuccess)
+            {
+                return Results.Ok(
+                    ApiResponse.SuccessResponse(
+                        "Tool deleted successfully."));
+            }
+
+            return result.Errors.ToProblem();
+        }
+
+
+
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<IResult> GetSpecialists([FromQuery] GetSpecialistsRequest request, CancellationToken ct)
+        {
+            var result = await specialistService.GetSpecialistsAsync(request, ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<PaginatedResult<SpecialistListItemResponse>>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        [HttpGet("{id:guid}")]
+        [AllowAnonymous]
+        public async Task<IResult> GetSpecialistById(Guid id, CancellationToken ct)
+        {
+            var result = await specialistService
+                .GetSpecialistByIdAsync(id, ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<SpecialistDetailsResponse>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+
+        [HttpGet("{id:guid}/availability")]
+        [AllowAnonymous]
+        public async Task<IResult> GetSpecialistAvailability(Guid id, CancellationToken ct)
+        {
+            var result = await specialistService
+                .GetSpecialistAvailabilityAsync(id, ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<SpecialistAvailabilityResponse>>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+
+        [HttpGet("me/dashboard")]
+        [Authorize(Roles = nameof(UserRole.Specialist))]
+        public async Task<IResult> GetDashboard(CancellationToken cancellationToken)
+
+        {
+            var result = await specialistService.GetDashboardAsync(
+                cancellationToken);
+
+            return result.Match(
+                value => Results.Ok(ApiResponse<SpecialistDashboardDto>
+                    .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+
+        [HttpGet("{id:guid}/reviews")]
+        public async Task<IResult> GetReviews(
+            Guid id,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken ct = default)
+        {
+            var result = await specialistService.GetReviewsAsync(
+                id,
+                pageNumber,
+                pageSize,
+                ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<SpecialistReviewsResponse>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        [HttpGet("me/reviews")]
+        [Authorize(Roles = nameof(UserRole.Specialist))]
+        public async Task<IResult> GetMyReviews(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken ct = default)
+        {
+            var result = await specialistService.GetMyReviewsAsync(
+                pageNumber,
+                pageSize,
+                ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<SpecialistReviewsResponse>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
     }
 }
 //Khaled$123
-//    KH@gmail.com
+//KH@gmail.com

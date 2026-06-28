@@ -1,9 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>f7cfea98-a6c9-494a-b154-06b1823c5225</UserSecretsId>
   </PropertyGroup>
 
 	<ItemGroup>
@@ -30,6 +31,12 @@
   <ItemGroup>
     <Folder Include="Common\Filters\" />
     <Folder Include="Services\" />
+  </ItemGroup>
+
+  <!-- Exclude user-uploaded images from static web assets tracking -->
+  <ItemGroup>
+    <Content Remove="wwwroot\images\**" />
+    <None Include="wwwroot\images\**" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

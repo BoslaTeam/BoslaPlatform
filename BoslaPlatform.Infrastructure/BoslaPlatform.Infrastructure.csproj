@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -7,10 +7,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Services\Specialist\**" />
+    <EmbeddedResource Remove="Services\Specialist\**" />
+    <None Remove="Services\Specialist\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="AgoraIO.Token" Version="1.0.0" />
 		<PackageReference Include="Google.Apis.Auth" Version="1.69.0" />
 		<PackageReference Include="MailKit" Version="4.17.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.8" />
@@ -25,6 +32,7 @@
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
+		<PackageReference Include="SharpZipLib" Version="1.4.2" />
 	<!-- Removed Polly packages in favor of a lightweight retry handler to avoid package compatibility issues -->
 	</ItemGroup>
 
@@ -39,6 +47,7 @@
 	  <Folder Include="Realtime\" />
 	  <Folder Include="Observability\" />
 	  <Folder Include="Services\Specialist\" />
+	  <Folder Include="Services\Video\" />
 	</ItemGroup>
 
 </Project>
