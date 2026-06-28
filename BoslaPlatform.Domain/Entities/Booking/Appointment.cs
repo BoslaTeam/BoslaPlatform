@@ -43,6 +43,8 @@ namespace BoslaPlatform.Domain.Models.Booking
         public virtual IReadOnlyCollection<Reminder> Reminders => _reminders.AsReadOnly();
         public virtual Conversation? Conversation { get; private set; }
 
+        public Conversation? Conversation { get; private set; }
+
         private Appointment() { }
 
         // Factory Method

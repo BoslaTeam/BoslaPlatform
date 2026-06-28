@@ -154,6 +154,22 @@ namespace BoslaPlatform.API.Controllers.v1
 
         #endregion
 
+        #region earnings
+
+        [HttpGet("me/earnings")]
+        public async Task<IActionResult> GetMyEarnings()
+        {
+            var result = await specialistService.GetEarningsAsync(HttpContext.RequestAborted);
+
+            if (result.IsError)
+            {
+                return BadRequest(result.Errors);
+            }
+            return Ok(result.Value);
+        }
+
+        #endregion
+
 
         [HttpPut("me/cancellation-policy")]
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
@@ -418,6 +434,30 @@ namespace BoslaPlatform.API.Controllers.v1
             return result.Match(
                 value => Results.Ok(
                     ApiResponse<SpecialistReviewsResponse>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        [HttpGet("me/skills")]
+        public async Task<IResult> GetSkills(CancellationToken ct)
+        {
+            var result = await specialistService.GetSkillsAsync(ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<SkillResponse>>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        [HttpGet("me/tools")]
+        public async Task<IResult> GetTools(CancellationToken ct)
+        {
+            var result = await specialistService.GetToolsAsync(ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<ToolResponse>>
                         .SuccessResponse(value)),
                 errors => errors.ToProblem());
         }
