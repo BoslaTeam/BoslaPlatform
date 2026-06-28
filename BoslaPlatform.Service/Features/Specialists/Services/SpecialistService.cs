@@ -23,7 +23,8 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         IAppDbContext context,
         IUser currentUser,
         UserManager<User> userManager,
-        IOnlineUserTracker onlineUserTracker) : ISpecialistService
+        IOnlineUserTracker onlineUserTracker,
+        ITokenService tokenService) : ISpecialistService
     {
         #region Onboard & Profile Methods
 
@@ -66,8 +67,19 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
             await context.SaveChangesAsync(ct);
 
+            var tokenResult = await tokenService.CreateTokenAsync(user, ct);
+
+            if (tokenResult.IsError)
+            {
+                return tokenResult.Errors;
+            }
+
             return Result<SpecialistOnboardResponse>.Success(
-                new SpecialistOnboardResponse(specialist.Id, specialist.VerificationStatus)
+                new SpecialistOnboardResponse(
+                    specialist.Id,
+                    specialist.VerificationStatus,
+                    tokenResult.Value
+                )
             );
         }
 
@@ -1422,6 +1434,52 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 pageNumber,
                 pageSize,
                 ct);
+        }
+
+        public async Task<Result<IReadOnlyList<SkillResponse>>> GetSkillsAsync(CancellationToken ct)
+        {
+            var specialist = await GetCurrentSpecialistAsync(ct);
+
+            if (specialist is null)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist not found.");
+            }
+
+            var skills = await context.SpecialistSkills
+                .AsNoTracking()
+                .Where(x => x.SpecialistId == specialist.Id)
+                .OrderBy(x => x.Skill.Name)
+                .Select(x => new SkillResponse(
+                    x.SkillId,
+                    x.Skill.Name))
+                .ToListAsync(ct);
+
+            return skills;
+        }
+
+        public async Task<Result<IReadOnlyList<ToolResponse>>> GetToolsAsync(CancellationToken ct)
+        {
+            var specialist = await GetCurrentSpecialistAsync(ct);
+
+            if (specialist is null)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist not found.");
+            }
+
+            var tools = await context.SpecialistTools
+                .AsNoTracking()
+                .Where(x => x.SpecialistId == specialist.Id)
+                .OrderBy(x => x.Tool.Name)
+                .Select(x => new ToolResponse(
+                    x.ToolId,
+                    x.Tool.Name))
+                .ToListAsync(ct);
+
+            return tools;
         }
     }
 }

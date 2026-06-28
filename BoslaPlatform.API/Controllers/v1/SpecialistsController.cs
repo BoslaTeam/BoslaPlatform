@@ -422,6 +422,30 @@ namespace BoslaPlatform.API.Controllers.v1
                 errors => errors.ToProblem());
         }
 
+        [HttpGet("me/skills")]
+        public async Task<IResult> GetSkills(CancellationToken ct)
+        {
+            var result = await specialistService.GetSkillsAsync(ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<SkillResponse>>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        [HttpGet("me/tools")]
+        public async Task<IResult> GetTools(CancellationToken ct)
+        {
+            var result = await specialistService.GetToolsAsync(ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<ToolResponse>>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
     }
 }
 //Khaled$123
