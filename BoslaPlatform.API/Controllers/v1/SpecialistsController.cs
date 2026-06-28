@@ -154,22 +154,6 @@ namespace BoslaPlatform.API.Controllers.v1
 
         #endregion
 
-        #region earnings
-
-        [HttpGet("me/earnings")]
-        public async Task<IActionResult> GetMyEarnings()
-        {
-            var result = await specialistService.GetEarningsAsync(HttpContext.RequestAborted);
-
-            if (result.IsError)
-            {
-                return BadRequest(result.Errors);
-            }
-            return Ok(result.Value);
-        }
-
-        #endregion
-
 
         [HttpPut("me/cancellation-policy")]
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
