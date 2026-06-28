@@ -83,15 +83,17 @@ namespace BoslaPlatform.API.Controllers.v1
 
         [HttpPost("me/availability")]
         [Authorize(Roles = nameof(UserRole.Specialist))]
-        [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
-        public async Task<IResult> AddAvailability([FromBody] AddAvailabilityRequest request, CancellationToken ct)
+        [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<Guid>>), StatusCodes.Status200OK)]
+        public async Task<IResult> AddAvailability([FromBody] AddAvailabilitiesRequest request, CancellationToken ct)
         {
             var result = await specialistService
-                   .AddAvailabilityAsync(request, ct);
+                   .AddAvailabilitiesAsync(request, ct);
 
             return result.Match(
                 value => Results.Ok(
-                    ApiResponse<Guid>.SuccessResponse(value, "Availability created successfully.")),
+                   ApiResponse<IReadOnlyList<Guid>>.SuccessResponse(value,"Availability created successfully.")),
+                            
+    
                 errors => errors.ToProblem());
         }
 
@@ -213,15 +215,15 @@ namespace BoslaPlatform.API.Controllers.v1
 
 
         [HttpPost("me/experience")]
-        public async Task<IResult> AddExperience(AddExperienceRequestDTO request, CancellationToken ct)
+        public async Task<IResult> AddExperiences(AddExperiencesRequest request, CancellationToken ct)
         {
             var result =
                 await specialistService
-                    .AddExperienceAsync(request, ct);
+                    .AddExperiencesAsync(request, ct);
 
             return result.Match(
                 value => Results.Ok(
-                    ApiResponse<Guid>.SuccessResponse(value)),
+                    ApiResponse<IReadOnlyList<Guid>>.SuccessResponse(value)),
                 errors => errors.ToProblem());
         }
 
@@ -257,10 +259,10 @@ namespace BoslaPlatform.API.Controllers.v1
 
 
         [HttpPost("me/skills")]
-        public async Task<IResult> AddSkill(AddSkillRequest request, CancellationToken ct)
+        public async Task<IResult> AddSkills(AddSkillRequest request, CancellationToken ct)
         {
             var result = await specialistService
-                .AddSkillAsync(request, ct);
+                .AddSkillsAsync(request, ct);
 
             if (result.IsSuccess)
             {
@@ -295,7 +297,7 @@ namespace BoslaPlatform.API.Controllers.v1
         public async Task<IResult> AddTool(AddToolRequest request, CancellationToken ct)
         {
             var result = await specialistService
-                .AddToolAsync(request, ct);
+                .AddToolsAsync(request, ct);
 
             if (result.IsSuccess)
             {
@@ -372,7 +374,7 @@ namespace BoslaPlatform.API.Controllers.v1
         [HttpGet("me/dashboard")]
         [Authorize(Roles = nameof(UserRole.Specialist))]
         public async Task<IResult> GetDashboard(CancellationToken cancellationToken)
-    
+
         {
             var result = await specialistService.GetDashboardAsync(
                 cancellationToken);
@@ -415,7 +417,7 @@ namespace BoslaPlatform.API.Controllers.v1
                 pageNumber,
                 pageSize,
                 ct);
-                
+
             return result.Match(
                 value => Results.Ok(
                     ApiResponse<SpecialistReviewsResponse>
@@ -423,7 +425,31 @@ namespace BoslaPlatform.API.Controllers.v1
                 errors => errors.ToProblem());
         }
 
+        [HttpGet("me/skills")]
+        public async Task<IResult> GetSkills(CancellationToken ct)
+        {
+            var result = await specialistService.GetSkillsAsync(ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<SkillResponse>>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        [HttpGet("me/tools")]
+        public async Task<IResult> GetTools(CancellationToken ct)
+        {
+            var result = await specialistService.GetToolsAsync(ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<ToolResponse>>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
     }
 }
- //Khaled$123
- //KH@gmail.com
+//Khaled$123
+//KH@gmail.com

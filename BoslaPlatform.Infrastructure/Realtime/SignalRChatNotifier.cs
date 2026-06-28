@@ -27,35 +27,25 @@ namespace BoslaPlatform.Infrastructure.Realtime
                     ct);
         }
 
-        public async Task MessageEditedAsync(
-            Guid conversationId,
-            Guid messageId,
-            CancellationToken ct = default)
+        public async Task MessageEditedAsync(MessageDto message, CancellationToken ct)
         {
             await _hubContext.Clients
-                .Group(conversationId.ToString())
+                .Group(message.ConversationId.ToString())
                 .SendAsync(
                     SignalREvents.MessageEdited,
-                    new
-                    {
-                        MessageId = messageId
-                    },
+                    message,
                     ct);
         }
 
-        public async Task MessageDeletedAsync(
-            Guid conversationId,
-            Guid messageId,
-            CancellationToken ct = default)
+        public async Task MessageDeletedAsync(Guid conversationId,Guid messageId,CancellationToken ct = default)
         {
             await _hubContext.Clients
                 .Group(conversationId.ToString())
                 .SendAsync(
                     SignalREvents.MessageDeleted,
-                    new
-                    {
-                        MessageId = messageId
-                    },
+                    new MessageDeletedDto(
+                        conversationId,
+                        messageId),
                     ct);
         }
     }
