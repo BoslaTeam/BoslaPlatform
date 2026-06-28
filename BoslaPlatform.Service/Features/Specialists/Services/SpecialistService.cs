@@ -1087,12 +1087,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                     specialist.UserId),
 
                 Tools = specialist.SpecialistTools
-                    .Select(x => new ToolResponse
-                    {
-                        Id = x.ToolId,
-                        Name = x.Tool.Name
-                    }).ToList(),
-                   
+                    .Select(x => new ToolResponse(x.ToolId,x.Tool.Name)).ToList(),
 
                 Skills = specialist.SpecialistSkills
                     .Select(ss => ss.Skill.Name)
