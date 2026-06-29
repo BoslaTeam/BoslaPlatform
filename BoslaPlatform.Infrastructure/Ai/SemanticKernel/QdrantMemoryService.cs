@@ -4,12 +4,12 @@ using BoslaPlatform.Infrastructure.Settings;
 using Microsoft.Extensions.Logging;
 using BoslaPlatform.Application.Interfaces.AI;
 using System.Text.Json;
+using Microsoft.SemanticKernel.Connectors.Qdrant;
+using Microsoft.Extensions.VectorData;
+using System.Dynamic;
 
 namespace BoslaPlatform.Infrastructure.AI.SemanticKernel;
 
-/// <summary>
-/// Result from Qdrant memory search
-/// </summary>
 public class QdrantSearchResult
 {
     public Guid Id { get; set; }
@@ -17,24 +17,21 @@ public class QdrantSearchResult
     public string? Text { get; set; }
 }
 
-/// <summary>
-/// Semantic Kernel memory service backed by Qdrant vector database
-/// Integrates Gemini embeddings with Qdrant vector storage through SK
-/// </summary>
 public class QdrantMemoryService
 {
-    private readonly QdrantClient _qdrantClient;
+    private readonly global::Microsoft.SemanticKernel.Connectors.Qdrant.QdrantVectorStore _qdrantStore;
     private readonly IEmbeddingService _embeddingService;
     private readonly QdrantSettings _settings;
     private readonly ILogger<QdrantMemoryService> _logger;
 
+
     public QdrantMemoryService(
-        QdrantClient qdrantClient,
+        global::Microsoft.SemanticKernel.Connectors.Qdrant.QdrantVectorStore qdrantStore,
         IEmbeddingService embeddingService,
         IOptions<QdrantSettings> opts,
         ILogger<QdrantMemoryService> logger)
     {
-        _qdrantClient = qdrantClient ?? throw new ArgumentNullException(nameof(qdrantClient));
+        _qdrantStore = qdrantStore ?? throw new ArgumentNullException(nameof(qdrantStore));
         _embeddingService = embeddingService ?? throw new ArgumentNullException(nameof(embeddingService));
         _settings = opts.Value;
         _logger = logger;
@@ -51,18 +48,24 @@ public class QdrantMemoryService
     {
         try
         {
-            // Generate embedding using Gemini
             var embeddingJson = await _embeddingService.CreateEmbeddingAsync(text, cancellationToken);
             var embedding = JsonSerializer.Deserialize<float[]>(embeddingJson);
 
             if (embedding == null)
                 throw new InvalidOperationException("Failed to deserialize embedding");
 
-            // Store in Qdrant with metadata
             var recordId = id ?? Guid.NewGuid().ToString();
             var payload = metadata ?? new Dictionary<string, object> { { "text", text } };
 
-            await _qdrantClient.UpsertPointAsync(Guid.Parse(recordId), embedding, payload, cancellationToken);
+            // Use dynamic collection for upsert
+            dynamic collection = _qdrantStore.GetDynamicCollection(_settings.CollectionName, null);
+
+            var record = new Dictionary<string, object?>();
+            record["id"] = Guid.Parse(recordId);
+            record["payload"] = payload;
+            record["vector"] = embedding;
+
+            await collection.UpsertAsync(new[] { (object)record }, cancellationToken);
 
             _logger.LogInformation("Stored text embedding {Id}: '{Text}'", recordId, text[..Math.Min(50, text.Length)]);
             return $"Stored: {recordId}";
@@ -84,25 +87,25 @@ public class QdrantMemoryService
     {
         try
         {
-            // Generate embedding for query using Gemini
             var queryEmbeddingJson = await _embeddingService.CreateEmbeddingAsync(query, cancellationToken);
             var queryEmbedding = JsonSerializer.Deserialize<float[]>(queryEmbeddingJson);
 
             if (queryEmbedding == null)
                 throw new InvalidOperationException("Failed to deserialize query embedding");
 
-            // Search in Qdrant
-            var results = await _qdrantClient.SearchAsync(queryEmbedding, topK, cancellationToken);
+            // Use dynamic collection to search
+            dynamic collection = _qdrantStore.GetDynamicCollection(_settings.CollectionName, null);
 
-            _logger.LogInformation("Searched with query '{Query}', found {Count} results", 
-                query[..Math.Min(50, query.Length)], results.Count);
+            var results = await collection.SearchAsync(queryEmbedding, topK, cancellationToken);
 
-            // Convert to DTO format
-            return results.Select(r => new QdrantSearchResult 
-            { 
-                Id = r.Id, 
-                Score = r.Score, 
-                Text = null 
+            _logger.LogInformation("Searched with query '{Query}', found {Count} results", query[..Math.Min(50, query.Length)], ((ICollection<object>)results).Count);
+
+            return ((IEnumerable<object>)results).Select(r => {
+                dynamic dr = r;
+                string? idStr = dr.Id?.ToString() ?? dr.Point?.Id?.ToString() ?? dr.PointId?.ToString();
+                Guid id = Guid.TryParse(idStr, out var g) ? g : Guid.Empty;
+                float score = dr.Score;
+                return new QdrantSearchResult { Id = id, Score = score, Text = null };
             }).ToList();
         }
         catch (Exception ex)
@@ -142,7 +145,7 @@ public class QdrantMemoryService
     /// <summary>
     /// Get direct access to Qdrant client for advanced operations
     /// </summary>
-    public QdrantClient GetQdrantClient() => _qdrantClient;
+    public global::Microsoft.SemanticKernel.Connectors.Qdrant.QdrantVectorStore GetQdrantStore() => _qdrantStore;
 
     /// <summary>
     /// Get direct access to embedding service

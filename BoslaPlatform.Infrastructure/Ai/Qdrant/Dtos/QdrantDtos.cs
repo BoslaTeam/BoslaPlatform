@@ -9,7 +9,7 @@ public class CreateCollectionRequest
 public class UpsertPoint
 {
     public string id { get; set; } = string.Empty;
-    public float[] vector { get; set; } = Array.Empty<float>();
+    public object vector { get; set; } = new { };
     public object payload { get; set; } = new { };
 }
 

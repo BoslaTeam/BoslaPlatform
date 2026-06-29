@@ -11,6 +11,7 @@ using BoslaPlatform.Application.Services;
 using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Infrastructure.AI.SemanticKernel;
+using Microsoft.SemanticKernel.Connectors.Qdrant;
 using BoslaPlatform.Infrastructure.Communication;
 using BoslaPlatform.Infrastructure.Data;
 using BoslaPlatform.Infrastructure.Data.Interceptors;
@@ -133,15 +134,30 @@ public static class DependencyInjection
         services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Gemini.GeminiChatService>();
         services.AddScoped<IChatService, BoslaPlatform.Infrastructure.AI.Gemini.GeminiChatService>();
 
+        // Register Qdrant settings early
+        services.Configure<QdrantSettings>(configuration.GetSection("QdrantSettings"));
+
         // Register Semantic Kernel v1.77 with Gemini plugins
         services.AddSemanticKernelForGemini();
 
-        services.Configure<QdrantSettings>(configuration.GetSection("QdrantSettings"));
-        services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Qdrant.QdrantClient>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30));
+        // Register the official Semantic Kernel Qdrant connector (vector store)
+        // This makes the Microsoft.SemanticKernel.Connectors.Qdrant vector store available via DI.
+        var qdrantBaseUrl = configuration.GetSection("QdrantSettings")["BaseUrl"] ?? configuration.GetSection("QdrantSettings")["Url"];
+        if (!string.IsNullOrEmpty(qdrantBaseUrl))
+        {
+            // AddQdrantVectorStore is an extension from Microsoft.SemanticKernel.Connectors.Qdrant
+            services.AddQdrantVectorStore(qdrantBaseUrl);
+            }
 
-        services.AddScoped<IVectorStore, BoslaPlatform.Infrastructure.AI.Qdrant.QdrantVectorStore>();
-        services.AddScoped<IAiSearchService, BoslaPlatform.Infrastructure.AI.AiSearchService>();
-        services.AddScoped<BoslaPlatform.Application.Interfaces.AI.IEmbeddingAdminService, BoslaPlatform.Infrastructure.AI.EmbeddingAdminService>();
+            // Register Qdrant HTTP client used by the local QdrantVectorStore implementation
+            services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Qdrant.QdrantClient>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30));
+
+            // Register application IVectorStore to the local QdrantVectorStore implementation
+            // Keep the Semantic Kernel QdrantVectorStore registered by AddQdrantVectorStore for SK components
+            services.AddScoped<IVectorStore, BoslaPlatform.Infrastructure.AI.Qdrant.QdrantVectorStore>();
+
+            services.AddScoped<IAiSearchService, BoslaPlatform.Infrastructure.AI.AiSearchService>();
+            services.AddScoped<BoslaPlatform.Application.Interfaces.AI.IEmbeddingAdminService, BoslaPlatform.Infrastructure.AI.EmbeddingAdminService>();
 
         // Tokenizer implementation used by AiSearchService
         services.AddSingleton<BoslaPlatform.Infrastructure.AI.Tokenizers.ITokenizer, BoslaPlatform.Infrastructure.AI.Tokenizers.SimpleTokenizer>();
