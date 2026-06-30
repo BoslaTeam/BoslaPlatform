@@ -68,6 +68,7 @@ public static class DependencyInjection
         services.AddScoped<IAppointmentService, AppointmentService>();
         services.AddScoped<INotificationSender, SignalRNotificationSender>();
         services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<IContactService, ContactService>();
         services.AddSignalR();
 
         services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
