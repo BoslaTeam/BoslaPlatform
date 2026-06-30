@@ -71,6 +71,13 @@ namespace BoslaPlatform.Application.Features.Admin.Services
 
         Task<Result> DeleteToolAsync(Guid id, CancellationToken cancellationToken = default);
 
+        // ── Payments ──
+        Task<Result<PaginatedList<AdminPaymentDto>>> ListPaymentsAsync(int page = 1, int pageSize = 20, string? search = null, string? status = null, CancellationToken cancellationToken = default);
+
+        Task<Result<AdminPaymentDetailDto>> GetPaymentDetailAsync(Guid paymentId, CancellationToken cancellationToken = default);
+
+        Task<Result> RefundPaymentAsync(Guid paymentId, string? reason, CancellationToken cancellationToken = default);
+
         // ── System ──
         Task<Result<List<AuditLogDto>>> GetAuditLogsAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
 

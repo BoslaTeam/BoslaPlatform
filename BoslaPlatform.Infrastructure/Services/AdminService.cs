@@ -699,6 +699,120 @@ namespace BoslaPlatform.Infrastructure.Services
             return Result.Success();
         }
 
+        // ── Payments ──
+
+        public async Task<Result<PaginatedList<AdminPaymentDto>>> ListPaymentsAsync(
+            int page = 1,
+            int pageSize = 20,
+            string? search = null,
+            string? status = null,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _context.Payments
+                .Include(p => p.Appointment).ThenInclude(a => a.User)
+                .Include(p => p.Appointment).ThenInclude(a => a.Specialist).ThenInclude(s => s.User)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(p =>
+                    p.Appointment.User.Name.Contains(search) ||
+                    (p.Appointment.User.Email != null && p.Appointment.User.Email.Contains(search)) ||
+                    p.Appointment.Specialist.User.Name.Contains(search));
+            }
+
+            if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<PaymentStatus>(status, true, out var parsedStatus))
+            {
+                query = query.Where(p => p.Status == parsedStatus);
+            }
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            var payments = await query
+                .OrderByDescending(p => p.CreatedAtUtc)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            var dtos = payments.Select(p => new AdminPaymentDto
+            {
+                Id = p.Id,
+                AppointmentId = p.AppointmentId,
+                UserName = p.Appointment.User?.Name ?? string.Empty,
+                SpecialistName = p.Appointment.Specialist?.User?.Name ?? string.Empty,
+                Amount = p.Amount,
+                Currency = p.Currency,
+                Status = p.Status.ToString(),
+                PaymentMethod = p.PaymentMethod,
+                PaidAt = p.PaidAt,
+                CreatedAt = p.CreatedAtUtc.UtcDateTime
+            }).ToList();
+
+            var metadata = new PaginationMetadata(page, pageSize, totalCount);
+            return Result<PaginatedList<AdminPaymentDto>>.Success(
+                new PaginatedList<AdminPaymentDto>(dtos, metadata));
+        }
+
+        public async Task<Result<AdminPaymentDetailDto>> GetPaymentDetailAsync(
+            Guid paymentId,
+            CancellationToken cancellationToken = default)
+        {
+            var payment = await _context.Payments
+                .Include(p => p.Appointment).ThenInclude(a => a.User)
+                .Include(p => p.Appointment).ThenInclude(a => a.Specialist).ThenInclude(s => s.User)
+                .FirstOrDefaultAsync(p => p.Id == paymentId, cancellationToken);
+
+            if (payment == null)
+                return Error.NotFound(description: "Payment not found.");
+
+            var dto = new AdminPaymentDetailDto
+            {
+                Id = payment.Id,
+                AppointmentId = payment.AppointmentId,
+                UserId = payment.Appointment.UserId,
+                UserName = payment.Appointment.User?.Name ?? string.Empty,
+                UserEmail = payment.Appointment.User?.Email,
+                UserAvatarUrl = payment.Appointment.User?.ProfileImageUrl,
+                SpecialistId = payment.Appointment.SpecialistId,
+                SpecialistName = payment.Appointment.Specialist?.User?.Name ?? string.Empty,
+                SpecialistAvatarUrl = payment.Appointment.Specialist?.User?.ProfileImageUrl,
+                Amount = payment.Amount,
+                Currency = payment.Currency,
+                Status = payment.Status.ToString(),
+                PaymentMethod = payment.PaymentMethod,
+                ExternalPaymentId = payment.ExternalPaymentId,
+                PaidAt = payment.PaidAt,
+                PlatformFeeAmount = payment.PlatformFeeAmount,
+                SpecialistAmount = payment.SpecialistAmount,
+                TaxAmount = payment.TaxAmount,
+                RefundReason = payment.RefundReason,
+                CreatedAt = payment.CreatedAtUtc.UtcDateTime
+            };
+
+            return Result<AdminPaymentDetailDto>.Success(dto);
+        }
+
+        public async Task<Result> RefundPaymentAsync(Guid paymentId, string? reason, CancellationToken cancellationToken = default)
+        {
+            var payment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.Id == paymentId, cancellationToken);
+
+            if (payment == null)
+                return Error.NotFound(description: "Payment not found.");
+
+            try
+            {
+                payment.MarkAsRefunded(reason);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Error.Validation(description: ex.Message);
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+            return Result.Success();
+        }
+
         public async Task<Result<List<AuditLogDto>>> GetAuditLogsAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
         {
             var skip = (page - 1) * pageSize;

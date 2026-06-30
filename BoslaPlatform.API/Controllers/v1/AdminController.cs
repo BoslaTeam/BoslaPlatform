@@ -317,6 +317,42 @@ public class AdminController(
         return result.Errors.ToProblem();
     }
 
+    // ── Payments ──
+
+    [HttpGet("payments")]
+    [ProducesResponseType(typeof(ApiResponse<PaginatedList<AdminPaymentDto>>), StatusCodes.Status200OK)]
+    public async Task<IResult> ListPayments(
+        int page = 1,
+        int pageSize = 20,
+        string? search = null,
+        string? status = null,
+        CancellationToken ct = default)
+    {
+        var result = await adminService.ListPaymentsAsync(page, pageSize, search, status, ct);
+        return result.Match(
+            value => Results.Ok(ApiResponse<PaginatedList<AdminPaymentDto>>.SuccessResponse(value)),
+            errors => errors.ToProblem());
+    }
+
+    [HttpGet("payments/{id:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<AdminPaymentDetailDto>), StatusCodes.Status200OK)]
+    public async Task<IResult> GetPaymentDetail(Guid id, CancellationToken ct = default)
+    {
+        var result = await adminService.GetPaymentDetailAsync(id, ct);
+        return result.Match(
+            value => Results.Ok(ApiResponse<AdminPaymentDetailDto>.SuccessResponse(value)),
+            errors => errors.ToProblem());
+    }
+
+    [HttpPost("payments/{id:guid}/refund")]
+    public async Task<IResult> RefundPayment(Guid id, [FromBody] RefundPaymentRequest request, CancellationToken ct = default)
+    {
+        var result = await adminService.RefundPaymentAsync(id, request.Reason, ct);
+        if (result.IsSuccess)
+            return Results.Ok(ApiResponse.SuccessResponse("Payment refunded."));
+        return result.Errors.ToProblem();
+    }
+
     [HttpGet("audit-logs")]
     [ProducesResponseType(typeof(ApiResponse<List<AuditLogDto>>), StatusCodes.Status200OK)]
     public async Task<IResult> GetAuditLogs(int page = 1, int pageSize = 20, CancellationToken ct = default)
