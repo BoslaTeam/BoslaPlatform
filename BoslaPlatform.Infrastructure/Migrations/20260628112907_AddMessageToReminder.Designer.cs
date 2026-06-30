@@ -4,6 +4,7 @@ using BoslaPlatform.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BoslaPlatform.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260628112907_AddMessageToReminder")]
+    partial class AddMessageToReminder
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -118,7 +121,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("VerifiedBy");
 
-                    b.ToTable("Specialists", (string)null);
+                    b.ToTable("Specialists");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Entities.User", b =>
@@ -290,7 +293,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("EntityType", "EntityId");
 
-                    b.ToTable("AuditLogs", (string)null);
+                    b.ToTable("AuditLogs");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Booking.Appointment", b =>
@@ -351,7 +354,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
                         .IsUnique()
                         .HasFilter("[Status] != 'Cancelled'");
 
-                    b.ToTable("Appointments", (string)null);
+                    b.ToTable("Appointments");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Booking.AppointmentStatusHistory", b =>
@@ -396,7 +399,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("LastModifiedBy");
 
-                    b.ToTable("AppointmentStatusHistory", (string)null);
+                    b.ToTable("AppointmentStatusHistory");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Booking.Availability", b =>
@@ -431,7 +434,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("SpecialistId", "Start", "End");
 
-                    b.ToTable("AvailabilitySlots", (string)null);
+                    b.ToTable("AvailabilitySlots");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Booking.Payment", b =>
@@ -509,7 +512,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.HasIndex("AppointmentId")
                         .IsUnique();
 
-                    b.ToTable("Payments", (string)null);
+                    b.ToTable("Payments");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Booking.Reminder", b =>
@@ -555,7 +558,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Reminders", (string)null);
+                    b.ToTable("Reminders");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Booking.Review", b =>
@@ -602,7 +605,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("SpecialistId");
 
-                    b.ToTable("Reviews", null, t =>
+                    b.ToTable("Reviews", t =>
                         {
                             t.HasCheckConstraint("CK_Reviews_Rating", "[Rating] BETWEEN 1 AND 5");
                         });
@@ -635,7 +638,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.HasIndex("AppointmentId")
                         .IsUnique();
 
-                    b.ToTable("Conversations", (string)null);
+                    b.ToTable("Conversations");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Communication.ConversationParticipant", b =>
@@ -670,7 +673,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.HasIndex("ConversationId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("ConversationParticipants", (string)null);
+                    b.ToTable("ConversationParticipants");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Communication.Message", b =>
@@ -716,7 +719,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("ConversationId", "CreatedAtUtc");
 
-                    b.ToTable("Messages", (string)null);
+                    b.ToTable("Messages");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Communication.Notification", b =>
@@ -765,7 +768,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "IsRead");
 
-                    b.ToTable("Notifications", (string)null);
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Identity.RefreshToken", b =>
@@ -812,7 +815,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RefreshTokens", (string)null);
+                    b.ToTable("RefreshTokens");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Junctions.SpecialistExpertise", b =>
@@ -827,7 +830,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("ExpertiseId");
 
-                    b.ToTable("SpecialistExpertise", (string)null);
+                    b.ToTable("SpecialistExpertise");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Junctions.SpecialistIndustry", b =>
@@ -842,7 +845,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("IndustryId");
 
-                    b.ToTable("SpecialistIndustries", (string)null);
+                    b.ToTable("SpecialistIndustries");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Junctions.SpecialistSkill", b =>
@@ -857,7 +860,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("SkillId");
 
-                    b.ToTable("SpecialistSkills", (string)null);
+                    b.ToTable("SpecialistSkills");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Junctions.SpecialistTool", b =>
@@ -872,7 +875,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("ToolId");
 
-                    b.ToTable("SpecialistTools", (string)null);
+                    b.ToTable("SpecialistTools");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Junctions.UserExpertise", b =>
@@ -887,7 +890,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("ExpertiseId");
 
-                    b.ToTable("UserExpertise", (string)null);
+                    b.ToTable("UserExpertise");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Junctions.UserIndustry", b =>
@@ -902,7 +905,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("IndustryId");
 
-                    b.ToTable("UserIndustries", (string)null);
+                    b.ToTable("UserIndustries");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Lookup.Expertise", b =>
@@ -922,7 +925,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Expertises", (string)null);
+                    b.ToTable("Expertises");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Lookup.Industry", b =>
@@ -942,7 +945,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Industries", (string)null);
+                    b.ToTable("Industries");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Lookup.Skill", b =>
@@ -962,7 +965,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Skills", (string)null);
+                    b.ToTable("Skills");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Lookup.Tool", b =>
@@ -982,7 +985,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Tools", (string)null);
+                    b.ToTable("Tools");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Profile.Education", b =>
@@ -1027,7 +1030,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Educations", (string)null);
+                    b.ToTable("Educations");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Profile.SocialLink", b =>
@@ -1066,7 +1069,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("SocialLinks", (string)null);
+                    b.ToTable("SocialLinks");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Profile.SpecialistExperience", b =>
@@ -1115,7 +1118,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("SpecialistId");
 
-                    b.ToTable("SpecialistExperiences", (string)null);
+                    b.ToTable("SpecialistExperiences");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.SearchInteraction", b =>
@@ -1163,7 +1166,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("SearchInteractions", (string)null);
+                    b.ToTable("SearchInteractions");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.SessionSummary", b =>
@@ -1222,7 +1225,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
                         .IsUnique()
                         .HasFilter("[TranscriptId] IS NOT NULL");
 
-                    b.ToTable("SessionSummaries", (string)null);
+                    b.ToTable("SessionSummaries");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.SessionTranscript", b =>
@@ -1261,7 +1264,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.HasIndex("VideoSessionId")
                         .IsUnique();
 
-                    b.ToTable("SessionTranscripts", (string)null);
+                    b.ToTable("SessionTranscripts");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.SpecialistEmbedding", b =>
@@ -1305,7 +1308,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.HasIndex("SpecialistId")
                         .IsUnique();
 
-                    b.ToTable("SpecialistEmbeddings", (string)null);
+                    b.ToTable("SpecialistEmbeddings");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Video.ScreenRecording", b =>
@@ -1371,7 +1374,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.HasIndex("AppointmentId")
                         .IsUnique();
 
-                    b.ToTable("ScreenRecordings", (string)null);
+                    b.ToTable("ScreenRecordings");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Video.VideoSession", b =>
@@ -1444,7 +1447,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.HasIndex("AppointmentId")
                         .IsUnique();
 
-                    b.ToTable("VideoSessions", (string)null);
+                    b.ToTable("VideoSessions");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Video.VideoSessionParticipant", b =>
@@ -1495,7 +1498,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.HasIndex("VideoSessionId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("VideoSessionParticipants", (string)null);
+                    b.ToTable("VideoSessionParticipants");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>

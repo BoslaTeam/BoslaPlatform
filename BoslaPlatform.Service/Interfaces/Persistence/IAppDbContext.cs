@@ -49,6 +49,7 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
         DbSet<VideoSession> VideoSessions { get; }
         DbSet<VideoSessionParticipant> VideoSessionParticipants { get; }
         DbSet<SpecialistTool> SpecialistTools { get; }
+        DbSet<Reminder> Reminders { get; }
 
         DbSet<TEntity> Set<TEntity>()
             where TEntity : class;
