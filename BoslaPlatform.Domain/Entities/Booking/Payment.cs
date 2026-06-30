@@ -70,6 +70,15 @@ namespace BoslaPlatform.Domain.Models.Booking
             Status = PaymentStatus.Failed;
             RefundReason = reason;
         }
+
+        public void MarkAsRefunded(string? reason)
+        {
+            if (Status != PaymentStatus.Completed)
+                throw new InvalidOperationException("Only completed payments can be refunded.");
+
+            Status = PaymentStatus.Refunded;
+            RefundReason = reason;
+        }
     }
 }
 
