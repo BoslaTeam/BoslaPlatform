@@ -8,7 +8,9 @@ using BoslaPlatform.Application.Interfaces.AI;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Communication;
 using BoslaPlatform.Application.Interfaces.Persistence;
+using BoslaPlatform.Application.Interfaces.Specialists;
 using BoslaPlatform.Application.Interfaces.Video;
+using BoslaPlatform.Application.Features.Specialists.Services;
 using BoslaPlatform.Application.Services;
 using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
@@ -51,6 +53,7 @@ public static class DependencyInjection
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<IOnlineUserTracker, OnlineUserTracker>();
             services.AddScoped<IChatNotifier, SignalRChatNotifier>();
             services.AddScoped<IAgoraTokenService, AgoraTokenService>();
 
@@ -148,6 +151,7 @@ public static class DependencyInjection
                         
             services.AddAuthorization();
 
+            services.AddHostedService<BoslaPlatform.Infrastructure.BackgroundJobs.ReminderBackgroundService>();
 
             return services;
         }

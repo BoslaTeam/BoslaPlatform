@@ -12,6 +12,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BoslaPlatform.Domain.Enums;
+using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Application.Interfaces.Persistence;
 
 namespace BoslaPlatform.Infrastructure.Communication
@@ -62,7 +63,9 @@ namespace BoslaPlatform.Infrastructure.Communication
                 n.Message,
                 n.Type.ToString(),
                 n.IsRead,
-                n.CreatedAtUtc)).ToList();
+                n.CreatedAtUtc,
+                n.AppointmentId,
+                n.AppointmentStatus)).ToList();
 
             return Result<List<NotificationDto>>.Success(dtos);
         }
@@ -113,7 +116,7 @@ namespace BoslaPlatform.Infrastructure.Communication
             return Result<bool>.Success(true);
         }
 
-        public async Task<Result<bool>> CreateAndSendNotificationAsync(Guid userId, string title, string message, NotificationType type, CancellationToken ct = default)
+        public async Task<Result<bool>> CreateAndSendNotificationAsync(Guid userId, string title, string message, NotificationType type, CancellationToken ct = default, Guid? appointmentId = null)
         {
             if (userId == Guid.Empty)
             {
@@ -121,13 +124,24 @@ namespace BoslaPlatform.Infrastructure.Communication
                     "Notification.InvalidUser",
                     "User id is invalid.");
             }
+            int? appointmentStatus = null;
+            if (appointmentId.HasValue)
+            {
+                var appt = await _context.Set<Appointment>()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(a => a.Id == appointmentId.Value, ct);
+                appointmentStatus = (int?)appt?.Status;
+            }
+
             var notification = new Notification
             {
                 UserId = userId,
                 Title = title,
                 Message = message,
                 Type = type,
-                IsRead = false
+                IsRead = false,
+                AppointmentId = appointmentId,
+                AppointmentStatus = appointmentStatus
             };
 
             _context.Set<Notification>().Add(notification);
@@ -139,7 +153,9 @@ namespace BoslaPlatform.Infrastructure.Communication
                 notification.Message,
                 notification.Type.ToString(),
                 notification.IsRead,
-                notification.CreatedAtUtc);
+                notification.CreatedAtUtc,
+                appointmentId,
+                appointmentStatus);
 
             await _notificationSender.SendToUserAsync(userId, dto,ct);
 
@@ -159,6 +175,27 @@ namespace BoslaPlatform.Infrastructure.Communication
                 .CountAsync(n => n.UserId == userId && !n.IsRead, ct);
 
             return Result<int>.Success(count);
+        }
+
+        public async Task<Result<bool>> DeleteAsync(Guid id, CancellationToken ct = default)
+        {
+            var userIdResult = GetUserId();
+            if (userIdResult.IsError)
+            {
+                return userIdResult.Errors;
+            }
+
+            var userId = userIdResult.Value;
+            var notification = await _context.Set<Notification>()
+                .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId, ct);
+
+            if (notification == null)
+                return Error.NotFound(description: "Notification not found.");
+
+            _context.Set<Notification>().Remove(notification);
+            await _context.SaveChangesAsync(ct);
+
+            return Result<bool>.Success(true);
         }
     }
 }

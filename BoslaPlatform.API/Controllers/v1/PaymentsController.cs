@@ -93,7 +93,7 @@ namespace BoslaPlatform.API.Controllers.v1
 
                             if (appointment != null && appointment.Status == AppointmentStatus.Pending)
                             {
-                                appointment.Confirm(Guid.Empty);
+                                appointment.MarkAsPaid();
                             }
 
                             await _context.SaveChangesAsync();
