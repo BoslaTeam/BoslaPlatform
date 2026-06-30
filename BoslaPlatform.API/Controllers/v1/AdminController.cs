@@ -354,12 +354,20 @@ public class AdminController(
     }
 
     [HttpGet("audit-logs")]
-    [ProducesResponseType(typeof(ApiResponse<List<AuditLogDto>>), StatusCodes.Status200OK)]
-    public async Task<IResult> GetAuditLogs(int page = 1, int pageSize = 20, CancellationToken ct = default)
+    [ProducesResponseType(typeof(ApiResponse<PaginatedList<AuditLogDto>>), StatusCodes.Status200OK)]
+    public async Task<IResult> GetAuditLogs(
+        int page = 1,
+        int pageSize = 20,
+        string? search = null,
+        string? action = null,
+        string? entityType = null,
+        DateTime? from = null,
+        DateTime? to = null,
+        CancellationToken ct = default)
     {
-        var result = await adminService.GetAuditLogsAsync(page, pageSize, ct);
+        var result = await adminService.GetAuditLogsAsync(page, pageSize, search, action, entityType, from, to, ct);
         return result.Match(
-            value => Results.Ok(ApiResponse<List<AuditLogDto>>.SuccessResponse(value)),
+            value => Results.Ok(ApiResponse<PaginatedList<AuditLogDto>>.SuccessResponse(value)),
             errors => errors.ToProblem());
     }
 

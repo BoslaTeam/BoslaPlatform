@@ -699,6 +699,75 @@ namespace BoslaPlatform.Infrastructure.Services
             return Result.Success();
         }
 
+        // ── Audit Logs ──
+
+        public async Task<Result<PaginatedList<AuditLogDto>>> GetAuditLogsAsync(
+            int page = 1,
+            int pageSize = 20,
+            string? search = null,
+            string? action = null,
+            string? entityType = null,
+            DateTime? from = null,
+            DateTime? to = null,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _context.Set<BoslaPlatform.Domain.Models.AuditLog>()
+                .Include(l => l.ChangedByUser)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(l =>
+                    l.ChangedByUser.Name.Contains(search) ||
+                    l.EntityId.Contains(search) ||
+                    l.EntityType.Contains(search));
+            }
+
+            if (!string.IsNullOrWhiteSpace(action)
+                && Enum.TryParse<AuditAction>(action, true, out var parsedAction))
+            {
+                query = query.Where(l => l.Action == parsedAction);
+            }
+
+            if (!string.IsNullOrWhiteSpace(entityType))
+            {
+                query = query.Where(l => l.EntityType.Contains(entityType));
+            }
+
+            if (from.HasValue)
+                query = query.Where(l => l.Timestamp >= from.Value);
+
+            if (to.HasValue)
+                query = query.Where(l => l.Timestamp <= to.Value);
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            var logs = await query
+                .OrderByDescending(l => l.Timestamp)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            var dtos = logs.Select(l => new AuditLogDto
+            {
+                Id = l.Id,
+                Action = l.Action.ToString(),
+                UserId = l.LastModifiedBy,
+                UserName = l.ChangedByUser?.Name ?? "النظام",
+                EntityType = l.EntityType,
+                EntityId = l.EntityId,
+                OldValues = l.OldValues,
+                NewValues = l.NewValues,
+                Details = l.NewValues ?? l.OldValues,
+                IpAddress = l.IpAddress,
+                CreatedAt = l.Timestamp
+            }).ToList();
+
+            var metadata = new PaginationMetadata(page, pageSize, totalCount);
+            return Result<PaginatedList<AuditLogDto>>.Success(
+                new PaginatedList<AuditLogDto>(dtos, metadata));
+        }
+
         // ── Payments ──
 
         public async Task<Result<PaginatedList<AdminPaymentDto>>> ListPaymentsAsync(
@@ -813,26 +882,6 @@ namespace BoslaPlatform.Infrastructure.Services
             return Result.Success();
         }
 
-        public async Task<Result<List<AuditLogDto>>> GetAuditLogsAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
-        {
-            var skip = (page - 1) * pageSize;
-            var logs = await _context.Set<BoslaPlatform.Domain.Models.AuditLog>()
-                .OrderByDescending(a => a.Timestamp)
-                .Skip(skip)
-                .Take(pageSize)
-                .ToListAsync(cancellationToken);
-
-            var dtos = logs.Select(l => new AuditLogDto
-            {
-                Id = l.Id,
-                Action = l.Action.ToString(),
-                Details = l.NewValues ?? l.OldValues,
-                PerformedBy = l.ChangedByUser?.Name,
-                PerformedAt = l.Timestamp
-            }).ToList();
-
-            return Result<List<AuditLogDto>>.Success(dtos);
-        }
         public async Task<Result<AdminDashboardDto>> GetDashboardStatsAsync(CancellationToken cancellationToken = default)
         {
             var totalUsers = await _userManager.Users.CountAsync(cancellationToken);
