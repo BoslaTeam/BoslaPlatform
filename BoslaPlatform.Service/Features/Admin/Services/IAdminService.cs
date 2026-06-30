@@ -35,6 +35,10 @@ namespace BoslaPlatform.Application.Features.Admin.Services
 
         Task<Result> UpdateSpecialistStatusAsync(Guid specialistId, string status, Guid? verifiedByUserId, CancellationToken cancellationToken = default);
 
+        Task<Result<Guid>> CreateSpecialistAsync(BoslaPlatform.Application.Features.Admin.Requests.CreateSpecialistRequest request, CancellationToken cancellationToken = default);
+
+        Task<Result> UpdateSpecialistAsync(Guid specialistId, BoslaPlatform.Application.Features.Admin.Requests.AdminUpdateSpecialistRequest request, CancellationToken cancellationToken = default);
+
         // ── Appointments ──
         Task<Result<PaginatedList<AdminAppointmentDto>>> ListAppointmentsAsync(int page = 1, int pageSize = 20, string? search = null, int? status = null, CancellationToken cancellationToken = default);
 
@@ -71,6 +75,15 @@ namespace BoslaPlatform.Application.Features.Admin.Services
 
         Task<Result> DeleteToolAsync(Guid id, CancellationToken cancellationToken = default);
 
+        // ── Industries ──
+        Task<Result<List<BoslaPlatform.Application.Features.Lookup.Response.LookupItemResponse>>> GetIndustryListAsync(CancellationToken cancellationToken = default);
+
+        Task<Result<Guid>> CreateIndustryAsync(string name, CancellationToken cancellationToken = default);
+
+        Task<Result> UpdateIndustryAsync(Guid id, string name, CancellationToken cancellationToken = default);
+
+        Task<Result> DeleteIndustryAsync(Guid id, CancellationToken cancellationToken = default);
+
         // ── Payments ──
         Task<Result<PaginatedList<AdminPaymentDto>>> ListPaymentsAsync(int page = 1, int pageSize = 20, string? search = null, string? status = null, CancellationToken cancellationToken = default);
 
@@ -79,6 +92,8 @@ namespace BoslaPlatform.Application.Features.Admin.Services
         Task<Result> RefundPaymentAsync(Guid paymentId, string? reason, CancellationToken cancellationToken = default);
 
         // ── System ──
+        Task<Result<AuditLogDto>> GetAuditLogByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
         Task<Result<PaginatedList<AuditLogDto>>> GetAuditLogsAsync(
             int page = 1,
             int pageSize = 20,
@@ -90,5 +105,10 @@ namespace BoslaPlatform.Application.Features.Admin.Services
             CancellationToken cancellationToken = default);
 
         Task<Result<AdminDashboardDto>> GetDashboardStatsAsync(CancellationToken cancellationToken = default);
+
+        // ── AI Embeddings ──
+        Task<Result<EmbeddingsStatusDto>> GetEmbeddingsStatusAsync(CancellationToken cancellationToken = default);
+
+        Task<Result> RebuildEmbeddingsAsync(CancellationToken cancellationToken = default);
     }
 }

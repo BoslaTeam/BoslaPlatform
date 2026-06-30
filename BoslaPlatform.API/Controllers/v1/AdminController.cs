@@ -146,6 +146,24 @@ public class AdminController(
         return result.Errors.ToProblem();
     }
 
+    [HttpPost("specialists")]
+    public async Task<IResult> CreateSpecialist([FromBody] CreateSpecialistRequest request, CancellationToken ct = default)
+    {
+        var result = await adminService.CreateSpecialistAsync(request, ct);
+        if (result.IsSuccess)
+            return Results.Ok(ApiResponse<Guid>.SuccessResponse(result.Value));
+        return result.Errors.ToProblem();
+    }
+
+    [HttpPut("specialists/{id:guid}")]
+    public async Task<IResult> UpdateSpecialist(Guid id, [FromBody] AdminUpdateSpecialistRequest request, CancellationToken ct = default)
+    {
+        var result = await adminService.UpdateSpecialistAsync(id, request, ct);
+        if (result.IsSuccess)
+            return Results.Ok(ApiResponse.SuccessResponse("Specialist updated successfully."));
+        return result.Errors.ToProblem();
+    }
+
     // ── Appointments ──
 
     [HttpGet("appointments")]
@@ -317,6 +335,45 @@ public class AdminController(
         return result.Errors.ToProblem();
     }
 
+    // ── Industries ──
+
+    [HttpGet("industries")]
+    [ProducesResponseType(typeof(ApiResponse<List<LookupItemResponse>>), StatusCodes.Status200OK)]
+    public async Task<IResult> ListIndustries(CancellationToken ct = default)
+    {
+        var result = await adminService.GetIndustryListAsync(ct);
+        return result.Match(
+            value => Results.Ok(ApiResponse<List<LookupItemResponse>>.SuccessResponse(value)),
+            errors => errors.ToProblem());
+    }
+
+    [HttpPost("industries")]
+    public async Task<IResult> CreateIndustry([FromBody] CreateLookupItemRequest request, CancellationToken ct = default)
+    {
+        var result = await adminService.CreateIndustryAsync(request.Name, ct);
+        if (result.IsSuccess)
+            return Results.Ok(ApiResponse<Guid>.SuccessResponse(result.Value));
+        return result.Errors.ToProblem();
+    }
+
+    [HttpPut("industries/{id:guid}")]
+    public async Task<IResult> UpdateIndustry(Guid id, [FromBody] UpdateLookupItemRequest request, CancellationToken ct = default)
+    {
+        var result = await adminService.UpdateIndustryAsync(id, request.Name, ct);
+        if (result.IsSuccess)
+            return Results.Ok(ApiResponse.SuccessResponse("Industry updated."));
+        return result.Errors.ToProblem();
+    }
+
+    [HttpDelete("industries/{id:guid}")]
+    public async Task<IResult> DeleteIndustry(Guid id, CancellationToken ct = default)
+    {
+        var result = await adminService.DeleteIndustryAsync(id, ct);
+        if (result.IsSuccess)
+            return Results.Ok(ApiResponse.SuccessResponse("Industry deleted."));
+        return result.Errors.ToProblem();
+    }
+
     // ── Payments ──
 
     [HttpGet("payments")]
@@ -353,6 +410,16 @@ public class AdminController(
         return result.Errors.ToProblem();
     }
 
+    [HttpGet("audit-logs/{id:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<AuditLogDto>), StatusCodes.Status200OK)]
+    public async Task<IResult> GetAuditLogById(Guid id, CancellationToken ct = default)
+    {
+        var result = await adminService.GetAuditLogByIdAsync(id, ct);
+        return result.Match(
+            value => Results.Ok(ApiResponse<AuditLogDto>.SuccessResponse(value)),
+            errors => errors.ToProblem());
+    }
+
     [HttpGet("audit-logs")]
     [ProducesResponseType(typeof(ApiResponse<PaginatedList<AuditLogDto>>), StatusCodes.Status200OK)]
     public async Task<IResult> GetAuditLogs(
@@ -379,5 +446,26 @@ public class AdminController(
         return result.Match(
             value => Results.Ok(ApiResponse<AdminDashboardDto>.SuccessResponse(value)),
             errors => errors.ToProblem());
+    }
+
+    // ── AI Embeddings ──
+
+    [HttpGet("ai/embeddings")]
+    [ProducesResponseType(typeof(ApiResponse<EmbeddingsStatusDto>), StatusCodes.Status200OK)]
+    public async Task<IResult> GetEmbeddingsStatus(CancellationToken ct = default)
+    {
+        var result = await adminService.GetEmbeddingsStatusAsync(ct);
+        return result.Match(
+            value => Results.Ok(ApiResponse<EmbeddingsStatusDto>.SuccessResponse(value)),
+            errors => errors.ToProblem());
+    }
+
+    [HttpPost("ai/embeddings/rebuild")]
+    public async Task<IResult> RebuildEmbeddings(CancellationToken ct = default)
+    {
+        var result = await adminService.RebuildEmbeddingsAsync(ct);
+        if (result.IsSuccess)
+            return Results.Ok(ApiResponse.SuccessResponse("Embeddings rebuild initiated."));
+        return result.Errors.ToProblem();
     }
 }
