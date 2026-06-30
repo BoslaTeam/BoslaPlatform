@@ -21,6 +21,7 @@ namespace BoslaPlatform.Domain.Models.Booking
         public string? SessionTopic { get; private set; }
         public string? Notes { get; private set; }
         public string? CancellationReason { get; private set; }
+        public decimal SessionPrice { get; private set; }
 
         // Navigation Properties
         public User User { get; private set; } = null!;
@@ -52,13 +53,15 @@ namespace BoslaPlatform.Domain.Models.Booking
             DateTimeOffset start,
             DateTimeOffset end,
             string? sessionTopic,
-            string? notes)
+            string? notes,
+            decimal sessionPrice)
         {
             var appointment = new Appointment
             {
                 Id = Guid.NewGuid(),
                 SpecialistId = specialistId,
                 UserId = userId,
+                SessionPrice = sessionPrice,
                 Start = start,
                 End = end,
                 Status = AppointmentStatus.Pending,
@@ -77,6 +80,17 @@ namespace BoslaPlatform.Domain.Models.Booking
         }
 
 
+        public Result MarkAsPaid()
+        {
+            if (Status != AppointmentStatus.Pending && Status != AppointmentStatus.Confirmed)
+                return Result.Failure(Error.Validation(
+                    "Appointment.InvalidStatusTransition",
+                    "Only pending or confirmed appointments can be marked as paid."));
+
+            UpdateStatus(AppointmentStatus.Paid, Guid.Empty, "Payment completed.");
+            return Result.Success();
+        }
+
         public Result Confirm(Guid specialistId)
         {
             if (Status != AppointmentStatus.Pending)
@@ -94,11 +108,6 @@ namespace BoslaPlatform.Domain.Models.Booking
                 return Result.Failure(Error.Validation(
                     "Appointment.InvalidStatusTransition",
                     "This appointment cannot be cancelled in its current state."));
-
-            if (string.IsNullOrWhiteSpace(reason))
-                return Result.Failure(Error.Validation(
-                    "Appointment.CancellationReasonRequired",
-                    "A reason must be provided for cancellation."));
 
             CancellationReason = reason;
             UpdateStatus(AppointmentStatus.Cancelled, cancelledByUserId, reason);
@@ -126,10 +135,10 @@ namespace BoslaPlatform.Domain.Models.Booking
 
         public Result Complete(Guid specialistId)
         {
-            if (Status != AppointmentStatus.Confirmed)
+            if (Status != AppointmentStatus.Confirmed && Status != AppointmentStatus.Paid)
                 return Result.Failure(Error.Validation(
                     "Appointment.InvalidStatusTransition",
-                    "Only confirmed appointments can be marked as completed."));
+                    "Only confirmed or paid appointments can be marked as completed."));
 
             UpdateStatus(AppointmentStatus.Completed, specialistId, "Session completed successfully.");
             return Result.Success();

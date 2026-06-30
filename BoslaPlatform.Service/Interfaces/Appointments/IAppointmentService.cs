@@ -28,10 +28,12 @@ namespace BoslaPlatform.Application.Features.Appointments.Services
         Task<Result<List<AppointmentStatusHistoryDto>>> GetStatusHistoryAsync(Guid id, CancellationToken ct);
 
  
+        Task<Result> MarkAsPaidAsync(Guid id, CancellationToken ct);
+
         Task<Result> ConfirmAsync(Guid id, CancellationToken ct);
 
 
-        Task<Result> CancelAsync(Guid id, string reason, CancellationToken ct);
+        Task<Result> CancelAsync(Guid id, string? reason, CancellationToken ct);
 
 
         Task<Result> RescheduleAsync(Guid id, DateTimeOffset newStart, DateTimeOffset newEnd, string reason, CancellationToken ct);

@@ -1158,7 +1158,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 .CountAsync(
                     x => x.SpecialistId == specialist.Id &&
                          x.Start > now &&
-                         x.Status != AppointmentStatus.Cancelled,
+                         x.Status == AppointmentStatus.Confirmed,
                     cancellationToken);
 
             var completedAppointments = await context.Appointments
@@ -1287,7 +1287,8 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             var upcoming = await context.Appointments
                 .Where(x =>
                     x.SpecialistId == specialist.Id &&
-                    x.Start > now)
+                    x.Start > now &&
+                    x.Status == AppointmentStatus.Confirmed)
                 .OrderBy(x => x.Start)
                 .Take(5)
                 .Select(x => new UpcomingAppointmentDto

@@ -54,6 +54,16 @@ namespace BoslaPlatform.API.Controllers.v1
                 errors => errors.ToProblem());
         }
 
+        [HttpDelete("{id:guid}")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IResult> Delete(Guid id, CancellationToken ct)
+        {
+            var result = await _notificationService.DeleteAsync(id, ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<bool>.SuccessResponse(value, "Notification deleted.")),
+                errors => errors.ToProblem());
+        }
+
         [HttpPut("read")]
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
         public async Task<IResult> MarkAllAsRead(CancellationToken ct)
