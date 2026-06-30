@@ -11,9 +11,14 @@ using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Enums;
+using BoslaPlatform.Domain.Models;
+using BoslaPlatform.Domain.Models.Junctions;
 using BoslaPlatform.Shared;
+using BoslaPlatform.Application.Interfaces.AI;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace BoslaPlatform.Infrastructure.Services
 {
@@ -22,11 +27,15 @@ namespace BoslaPlatform.Infrastructure.Services
         private readonly IAppDbContext _context;
         private readonly UserManager<User> _userManager;
         private readonly IUser _currentUser;
-        public AdminService(IAppDbContext context, UserManager<User> userManager, IUser currentUser)
+        private readonly IEmbeddingService _embeddingService;
+        private readonly IVectorStore _vectorStore;
+        public AdminService(IAppDbContext context, UserManager<User> userManager, IUser currentUser, IEmbeddingService embeddingService, IVectorStore vectorStore)
         {
             _context = context;
             _userManager = userManager;
             _currentUser = currentUser;
+            _embeddingService = embeddingService;
+            _vectorStore = vectorStore;
         }
 
         public async Task<Result<BoslaPlatform.Shared.PaginatedList<UserDto>>> ListUsersAsync(int page = 1, int pageSize = 20, string? search = null, int? role = null, bool? isActive = null, CancellationToken cancellationToken = default)
@@ -585,6 +594,130 @@ namespace BoslaPlatform.Infrastructure.Services
             return Result.Success();
         }
 
+        public async Task<Result<Guid>> CreateSpecialistAsync(BoslaPlatform.Application.Features.Admin.Requests.CreateSpecialistRequest request, CancellationToken cancellationToken = default)
+        {
+            // Create user
+            var user = new User
+            {
+                UserName = request.Email,
+                Email = request.Email,
+                Name = request.FullName,
+                PhoneNumber = request.PhoneNumber,
+                Country = request.Country,
+                Title = request.Title,
+                Bio = request.Bio,
+                Gender = request.Gender,
+                PreferredLanguage = request.PreferredLanguage,
+                IsActive = true,
+                EmailConfirmed = true,
+                CreatedAtUtc = DateTimeOffset.UtcNow
+            };
+
+            var createResult = await _userManager.CreateAsync(user, request.Password);
+            if (!createResult.Succeeded)
+                return createResult.Errors.Select(e => Error.Create(ErrorKind.Validation, e.Code, e.Description)).ToList();
+
+            await _userManager.AddToRoleAsync(user, "Specialist");
+
+            // Parse experience level
+            if (!Enum.TryParse<ExperienceLevel>(request.ExperienceLevel, true, out var experienceLevel))
+                return Error.Validation(description: $"Invalid experience level: {request.ExperienceLevel}");
+
+            // Create specialist
+            var specialist = Specialist.Create(user.Id, request.ExperienceYears, experienceLevel, request.HourlyRate, request.BookingPolicy);
+            _context.Specialists.Add(specialist);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            // Add lookup relations
+            if (request.ExpertiseIds.Count > 0)
+            {
+                foreach (var expertiseId in request.ExpertiseIds)
+                    _context.Set<SpecialistExpertise>().Add(new SpecialistExpertise { SpecialistId = specialist.Id, ExpertiseId = expertiseId });
+            }
+
+            if (request.IndustryIds.Count > 0)
+            {
+                foreach (var industryId in request.IndustryIds)
+                    _context.Set<SpecialistIndustry>().Add(new SpecialistIndustry { SpecialistId = specialist.Id, IndustryId = industryId });
+            }
+
+            if (request.SkillIds.Count > 0)
+            {
+                foreach (var skillId in request.SkillIds)
+                    _context.Set<SpecialistSkill>().Add(new SpecialistSkill { SpecialistId = specialist.Id, SkillId = skillId });
+            }
+
+            if (request.ToolIds.Count > 0)
+            {
+                foreach (var toolId in request.ToolIds)
+                    _context.Set<SpecialistTool>().Add(new SpecialistTool { SpecialistId = specialist.Id, ToolId = toolId });
+            }
+
+            if (request.ExpertiseIds.Count > 0 || request.IndustryIds.Count > 0 || request.SkillIds.Count > 0 || request.ToolIds.Count > 0)
+                await _context.SaveChangesAsync(cancellationToken);
+
+            return specialist.Id;
+        }
+
+        public async Task<Result> UpdateSpecialistAsync(Guid specialistId, BoslaPlatform.Application.Features.Admin.Requests.AdminUpdateSpecialistRequest request, CancellationToken cancellationToken = default)
+        {
+            var specialist = await _context.Specialists
+                .Include(s => s.User)
+                .Include(s => s.SpecialistExpertise)
+                .Include(s => s.SpecialistIndustries)
+                .FirstOrDefaultAsync(s => s.Id == specialistId, cancellationToken);
+
+            if (specialist == null)
+                return Error.NotFound(description: "Specialist not found.");
+
+            // Update user fields
+            if (request.FullName != null) specialist.User.Name = request.FullName;
+            if (request.PhoneNumber != null) specialist.User.PhoneNumber = request.PhoneNumber;
+            if (request.Country != null) specialist.User.Country = request.Country;
+            if (request.Title != null) specialist.User.Title = request.Title;
+            if (request.Bio != null) specialist.User.Bio = request.Bio;
+            if (request.Gender != null) specialist.User.Gender = request.Gender;
+            if (request.PreferredLanguage != null) specialist.User.PreferredLanguage = request.PreferredLanguage;
+
+            // Update specialist fields
+            if (request.ExperienceYears.HasValue) specialist.ExperienceYears = request.ExperienceYears.Value;
+            if (request.ExperienceLevel != null && Enum.TryParse<ExperienceLevel>(request.ExperienceLevel, true, out var expLevel))
+                specialist.ExperienceLevel = expLevel;
+            if (request.HourlyRate.HasValue) specialist.HourlyRate = request.HourlyRate.Value;
+            if (request.BookingPolicy != null) specialist.BookingPolicy = request.BookingPolicy;
+
+            // Update verification status
+            if (request.VerificationStatus != null && Enum.TryParse<VerificationStatus>(request.VerificationStatus, true, out var verStatus))
+            {
+                specialist.VerificationStatus = verStatus;
+                specialist.VerifiedAt = verStatus == VerificationStatus.Approved ? DateTime.UtcNow : null;
+                specialist.VerifiedBy = verStatus == VerificationStatus.Approved ? _currentUser.Id : null;
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            // Update expertise relations
+            if (request.ExpertiseIds != null)
+            {
+                _context.Set<SpecialistExpertise>().RemoveRange(specialist.SpecialistExpertise);
+                foreach (var expertiseId in request.ExpertiseIds)
+                    _context.Set<SpecialistExpertise>().Add(new SpecialistExpertise { SpecialistId = specialist.Id, ExpertiseId = expertiseId });
+            }
+
+            // Update industry relations
+            if (request.IndustryIds != null)
+            {
+                _context.Set<SpecialistIndustry>().RemoveRange(specialist.SpecialistIndustries);
+                foreach (var industryId in request.IndustryIds)
+                    _context.Set<SpecialistIndustry>().Add(new SpecialistIndustry { SpecialistId = specialist.Id, IndustryId = industryId });
+            }
+
+            if (request.ExpertiseIds != null || request.IndustryIds != null)
+                await _context.SaveChangesAsync(cancellationToken);
+
+            return Result.Success();
+        }
+
         // ── Expertise ──
 
         public async Task<Result<List<LookupItemResponse>>> GetExpertiseListAsync(CancellationToken cancellationToken = default)
@@ -699,12 +832,117 @@ namespace BoslaPlatform.Infrastructure.Services
             return Result.Success();
         }
 
-        public async Task<Result<List<AuditLogDto>>> GetAuditLogsAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+        // ── Industries ──
+
+        public async Task<Result<List<LookupItemResponse>>> GetIndustryListAsync(CancellationToken cancellationToken = default)
         {
-            var skip = (page - 1) * pageSize;
-            var logs = await _context.Set<BoslaPlatform.Domain.Models.AuditLog>()
-                .OrderByDescending(a => a.Timestamp)
-                .Skip(skip)
+            var items = await _context.Industries
+                .AsNoTracking()
+                .OrderBy(x => x.Name)
+                .Select(x => new LookupItemResponse(x.Id, x.Name))
+                .ToListAsync(cancellationToken);
+            return items;
+        }
+
+        public async Task<Result<Guid>> CreateIndustryAsync(string name, CancellationToken cancellationToken = default)
+        {
+            var entity = new BoslaPlatform.Domain.Models.Lookup.Industry { Name = name };
+            _context.Industries.Add(entity);
+            await _context.SaveChangesAsync(cancellationToken);
+            return entity.Id;
+        }
+
+        public async Task<Result> UpdateIndustryAsync(Guid id, string name, CancellationToken cancellationToken = default)
+        {
+            var entity = await _context.Industries.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+            if (entity == null) return Error.NotFound(description: "Industry not found.");
+            entity.Name = name;
+            await _context.SaveChangesAsync(cancellationToken);
+            return Result.Success();
+        }
+
+        public async Task<Result> DeleteIndustryAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var entity = await _context.Industries.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+            if (entity == null) return Error.NotFound(description: "Industry not found.");
+            _context.Industries.Remove(entity);
+            await _context.SaveChangesAsync(cancellationToken);
+            return Result.Success();
+        }
+
+        // ── Audit Logs ──
+
+        public async Task<Result<AuditLogDto>> GetAuditLogByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var log = await _context.Set<BoslaPlatform.Domain.Models.AuditLog>()
+                .Include(l => l.ChangedByUser)
+                .FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
+
+            if (log is null)
+                return Result<AuditLogDto>.Failure(Error.NotFound("AuditLog.NotFound", $"AuditLog with id {id} not found"));
+
+            var dto = new AuditLogDto
+            {
+                Id = log.Id,
+                Action = log.Action.ToString(),
+                UserId = log.LastModifiedBy,
+                UserName = log.ChangedByUser?.Name ?? "النظام",
+                EntityType = log.EntityType,
+                EntityId = log.EntityId,
+                OldValues = log.OldValues,
+                NewValues = log.NewValues,
+                Details = log.NewValues ?? log.OldValues,
+                IpAddress = log.IpAddress,
+                CreatedAt = log.Timestamp
+            };
+
+            return Result<AuditLogDto>.Success(dto);
+        }
+
+        public async Task<Result<PaginatedList<AuditLogDto>>> GetAuditLogsAsync(
+            int page = 1,
+            int pageSize = 20,
+            string? search = null,
+            string? action = null,
+            string? entityType = null,
+            DateTime? from = null,
+            DateTime? to = null,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _context.Set<BoslaPlatform.Domain.Models.AuditLog>()
+                .Include(l => l.ChangedByUser)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(l =>
+                    l.ChangedByUser.Name.Contains(search) ||
+                    l.EntityId.Contains(search) ||
+                    l.EntityType.Contains(search));
+            }
+
+            if (!string.IsNullOrWhiteSpace(action)
+                && Enum.TryParse<AuditAction>(action, true, out var parsedAction))
+            {
+                query = query.Where(l => l.Action == parsedAction);
+            }
+
+            if (!string.IsNullOrWhiteSpace(entityType))
+            {
+                query = query.Where(l => l.EntityType.Contains(entityType));
+            }
+
+            if (from.HasValue)
+                query = query.Where(l => l.Timestamp >= from.Value);
+
+            if (to.HasValue)
+                query = query.Where(l => l.Timestamp <= to.Value);
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            var logs = await query
+                .OrderByDescending(l => l.Timestamp)
+                .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync(cancellationToken);
 
@@ -712,13 +950,136 @@ namespace BoslaPlatform.Infrastructure.Services
             {
                 Id = l.Id,
                 Action = l.Action.ToString(),
+                UserId = l.LastModifiedBy,
+                UserName = l.ChangedByUser?.Name ?? "النظام",
+                EntityType = l.EntityType,
+                EntityId = l.EntityId,
+                OldValues = l.OldValues,
+                NewValues = l.NewValues,
                 Details = l.NewValues ?? l.OldValues,
-                PerformedBy = l.ChangedByUser?.Name,
-                PerformedAt = l.Timestamp
+                IpAddress = l.IpAddress,
+                CreatedAt = l.Timestamp
             }).ToList();
 
-            return Result<List<AuditLogDto>>.Success(dtos);
+            var metadata = new PaginationMetadata(page, pageSize, totalCount);
+            return Result<PaginatedList<AuditLogDto>>.Success(
+                new PaginatedList<AuditLogDto>(dtos, metadata));
         }
+
+        // ── Payments ──
+
+        public async Task<Result<PaginatedList<AdminPaymentDto>>> ListPaymentsAsync(
+            int page = 1,
+            int pageSize = 20,
+            string? search = null,
+            string? status = null,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _context.Payments
+                .Include(p => p.Appointment).ThenInclude(a => a.User)
+                .Include(p => p.Appointment).ThenInclude(a => a.Specialist).ThenInclude(s => s.User)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(p =>
+                    p.Appointment.User.Name.Contains(search) ||
+                    (p.Appointment.User.Email != null && p.Appointment.User.Email.Contains(search)) ||
+                    p.Appointment.Specialist.User.Name.Contains(search));
+            }
+
+            if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<PaymentStatus>(status, true, out var parsedStatus))
+            {
+                query = query.Where(p => p.Status == parsedStatus);
+            }
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            var payments = await query
+                .OrderByDescending(p => p.CreatedAtUtc)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            var dtos = payments.Select(p => new AdminPaymentDto
+            {
+                Id = p.Id,
+                AppointmentId = p.AppointmentId,
+                UserName = p.Appointment.User?.Name ?? string.Empty,
+                SpecialistName = p.Appointment.Specialist?.User?.Name ?? string.Empty,
+                Amount = p.Amount,
+                Currency = p.Currency,
+                Status = p.Status.ToString(),
+                PaymentMethod = p.PaymentMethod,
+                PaidAt = p.PaidAt,
+                CreatedAt = p.CreatedAtUtc.UtcDateTime
+            }).ToList();
+
+            var metadata = new PaginationMetadata(page, pageSize, totalCount);
+            return Result<PaginatedList<AdminPaymentDto>>.Success(
+                new PaginatedList<AdminPaymentDto>(dtos, metadata));
+        }
+
+        public async Task<Result<AdminPaymentDetailDto>> GetPaymentDetailAsync(
+            Guid paymentId,
+            CancellationToken cancellationToken = default)
+        {
+            var payment = await _context.Payments
+                .Include(p => p.Appointment).ThenInclude(a => a.User)
+                .Include(p => p.Appointment).ThenInclude(a => a.Specialist).ThenInclude(s => s.User)
+                .FirstOrDefaultAsync(p => p.Id == paymentId, cancellationToken);
+
+            if (payment == null)
+                return Error.NotFound(description: "Payment not found.");
+
+            var dto = new AdminPaymentDetailDto
+            {
+                Id = payment.Id,
+                AppointmentId = payment.AppointmentId,
+                UserId = payment.Appointment.UserId,
+                UserName = payment.Appointment.User?.Name ?? string.Empty,
+                UserEmail = payment.Appointment.User?.Email,
+                UserAvatarUrl = payment.Appointment.User?.ProfileImageUrl,
+                SpecialistId = payment.Appointment.SpecialistId,
+                SpecialistName = payment.Appointment.Specialist?.User?.Name ?? string.Empty,
+                SpecialistAvatarUrl = payment.Appointment.Specialist?.User?.ProfileImageUrl,
+                Amount = payment.Amount,
+                Currency = payment.Currency,
+                Status = payment.Status.ToString(),
+                PaymentMethod = payment.PaymentMethod,
+                ExternalPaymentId = payment.ExternalPaymentId,
+                PaidAt = payment.PaidAt,
+                PlatformFeeAmount = payment.PlatformFeeAmount,
+                SpecialistAmount = payment.SpecialistAmount,
+                TaxAmount = payment.TaxAmount,
+                RefundReason = payment.RefundReason,
+                CreatedAt = payment.CreatedAtUtc.UtcDateTime
+            };
+
+            return Result<AdminPaymentDetailDto>.Success(dto);
+        }
+
+        public async Task<Result> RefundPaymentAsync(Guid paymentId, string? reason, CancellationToken cancellationToken = default)
+        {
+            var payment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.Id == paymentId, cancellationToken);
+
+            if (payment == null)
+                return Error.NotFound(description: "Payment not found.");
+
+            try
+            {
+                payment.MarkAsRefunded(reason);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Error.Validation(description: ex.Message);
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+            return Result.Success();
+        }
+
         public async Task<Result<AdminDashboardDto>> GetDashboardStatsAsync(CancellationToken cancellationToken = default)
         {
             var totalUsers = await _userManager.Users.CountAsync(cancellationToken);
@@ -797,6 +1158,88 @@ namespace BoslaPlatform.Infrastructure.Services
             };
 
             return Result<AdminDashboardDto>.Success(dtoResult);
+        }
+
+        // ── AI Embeddings ──
+
+        public async Task<Result<EmbeddingsStatusDto>> GetEmbeddingsStatusAsync(CancellationToken cancellationToken = default)
+        {
+            var totalSpecialists = await _context.Set<Specialist>().CountAsync(cancellationToken);
+            var embeddedCount = await _context.Set<SpecialistEmbedding>().CountAsync(cancellationToken);
+            var pendingCount = totalSpecialists - embeddedCount;
+
+            var lastRebuild = await _context.Set<SpecialistEmbedding>()
+                .MaxAsync(e => (DateTimeOffset?)e.CreatedAtUtc, cancellationToken);
+
+            var status = pendingCount > 0 ? "outdated" : "up_to_date";
+
+            var dto = new EmbeddingsStatusDto
+            {
+                TotalSpecialists = totalSpecialists,
+                EmbeddedCount = embeddedCount,
+                PendingCount = pendingCount,
+                LastRebuildAt = lastRebuild?.UtcDateTime,
+                Status = status
+            };
+
+            return Result<EmbeddingsStatusDto>.Success(dto);
+        }
+
+        public async Task<Result> RebuildEmbeddingsAsync(CancellationToken cancellationToken = default)
+        {
+            var specialists = await _context.Set<Specialist>()
+                .Include(s => s.User)
+                .Include(s => s.SpecialistSkills).ThenInclude(ss => ss.Skill)
+                .Include(s => s.SpecialistTools).ThenInclude(st => st.Tool)
+                .Include(s => s.SpecialistExpertise).ThenInclude(se => se.Expertise)
+                .Include(s => s.Experiences)
+                .ToListAsync(cancellationToken);
+
+            foreach (var specialist in specialists)
+            {
+                var content = BuildSpecialistContent(specialist);
+                var contentHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content)));
+
+                var vector = await _embeddingService.CreateEmbeddingAsync(content, cancellationToken);
+
+                var model = "text-embedding-3-small";
+                await _vectorStore.StoreEmbeddingAsync(specialist.Id, vector, model, contentHash, cancellationToken);
+            }
+
+            return Result.Success();
+        }
+
+        private static string BuildSpecialistContent(Specialist specialist)
+        {
+            var parts = new List<string>();
+
+            var user = specialist.User;
+            if (user != null)
+            {
+                if (!string.IsNullOrWhiteSpace(user.Title)) parts.Add(user.Title);
+                if (!string.IsNullOrWhiteSpace(user.Bio)) parts.Add(user.Bio);
+            }
+
+            var skillNames = specialist.SpecialistSkills?
+                .Where(ss => ss.Skill != null && !string.IsNullOrWhiteSpace(ss.Skill.Name))
+                .Select(ss => ss.Skill.Name) ?? [];
+            if (skillNames.Any()) parts.Add($"المهارات: {string.Join("، ", skillNames)}");
+
+            var toolNames = specialist.SpecialistTools?
+                .Where(st => st.Tool != null && !string.IsNullOrWhiteSpace(st.Tool.Name))
+                .Select(st => st.Tool.Name) ?? [];
+            if (toolNames.Any()) parts.Add($"الأدوات: {string.Join("، ", toolNames)}");
+
+            var expertiseNames = specialist.SpecialistExpertise?
+                .Where(se => se.Expertise != null && !string.IsNullOrWhiteSpace(se.Expertise.Name))
+                .Select(se => se.Expertise.Name) ?? [];
+            if (expertiseNames.Any()) parts.Add($"التخصصات: {string.Join("، ", expertiseNames)}");
+
+            var expSummaries = specialist.Experiences?
+                .Select(e => $"{e.JobTitle} في {e.CompanyName}") ?? [];
+            if (expSummaries.Any()) parts.Add($"الخبرات: {string.Join("؛ ", expSummaries)}");
+
+            return string.Join(" | ", parts);
         }
     }
 }

@@ -46,6 +46,7 @@ public static class DependencyInjection
 
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationAssemblyReference).Assembly));
 
+            services.AddScoped<ISaveChangesInterceptor, AuditLogInterceptor>();
             services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
             services.AddScoped<ISaveChangesInterceptor, DomainEventsInterceptor>();
             services.AddScoped<ApplicationDbContextInitialiser>();

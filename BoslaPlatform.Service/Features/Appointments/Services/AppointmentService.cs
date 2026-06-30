@@ -353,7 +353,7 @@ namespace BoslaPlatform.Application.Services
 
             if (appointment.Payment is not null && appointment.Payment.Status == PaymentStatus.Completed)
             {
-                appointment.Payment.Refund("Appointment cancelled.");
+                appointment.Payment.MarkAsRefunded("Appointment cancelled.");
             }
 
             await _context.SaveChangesAsync(ct);
