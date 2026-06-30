@@ -16,6 +16,7 @@ using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Infrastructure.Agora;
 using BoslaPlatform.Infrastructure.Agora.Services;
+using BoslaPlatform.Infrastructure.BackgroundJobs;
 using BoslaPlatform.Infrastructure.AI.OpenAi;
 using BoslaPlatform.Infrastructure.Communication;
 using BoslaPlatform.Infrastructure.Data;
@@ -67,13 +68,14 @@ public static class DependencyInjection
 
         services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
 
-        services.AddScoped<IAdminService, AdminService>();
+services.AddScoped<IAdminService, AdminService>();
 
-        services.AddScoped<IAppointmentService, AppointmentService>();
-        services.AddScoped<INotificationSender, SignalRNotificationSender>();
-        services.AddScoped<IEmailService, EmailService>();
-        services.AddScoped<IContactService, ContactService>();
-        services.AddSignalR();
+services.AddScoped<IAppointmentService, AppointmentService>();
+services.AddScoped<INotificationSender, SignalRNotificationSender>();
+services.AddScoped<IEmailService, EmailService>();
+services.AddScoped<IContactService, ContactService>();
+services.AddHostedService<ReminderBackgroundService>();
+services.AddSignalR();
 
         services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
         services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));

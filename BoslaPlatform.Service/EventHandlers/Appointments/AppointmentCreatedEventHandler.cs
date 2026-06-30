@@ -1,7 +1,8 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
+using BoslaPlatform.Application.Features.Notifications.Services;
 using BoslaPlatform.Application.Interfaces.Persistence;
-using BoslaPlatform.Domain.Events;
+using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Events.Apoointments;
 using BoslaPlatform.Domain.Models.Communication;
 using MediatR;
@@ -13,37 +14,51 @@ namespace BoslaPlatform.Application.EventHandlers.Appointments
         : INotificationHandler<AppointmentScheduledEvent>
     {
         private readonly IAppDbContext _context;
+        private readonly INotificationService _notificationService;
 
-        public AppointmentCreatedEventHandler(IAppDbContext context)
+        public AppointmentCreatedEventHandler(
+            IAppDbContext context,
+            INotificationService notificationService)
         {
             _context = context;
+            _notificationService = notificationService;
         }
 
         public async Task Handle(
             AppointmentScheduledEvent notification,
             CancellationToken ct)
         {
-
-
             var existingConversation = await _context.Conversations
                 .AnyAsync(c => c.AppointmentId == notification.AppointmentId, ct);
 
-            if (existingConversation)
+            if (!existingConversation)
             {
-                return;
+                var conversationResult = Conversation.CreateForAppointment(
+                    notification.AppointmentId,
+                    notification.UserId,
+                    notification.SpecialistId
+                );
+
+                if (conversationResult.IsSuccess)
+                {
+                    _context.Conversations.Add(conversationResult.Value);
+                    await _context.SaveChangesAsync(ct);
+                }
             }
 
-            var conversationResult = Conversation.CreateForAppointment(
-                notification.AppointmentId,
+            await _notificationService.CreateAndSendNotificationAsync(
+                notification.SpecialistId,
+                "حجز استشارة جديد",
+                $"لديك طلب حجز استشارة جديد من المستخدم.",
+                NotificationType.Booking,
+                ct);
+
+            await _notificationService.CreateAndSendNotificationAsync(
                 notification.UserId,
-                notification.SpecialistId
-            );
- 
-            if (conversationResult.IsSuccess)
-            {
-                _context.Conversations.Add(conversationResult.Value);
-                await _context.SaveChangesAsync(ct);
-            }
+                "تم إرسال طلب الحجز",
+                $"تم إرسال طلب حجز الاستشارة. يرجى انتظار تأكيد المختص.",
+                NotificationType.Booking,
+                ct);
         }
     }
 }
