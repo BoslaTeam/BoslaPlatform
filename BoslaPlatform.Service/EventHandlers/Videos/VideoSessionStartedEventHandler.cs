@@ -1,4 +1,5 @@
-﻿using BoslaPlatform.Domain.Events.Videos;
+﻿using BoslaPlatform.Application.Interfaces.Video;
+using BoslaPlatform.Domain.Events.Videos;
 using MediatR;
 
 namespace BoslaPlatform.Application.EventHandlers.Videos
@@ -6,16 +7,18 @@ namespace BoslaPlatform.Application.EventHandlers.Videos
     public sealed class VideoSessionStartedEventHandler
     : INotificationHandler<VideoSessionStartedEvent>
     {
-        public Task Handle(
+        private readonly IVideoNotifier _notifier;
+
+        public VideoSessionStartedEventHandler(IVideoNotifier notifier)
+        {
+            _notifier = notifier;
+        }
+
+        public async Task Handle(
             VideoSessionStartedEvent notification,
             CancellationToken cancellationToken)
         {
-            // Future:
-            // Send notification
-            // Analytics
-            // Recording
-
-            return Task.CompletedTask;
+            await _notifier.SessionStartedAsync(notification.SessionId, cancellationToken);
         }
     }
 }

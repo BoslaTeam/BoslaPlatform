@@ -27,7 +27,6 @@ builder.Services.AddApplication()
 // Gemini AI is now the mandatory provider
 builder.Services.AddGeminiAI();
 
-builder.Services.AddSignalR();
 // Rate limiting (disabled for now) — policy code previously added removed per request
 
 var app = builder.Build();
@@ -54,5 +53,6 @@ app.MapControllers();
 
 app.MapHub<BoslaPlatform.Infrastructure.RealTime.NotificationHub>("/hubs/notifications");
 app.MapHub<ChatHub>("/hubs/chat");
+app.MapHub<VideoHub>("/hubs/video");
 
 app.Run();

@@ -619,5 +619,59 @@ namespace BoslaPlatform.Application.Services
 
             return Result.Success();
         }
+
+        public async Task<Result> DeleteAsync(Guid id, CancellationToken ct)
+        {
+            if (!_currentUser.Id.HasValue)
+            {
+                return Error.Unauthorized("Auth.Unauthorized", "User identification missing.");
+            }
+
+            var specialistId = await _context.Specialists
+                .Where(s => s.UserId == _currentUser.Id.Value)
+                .Select(s => (Guid?)s.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (!specialistId.HasValue)
+            {
+                return Error.Forbidden("Auth.NotSpecialist", "Only specialists can delete appointments.");
+            }
+
+            var appointment = await _context.Appointments
+                .Include(a => a.Payment)
+                .FirstOrDefaultAsync(a => a.Id == id && a.SpecialistId == specialistId.Value, ct);
+
+            if (appointment is null)
+            {
+                return Error.NotFound("Appointment.NotFound", "The requested appointment was not found.");
+            }
+
+            if (appointment.Status != AppointmentStatus.Cancelled)
+            {
+                return Error.Validation("Appointment.InvalidStatus",
+                    "Only cancelled or rejected appointments can be deleted.");
+            }
+
+            // Delete related Payment manually (Restrict FK)
+            if (appointment.Payment is not null)
+            {
+                _context.Payments.Remove(appointment.Payment);
+            }
+
+            // Delete related Notifications
+            var notifications = await _context.Notifications
+                .Where(n => n.AppointmentId == id)
+                .ToListAsync(ct);
+            if (notifications.Count > 0)
+            {
+                _context.Notifications.RemoveRange(notifications);
+            }
+
+            // Delete the appointment (cascade removes StatusHistory and Reminders)
+            _context.Appointments.Remove(appointment);
+            await _context.SaveChangesAsync(ct);
+
+            return Result.Success();
+        }
     }
 }

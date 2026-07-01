@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using BoslaPlatform.Application;
 using BoslaPlatform.Application.Common.Interfaces;
 using BoslaPlatform.Application.Features.Admin.Services;
@@ -12,12 +13,15 @@ using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Application.Interfaces.Specialists;
 using BoslaPlatform.Application.Interfaces.Video;
 using BoslaPlatform.Application.Features.Specialists.Services;
+using BoslaPlatform.Application.Features.VideoSessions.Interfaces;
+using BoslaPlatform.Application.Features.VideoSessions.Services;
 using BoslaPlatform.Application.Services;
 using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Infrastructure.AI.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.Qdrant;
 using BoslaPlatform.Infrastructure.Agora;
+using BoslaPlatform.Infrastructure.Agora.Interfaces;
 using BoslaPlatform.Infrastructure.Agora.Services;
 using BoslaPlatform.Infrastructure.BackgroundJobs;
 //using BoslaPlatform.Infrastructure.AI.OpenAi;
@@ -42,6 +46,7 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddSingleton(TimeProvider.System);
+            services.AddSingleton<UserPresenceTracker>();
         
         var connectionString = configuration.GetConnectionString("DefaultConnection");
         ArgumentNullException.ThrowIfNull(connectionString);
@@ -59,8 +64,17 @@ public static class DependencyInjection
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IChatNotifier, SignalRChatNotifier>();
+            services.AddScoped<IVideoNotifier, SignalRVideoNotifier>();
             services.AddScoped<IAgoraTokenService, AgoraTokenService>();
 
+            // Agora Webhook — Phase 1
+            // IAgoraWebhookSignatureVerifier: Infrastructure concern (HMAC-SHA256 + replay window).
+            //   Registered as Singleton because it is stateless and only reads from IOptions<AgoraSettings>.
+            services.AddSingleton<IAgoraWebhookSignatureVerifier, AgoraWebhookSignatureVerifier>();
+
+            // IVideoSessionWebhookService: Application concern (business orchestration).
+            //   Registered as Scoped because it depends on the scoped IAppDbContext.
+            services.AddScoped<IVideoSessionWebhookService, VideoSessionWebhookService>();
 
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
@@ -76,12 +90,17 @@ public static class DependencyInjection
 
         services.AddScoped<IAdminService, AdminService>();
 
-services.AddScoped<IAppointmentService, AppointmentService>();
-services.AddScoped<INotificationSender, SignalRNotificationSender>();
-services.AddScoped<IEmailService, EmailService>();
-services.AddScoped<IContactService, ContactService>();
-services.AddHostedService<ReminderBackgroundService>();
-services.AddSignalR();
+        services.AddScoped<IAppointmentService, AppointmentService>();
+        services.AddScoped<INotificationSender, SignalRNotificationSender>();
+        services.AddScoped<IEmailService, EmailService>();
+        // SignalR: use camelCase JSON so Angular handlers receive the expected
+        // property names (userId, isOnline, lastSeen) instead of PascalCase.
+        services.AddSignalR()
+            .AddJsonProtocol(options =>
+            {
+                options.PayloadSerializerOptions.PropertyNamingPolicy =
+                    JsonNamingPolicy.CamelCase;
+            });
 
         services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
         services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
@@ -130,7 +149,7 @@ services.AddSignalR();
                 {
                     var accessToken = context.Request.Query["access_token"];
                     var path = context.HttpContext.Request.Path;
-                    if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/notifications"))
+                    if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
                     {
                         context.Token = accessToken;
                     }

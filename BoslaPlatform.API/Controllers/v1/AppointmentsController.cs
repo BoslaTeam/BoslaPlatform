@@ -255,7 +255,21 @@ namespace BoslaPlatform.API.Controllers.V1
             return Ok(result.ToApiResponse("Reminder added successfully."));
         }
 
-        // 17. DELETE: api/v1/appointments/{id}/reminders/{rid}
+        // 17. DELETE: api/v1/appointments/{id} (cancelled/rejected only)
+
+        [HttpDelete("{id:guid}")]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken ct)
+        {
+            var result = await _appointmentService.DeleteAsync(id, ct);
+            if (result.IsError) return DetermineStatusCode(result.Errors[0].Type, result.ToApiResponse());
+            return Ok(result.ToApiResponse("Appointment deleted successfully."));
+        }
+
+        // 18. DELETE: api/v1/appointments/{id}/reminders/{rid}
 
         [HttpDelete("{id:guid}/reminders/{rid:guid}")]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
