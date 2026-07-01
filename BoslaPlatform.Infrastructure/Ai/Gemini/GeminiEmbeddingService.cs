@@ -19,8 +19,11 @@ public class GeminiEmbeddingService : IEmbeddingService
 
         public async Task<string> CreateEmbeddingAsync(string input, CancellationToken cancellationToken = default)
     {
+        // Fail fast when API key is not configured. Returning an empty vector ("[]")
+        // causes downstream code to attempt a search with a zero-length vector and
+        // produce misleading dimension mismatch errors.
         if (string.IsNullOrEmpty(_settings.ApiKey))
-            return "[]";
+            throw new InvalidOperationException("Embedding API key is not configured. Set Gemini.ApiKey in configuration.");
 
         // Use EmbeddingBatcher to control concurrency and simpler parsing
         var batcher = new EmbeddingBatcher(Options.Create(_settings), _client, Microsoft.Extensions.Logging.Abstractions.NullLogger<EmbeddingBatcher>.Instance);
