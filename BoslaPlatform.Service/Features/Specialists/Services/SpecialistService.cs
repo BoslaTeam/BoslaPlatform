@@ -1115,7 +1115,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         {
             var specialist = await context.Specialists
                 .FirstOrDefaultAsync(
-                    x => x.UserId == currentUser.Id.Value,
+                    x => x.UserId == currentUser.Id!.Value,
                     cancellationToken);
 
             if (specialist is null)

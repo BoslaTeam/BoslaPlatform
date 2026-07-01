@@ -123,7 +123,7 @@ namespace BoslaPlatform.Infrastructure.Data
                         Name = userData.Name
                     };
 
-                    IdentityResult result = null;
+                    IdentityResult? result = null;
                     try
                     {
                         result = await _userManager.CreateAsync(newUser, DefaultPassword);

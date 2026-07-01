@@ -13,7 +13,7 @@ namespace BoslaPlatform.Domain.Models
         public string? NewValues { get; set; }
         public DateTime Timestamp { get; set; }
         public string? IpAddress { get; set; }
-        public User ChangedByUser { get; set; }
+        public User ChangedByUser { get; set; } = null!;
 
 
     }

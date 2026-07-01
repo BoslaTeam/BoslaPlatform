@@ -55,7 +55,6 @@ public static class DependencyInjection
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<INotificationService, NotificationService>();
-            services.AddScoped<IOnlineUserTracker, OnlineUserTracker>();
             services.AddScoped<IChatNotifier, SignalRChatNotifier>();
             services.AddScoped<IAgoraTokenService, AgoraTokenService>();
 
@@ -152,10 +151,6 @@ services.AddSignalR();
         services.AddScoped<IVectorStore, BoslaPlatform.Infrastructure.AI.Qdrant.QdrantVectorStore>();
         services.AddScoped<IAiSearchService, BoslaPlatform.Infrastructure.AI.AiSearchService>();
                         
-            services.AddAuthorization();
-
-            services.AddHostedService<BoslaPlatform.Infrastructure.BackgroundJobs.ReminderBackgroundService>();
-
             return services;
         }
     }

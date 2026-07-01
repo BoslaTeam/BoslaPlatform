@@ -7,7 +7,7 @@ namespace BoslaPlatform.Domain.Models
     public class SearchInteraction:AuditableEntity
     {
         public Guid UserId { get; set; }
-        public User User { get; set; }
+        public User User { get; set; } = null!;
         public string RawQuery { get; set; } = string.Empty;
         public string? ExtractedIntent { get; set; }
         public string? ResultSpecialistIds { get; set; }

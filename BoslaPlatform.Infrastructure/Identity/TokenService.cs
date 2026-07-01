@@ -65,9 +65,6 @@ namespace BoslaPlatform.Infrastructure.Identity
                     new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Value.SecretKey)),
                     SecurityAlgorithms.HmacSha256),
             };
-            Console.WriteLine(_jwtSettings.Value.SecretKey);
-            Console.WriteLine(Encoding.UTF8.GetByteCount(_jwtSettings.Value.SecretKey));
-            Console.WriteLine(Encoding.UTF8.GetBytes(_jwtSettings.Value.SecretKey).Length);
             var tokenHandler = new JwtSecurityTokenHandler();
 
             var accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(descriptor));

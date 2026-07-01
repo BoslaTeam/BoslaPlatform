@@ -8,6 +8,7 @@ using BoslaPlatform.Application.Features.Admin.Services;
 using BoslaPlatform.Application.Features.Lookup.Response;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Persistence;
+using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Enums;
@@ -17,6 +18,8 @@ using BoslaPlatform.Shared;
 using BoslaPlatform.Application.Interfaces.AI;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Stripe;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -29,13 +32,15 @@ namespace BoslaPlatform.Infrastructure.Services
         private readonly IUser _currentUser;
         private readonly IEmbeddingService _embeddingService;
         private readonly IVectorStore _vectorStore;
-        public AdminService(IAppDbContext context, UserManager<User> userManager, IUser currentUser, IEmbeddingService embeddingService, IVectorStore vectorStore)
+        private readonly StripeSettings _stripeSettings;
+        public AdminService(IAppDbContext context, UserManager<User> userManager, IUser currentUser, IEmbeddingService embeddingService, IVectorStore vectorStore, IOptions<StripeSettings> stripeSettings)
         {
             _context = context;
             _userManager = userManager;
             _currentUser = currentUser;
             _embeddingService = embeddingService;
             _vectorStore = vectorStore;
+            _stripeSettings = stripeSettings.Value;
         }
 
         public async Task<Result<BoslaPlatform.Shared.PaginatedList<UserDto>>> ListUsersAsync(int page = 1, int pageSize = 20, string? search = null, int? role = null, bool? isActive = null, CancellationToken cancellationToken = default)
@@ -560,7 +565,7 @@ namespace BoslaPlatform.Infrastructure.Services
             if (userId == null)
                 return Error.Unauthorized(description: "Admin user not found.");
 
-            var result = appointment.Confirm(appointment.SpecialistId);
+            var result = appointment.Confirm(userId.Value);
             if (!result.IsSuccess)
                 return result.Errors;
 
@@ -1104,6 +1109,27 @@ namespace BoslaPlatform.Infrastructure.Services
             if (payment == null)
                 return Error.NotFound(description: "Payment not found.");
 
+            if (string.IsNullOrEmpty(payment.ExternalPaymentId))
+                return Error.Validation(description: "Payment has no external ID; cannot process Stripe refund.");
+
+            StripeConfiguration.ApiKey = _stripeSettings.SecretKey;
+            var requestOptions = new RequestOptions { ApiKey = _stripeSettings.SecretKey };
+
+            try
+            {
+                var refundOptions = new RefundCreateOptions
+                {
+                    PaymentIntent = payment.ExternalPaymentId,
+                    Reason = string.IsNullOrEmpty(reason) ? null : RefundReasons.RequestedByCustomer,
+                };
+                var refundService = new RefundService();
+                await refundService.CreateAsync(refundOptions, requestOptions, cancellationToken: cancellationToken);
+            }
+            catch (StripeException ex)
+            {
+                return Error.Validation(description: $"Stripe refund failed: {ex.Message}");
+            }
+
             try
             {
                 payment.MarkAsRefunded(reason);
@@ -1123,6 +1149,8 @@ namespace BoslaPlatform.Infrastructure.Services
             var totalSpecialists = await _context.Specialists.CountAsync(cancellationToken);
             var totalAppointments = await _context.Appointments.CountAsync(cancellationToken);
             
+            var now = DateTime.UtcNow;
+
             var totalRevenue = await _context.Payments
                 .Where(p => p.Status == BoslaPlatform.Domain.Enums.PaymentStatus.Completed)
                 .SumAsync(p => p.Amount, cancellationToken);
@@ -1187,11 +1215,16 @@ namespace BoslaPlatform.Infrastructure.Services
                 ActiveAppointments = activeAppointments,
                 RecentUsers = recentUsersDtos,
                 RecentAppointments = recentAppointmentDtos,
-                // Hardcoding growth percentages as 0 since they are not strictly queried in this ticket
-                UserGrowthPercentage = 0,
-                RevenueGrowthPercentage = 0,
-                AppointmentGrowthPercentage = 0,
-                SpecialistGrowthPercentage = 0
+                UserGrowthPercentage = CalculateGrowth(
+                    await _userManager.Users.CountAsync(u => u.CreatedAtUtc >= now.AddDays(-30), cancellationToken),
+                    await _userManager.Users.CountAsync(u => u.CreatedAtUtc >= now.AddDays(-60) && u.CreatedAtUtc < now.AddDays(-30), cancellationToken)),
+                RevenueGrowthPercentage = await CalculateRevenueGrowthAsync(now, cancellationToken),
+                AppointmentGrowthPercentage = CalculateGrowth(
+                    await _context.Appointments.CountAsync(a => a.CreatedAtUtc >= now.AddDays(-30), cancellationToken),
+                    await _context.Appointments.CountAsync(a => a.CreatedAtUtc >= now.AddDays(-60) && a.CreatedAtUtc < now.AddDays(-30), cancellationToken)),
+                SpecialistGrowthPercentage = CalculateGrowth(
+                    await _context.Specialists.CountAsync(s => s.CreatedAtUtc >= now.AddDays(-30), cancellationToken),
+                    await _context.Specialists.CountAsync(s => s.CreatedAtUtc >= now.AddDays(-60) && s.CreatedAtUtc < now.AddDays(-30), cancellationToken))
             };
 
             return Result<AdminDashboardDto>.Success(dtoResult);
@@ -1277,6 +1310,24 @@ namespace BoslaPlatform.Infrastructure.Services
             if (expSummaries.Any()) parts.Add($"الخبرات: {string.Join("؛ ", expSummaries)}");
 
             return string.Join(" | ", parts);
+        }
+
+        private static double CalculateGrowth(int current, int previous)
+        {
+            if (previous == 0) return current > 0 ? 100 : 0;
+            return Math.Round((double)(current - previous) / previous * 100, 1);
+        }
+
+        private async Task<double> CalculateRevenueGrowthAsync(DateTime now, CancellationToken ct)
+        {
+            var current = (double)await _context.Payments
+                .Where(p => p.Status == PaymentStatus.Completed && p.PaidAt >= now.AddDays(-30))
+                .SumAsync(p => p.Amount, ct);
+            var previous = (double)await _context.Payments
+                .Where(p => p.Status == PaymentStatus.Completed && p.PaidAt >= now.AddDays(-60) && p.PaidAt < now.AddDays(-30))
+                .SumAsync(p => p.Amount, ct);
+            if (previous == 0) return current > 0 ? 100 : 0;
+            return Math.Round((current - previous) / previous * 100, 1);
         }
     }
 }

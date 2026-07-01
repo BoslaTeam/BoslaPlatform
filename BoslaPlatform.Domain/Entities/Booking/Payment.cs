@@ -53,6 +53,11 @@ namespace BoslaPlatform.Domain.Models.Booking
         }
 
         // Domain Behaviors
+        public void AssignExternalId(string externalPaymentId)
+        {
+            ExternalPaymentId = externalPaymentId;
+        }
+
         public void Complete(string externalPaymentId, string paymentMethod)
         {
             if (Status == PaymentStatus.Completed) return;
