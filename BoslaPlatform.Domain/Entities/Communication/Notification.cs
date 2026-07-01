@@ -11,7 +11,9 @@ namespace BoslaPlatform.Domain.Models.Communication
         public string Message { get; set; } = string.Empty;
         public NotificationType Type { get; set; }
         public bool IsRead { get; set; } = false;
-        public User User { get; set; }
+        public Guid? AppointmentId { get; set; }
+        public int? AppointmentStatus { get; set; }
+        public User User { get; set; } = null!;
 
     }
 }

@@ -54,6 +54,5 @@ app.MapControllers();
 
 app.MapHub<BoslaPlatform.Infrastructure.RealTime.NotificationHub>("/hubs/notifications");
 app.MapHub<ChatHub>("/hubs/chat");
-app.MapControllers();
 
 app.Run();

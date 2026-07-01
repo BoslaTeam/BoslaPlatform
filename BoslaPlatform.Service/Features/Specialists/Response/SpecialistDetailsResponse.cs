@@ -20,7 +20,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Response
 
         public string? Country { get; init; }
 
-        public string Gender { get; init; }
+        public string? Gender { get; init; }
 
         public string? PreferredLanguage { get; init; }
 

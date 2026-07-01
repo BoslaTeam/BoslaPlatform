@@ -1,10 +1,15 @@
 using Moq;
 using Xunit;
 using BoslaPlatform.Infrastructure.AI;
+using BoslaPlatform.Infrastructure.AI.Tokenizers;
 using BoslaPlatform.Application.Interfaces.AI;
 using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Service.Features.AI.Requests;
 using BoslaPlatform.Service.Features.AI.Responses;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Bosla.Unit.Tests;
 
@@ -22,7 +27,7 @@ public class AiSearchServiceTests
         vecMock.Setup(v => v.SearchSimilarAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<(Guid, float)>());
         chatMock.Setup(c => c.ChatAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync("stubbed-answer");
 
-        var service = new AiSearchService(embMock.Object, vecMock.Object, chatMock.Object, dbMock.Object, new Mock<BoslaPlatform.Application.Interfaces.Authentication.IUser>().Object);
+        var service = new AiSearchService(embMock.Object, vecMock.Object, chatMock.Object, dbMock.Object, new Mock<BoslaPlatform.Application.Interfaces.Authentication.IUser>().Object, Mock.Of<ITokenizer>());
 
         var req = new SearchRequest { Query = "hello" };
         var res = await service.SearchAsync(req);

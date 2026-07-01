@@ -365,3 +365,4 @@ FodyWeavers.xsd
 /docs/AI_README.md
 /scripts/setup-user-secrets.ps1
 /BoslaPlatform.API/wwwroot/images/profiles
+/BoslaPlatform.API/wwwroot/uploads

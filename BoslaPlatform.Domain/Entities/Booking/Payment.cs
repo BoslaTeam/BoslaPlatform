@@ -53,6 +53,11 @@ namespace BoslaPlatform.Domain.Models.Booking
         }
 
         // Domain Behaviors
+        public void AssignExternalId(string externalPaymentId)
+        {
+            ExternalPaymentId = externalPaymentId;
+        }
+
         public void Complete(string externalPaymentId, string paymentMethod)
         {
             if (Status == PaymentStatus.Completed) return;
@@ -68,6 +73,15 @@ namespace BoslaPlatform.Domain.Models.Booking
         public void MarkAsFailed(string? reason)
         {
             Status = PaymentStatus.Failed;
+            RefundReason = reason;
+        }
+
+        public void MarkAsRefunded(string? reason)
+        {
+            if (Status != PaymentStatus.Completed)
+                throw new InvalidOperationException("Only completed payments can be refunded.");
+
+            Status = PaymentStatus.Refunded;
             RefundReason = reason;
         }
     }

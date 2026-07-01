@@ -1,3 +1,6 @@
+using BoslaPlatform.API.Common.Extensions;
+using BoslaPlatform.API.Common.Responses;
+using BoslaPlatform.Application.Features.Payments.Dtos;
 using BoslaPlatform.Application.Features.Payments.Requests;
 using BoslaPlatform.Application.Interfaces.Payments;
 using BoslaPlatform.Application.Interfaces.Persistence;
@@ -35,33 +38,33 @@ namespace BoslaPlatform.API.Controllers.v1
 
             if (result.IsError)
             {
-                return BadRequest(result.Errors);
+                return BadRequest(result.ToApiResponse<PaymentResponseDto>());
             }
-            return Ok(result.Value);
+            return Ok(result.ToApiResponse<PaymentResponseDto>());
         }
 
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id)
         {
             var result = await _paymentService.GetByIdAsync(id, HttpContext.RequestAborted);
-            if (result.IsError) return BadRequest(result.Errors);
-            return Ok(result.Value);
+            if (result.IsError) return BadRequest(result.ToApiResponse<PaymentResponseDto>());
+            return Ok(result.ToApiResponse<PaymentResponseDto>());
         }
 
         [HttpGet("appointments/{appointmentId:guid}/payment")]
         public async Task<IActionResult> GetByAppointment(Guid appointmentId)
         {
             var result = await _paymentService.GetByAppointmentAsync(appointmentId, HttpContext.RequestAborted);
-            if (result.IsError) return BadRequest(result.Errors);
-            return Ok(result.Value);
+            if (result.IsError) return BadRequest(result.ToApiResponse<PaymentResponseDto>());
+            return Ok(result.ToApiResponse<PaymentResponseDto>());
         }
 
         [HttpGet("me")]
         public async Task<IActionResult> GetMyPayments()
         {
             var result = await _paymentService.GetMyPaymentsAsync(HttpContext.RequestAborted);
-            if (result.IsError) return BadRequest(result.Errors);
-            return Ok(result.Value);
+            if (result.IsError) return BadRequest(result.ToApiResponse<IReadOnlyList<PaymentResponseDto>>());
+            return Ok(result.ToApiResponse<IReadOnlyList<PaymentResponseDto>>());
         }
 
         [HttpPost("webhook")]
@@ -76,44 +79,23 @@ namespace BoslaPlatform.API.Controllers.v1
                     _stripeSettings.WebhookSecret
                 );
 
-                if (stripeEvent.Type == EventTypes.PaymentIntentSucceeded)
+                switch (stripeEvent.Type)
                 {
-                    var paymentIntent = stripeEvent.Data.Object as PaymentIntent;
-                    if (paymentIntent != null)
-                    {
-                        var payment = await _context.Payments
-                            .FirstOrDefaultAsync(p => p.ExternalPaymentId == paymentIntent.Id);
-
-                        if (payment != null)
-                        {
-                            payment.Complete(paymentIntent.Id, paymentIntent.PaymentMethodId ?? "Card");
-
-                            var appointment = await _context.Appointments
-                                .FirstOrDefaultAsync(a => a.Id == payment.AppointmentId);
-
-                            if (appointment != null && appointment.Status == AppointmentStatus.Pending)
-                            {
-                                appointment.Confirm(Guid.Empty);
-                            }
-
-                            await _context.SaveChangesAsync();
-                        }
-                    }
-                }
-                else if (stripeEvent.Type == EventTypes.PaymentIntentPaymentFailed)
-                {
-                    var paymentIntent = stripeEvent.Data.Object as PaymentIntent;
-                    if (paymentIntent != null)
-                    {
-                        var payment = await _context.Payments
-                            .FirstOrDefaultAsync(p => p.ExternalPaymentId == paymentIntent.Id);
-
-                        if (payment != null)
-                        {
-                            payment.MarkAsFailed(paymentIntent.LastPaymentError?.Message ?? "Payment failed");
-                            await _context.SaveChangesAsync();
-                        }
-                    }
+                    case EventTypes.PaymentIntentSucceeded:
+                        await HandlePaymentIntentSucceeded(stripeEvent);
+                        break;
+                    case EventTypes.PaymentIntentPaymentFailed:
+                        await HandlePaymentIntentFailed(stripeEvent);
+                        break;
+                    case EventTypes.PaymentIntentCanceled:
+                        await HandlePaymentIntentCanceled(stripeEvent);
+                        break;
+                    case "charge.refunded":
+                        await HandleChargeRefunded(stripeEvent);
+                        break;
+                    case "charge.dispute.created":
+                        await HandleDisputeCreated(stripeEvent);
+                        break;
                 }
 
                 return Ok();
@@ -124,5 +106,87 @@ namespace BoslaPlatform.API.Controllers.v1
             }
         }
 
+        private async Task HandlePaymentIntentSucceeded(Event stripeEvent)
+        {
+            var paymentIntent = stripeEvent.Data.Object as PaymentIntent;
+            if (paymentIntent == null) return;
+
+            var payment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.ExternalPaymentId == paymentIntent.Id);
+            if (payment == null) return;
+
+            var expectedAmount = (long)Math.Round(payment.Amount * 100, MidpointRounding.AwayFromZero);
+            if (paymentIntent.Amount != expectedAmount)
+            {
+                return;
+            }
+
+            payment.Complete(paymentIntent.Id, paymentIntent.PaymentMethodId ?? "Card");
+
+            var appointment = await _context.Appointments
+                .FirstOrDefaultAsync(a => a.Id == payment.AppointmentId);
+
+            if (appointment != null && appointment.Status is AppointmentStatus.Pending or AppointmentStatus.Confirmed)
+            {
+                appointment.MarkAsPaid();
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task HandlePaymentIntentFailed(Event stripeEvent)
+        {
+            var paymentIntent = stripeEvent.Data.Object as PaymentIntent;
+            if (paymentIntent == null) return;
+
+            var payment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.ExternalPaymentId == paymentIntent.Id);
+            if (payment == null) return;
+
+            payment.MarkAsFailed(paymentIntent.LastPaymentError?.Message ?? "Payment failed");
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task HandlePaymentIntentCanceled(Event stripeEvent)
+        {
+            var paymentIntent = stripeEvent.Data.Object as PaymentIntent;
+            if (paymentIntent == null) return;
+
+            var payment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.ExternalPaymentId == paymentIntent.Id);
+            if (payment == null) return;
+
+            payment.MarkAsFailed("Payment was canceled");
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task HandleChargeRefunded(Event stripeEvent)
+        {
+            var charge = stripeEvent.Data.Object as Charge;
+            if (charge == null || string.IsNullOrEmpty(charge.PaymentIntentId)) return;
+
+            var payment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.ExternalPaymentId == charge.PaymentIntentId);
+            if (payment == null) return;
+
+            payment.MarkAsRefunded(charge.Refunds?.Data?.FirstOrDefault()?.Reason ?? "Refunded via Stripe");
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task HandleDisputeCreated(Event stripeEvent)
+        {
+            var dispute = stripeEvent.Data.Object as Dispute;
+            if (dispute == null) return;
+
+            var paymentIntentId = dispute.PaymentIntentId;
+            if (string.IsNullOrEmpty(paymentIntentId)) return;
+
+            var payment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.ExternalPaymentId == paymentIntentId);
+            if (payment == null) return;
+
+            payment.MarkAsFailed($"Dispute filed: {dispute.Reason}");
+            await _context.SaveChangesAsync();
+        }
     }
 }

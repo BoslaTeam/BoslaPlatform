@@ -10,7 +10,7 @@ namespace BoslaPlatform.Domain.Models.Profile
         public string FieldOfStudy { get; set; } = string.Empty;
         public DateOnly StartDate { get; set; }
         public DateOnly? EndDate { get; set; }
-        public User User { get; set; }
+        public User User { get; set; } = null!;
 
     }
 }

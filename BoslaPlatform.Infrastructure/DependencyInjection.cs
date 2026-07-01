@@ -9,7 +9,9 @@ using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Communication;
 using BoslaPlatform.Application.Features.Admin.Repositories;
 using BoslaPlatform.Application.Interfaces.Persistence;
+using BoslaPlatform.Application.Interfaces.Specialists;
 using BoslaPlatform.Application.Interfaces.Video;
+using BoslaPlatform.Application.Features.Specialists.Services;
 using BoslaPlatform.Application.Services;
 using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
@@ -17,6 +19,8 @@ using BoslaPlatform.Infrastructure.AI.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.Qdrant;
 using BoslaPlatform.Infrastructure.Agora;
 using BoslaPlatform.Infrastructure.Agora.Services;
+using BoslaPlatform.Infrastructure.BackgroundJobs;
+using BoslaPlatform.Infrastructure.AI.OpenAi;
 using BoslaPlatform.Infrastructure.Communication;
 using BoslaPlatform.Infrastructure.Data;
 using BoslaPlatform.Infrastructure.Data.Interceptors;
@@ -46,6 +50,7 @@ public static class DependencyInjection
 
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationAssemblyReference).Assembly));
 
+            services.AddScoped<ISaveChangesInterceptor, AuditLogInterceptor>();
             services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
             services.AddScoped<ISaveChangesInterceptor, DomainEventsInterceptor>();
             services.AddScoped<ApplicationDbContextInitialiser>();
@@ -71,11 +76,12 @@ public static class DependencyInjection
 
         services.AddScoped<IAdminService, AdminService>();
 
-        services.AddScoped<IAppointmentService, AppointmentService>();
-        services.AddScoped<INotificationSender, SignalRNotificationSender>();
-        services.AddScoped<IEmailService, EmailService>();
-        services.AddScoped<IContactService, ContactService>();
-        services.AddSignalR();
+services.AddScoped<IAppointmentService, AppointmentService>();
+services.AddScoped<INotificationSender, SignalRNotificationSender>();
+services.AddScoped<IEmailService, EmailService>();
+services.AddScoped<IContactService, ContactService>();
+services.AddHostedService<ReminderBackgroundService>();
+services.AddSignalR();
 
         services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
         services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));

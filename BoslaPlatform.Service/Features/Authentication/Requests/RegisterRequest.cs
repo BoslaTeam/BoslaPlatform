@@ -19,13 +19,13 @@ namespace BoslaPlatform.Application
                 "Password must contain at least 8 characters, one uppercase letter, one lowercase letter, and one number.")]
         public string Password { get; set; } = string.Empty;
         [Phone]
-        public string PhoneNumber { get; set; }
+        public string PhoneNumber { get; set; } = string.Empty;
 
         [MaxLength(12)]
-        public string PreferredLanguage { get; set; }
+        public string PreferredLanguage { get; set; } = string.Empty;
 
         public string? Gender { get; set; }
-        public string Country { get; set; }
-        public string Role { get; set; }
+        public string Country { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
     }
 }

@@ -172,7 +172,7 @@ public class AiSearchService : IAiSearchService
                 await _db.SaveChangesAsync(cancellationToken);
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // best-effort: log if logging is added; ignore otherwise
         }

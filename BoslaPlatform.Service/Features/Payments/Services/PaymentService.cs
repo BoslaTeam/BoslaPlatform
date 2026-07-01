@@ -67,18 +67,13 @@ namespace BoslaPlatform.Application.Features.Payments.Services
                 return MapToDto(existingPayment, null);
             }
 
-            var payment = Payment.Initiate(appointment.Id, appointment.Specialist.HourlyRate, request.Currency);
+            var payment = Payment.Initiate(appointment.Id, appointment.SessionPrice, request.Currency);
 
             try
             {
                 var (clientSecret, paymentIntentId) = await _paymentGateway.CreatePaymentIntentAsync(payment.Amount, payment.Currency);
 
-                payment.Complete(paymentIntentId, "Card");
-
-                typeof(Payment).GetProperty(nameof(Payment.ExternalPaymentId))?
-                    .SetValue(payment, paymentIntentId);
-                typeof(Payment).GetProperty(nameof(Payment.Status))?
-                    .SetValue(payment, PaymentStatus.Pending);
+                payment.AssignExternalId(paymentIntentId);
 
                 _context.Payments.Add(payment);
                 await _context.SaveChangesAsync(ct);

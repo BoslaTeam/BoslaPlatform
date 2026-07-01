@@ -12,7 +12,7 @@ using BoslaPlatform.Domain.Entities;
             public string Message { get; set; } = null!;
         // Navigation
             public Appointment Appointment { get; set; } = null!;
-            public User User { get; set; }
+            public User User { get; set; } = null!;
 
         }
     }
