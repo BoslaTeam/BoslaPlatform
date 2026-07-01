@@ -15,7 +15,6 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
             builder.Property(s => s.MaxSessionsPerDay).HasDefaultValue(8);
             builder.Property(s => s.MaxSessionsPerWeek).HasDefaultValue(40);
             builder.Property(s => s.IntroVideoUrl).HasMaxLength(500);
-            builder.Property(s => s.VerificationStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
             builder.Property(s => s.CancellationDeadlineHours).HasDefaultValue(24);
             builder.Property(s => s.CancellationFeePercent).HasPrecision(5, 2).HasDefaultValue(0.00m);
             builder.Property(s => s.BookingPolicy).HasMaxLength(2000);
@@ -31,13 +30,8 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
             builder.HasIndex(s => s.UserId)
                 .IsUnique();
 
-            // VerifiedByUser Relationship (Many-to-One, no inverse navigation collection on User)
-            builder.HasOne(s => s.VerifiedByUser)
-                    .WithMany(u => u.VerifiedSpecialists)
-                    .HasForeignKey(s => s.VerifiedBy)
-                    .OnDelete(DeleteBehavior.NoAction);
-
             // Note: The 1-to-1 relationship with SpecialistEmbedding is configured on the dependent side (SpecialistEmbedding) in SpecialistEmbeddingConfiguration.cs.
+            // Note: The 1-to-1 relationship with SpecialistVerification is configured on the dependent side (SpecialistVerification) in SpecialistVerificationConfiguration.cs.
 
             // Collections
             builder.HasMany(s => s.Appointments)

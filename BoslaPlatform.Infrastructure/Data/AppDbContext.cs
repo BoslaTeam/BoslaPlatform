@@ -43,6 +43,8 @@ namespace BoslaPlatform.Infrastructure.Data
         // Profile
         public DbSet<Specialist> Specialists => Set<Specialist>();
         public DbSet<SpecialistExperience> SpecialistExperiences => Set<SpecialistExperience>();
+        public DbSet<SpecialistVerification> SpecialistVerifications => Set<SpecialistVerification>();
+        public DbSet<SpecialistDocument> SpecialistDocuments => Set<SpecialistDocument>();
         public DbSet<Education> Educations => Set<Education>();
         public DbSet<SocialLink> SocialLinks => Set<SocialLink>();
 

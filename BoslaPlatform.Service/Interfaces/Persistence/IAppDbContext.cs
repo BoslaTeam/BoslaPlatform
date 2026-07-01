@@ -18,6 +18,8 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
 
         DbSet<Specialist> Specialists { get; }
         DbSet<SpecialistExperience> SpecialistExperiences { get; }
+        DbSet<SpecialistVerification> SpecialistVerifications { get; }
+        DbSet<SpecialistDocument> SpecialistDocuments { get; }
 
         DbSet<Education> Educations { get; }
 

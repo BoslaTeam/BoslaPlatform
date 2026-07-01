@@ -4,6 +4,7 @@ using BoslaPlatform.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BoslaPlatform.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260630211238_AddSpecialistVerification")]
+    partial class AddSpecialistVerification
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -108,48 +111,6 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.ToTable("Specialists");
                 });
 
-            modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.SpecialistDocument", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasDefaultValueSql("NEWSEQUENTIALID()");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("LastModifiedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("LastModifiedUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("OriginalFileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<Guid>("SpecialistId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Url")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SpecialistId");
-
-                    b.ToTable("SpecialistDocuments");
-                });
-
             modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.SpecialistVerification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -180,6 +141,10 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.Property<DateTime?>("LastUpdatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("NationalIdImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<DateTime?>("ReviewedAt")
                         .HasColumnType("datetime2");
@@ -408,9 +373,6 @@ namespace BoslaPlatform.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
-                    b.Property<decimal>("SessionPrice")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<string>("SessionTopic")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -502,9 +464,6 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset>("End")
                         .HasColumnType("datetimeoffset");
-
-                    b.Property<bool>("IsBooked")
-                        .HasColumnType("bit");
 
                     b.Property<Guid?>("LastModifiedBy")
                         .HasColumnType("uniqueidentifier");
@@ -816,12 +775,6 @@ namespace BoslaPlatform.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
                         .HasDefaultValueSql("NEWSEQUENTIALID()");
-
-                    b.Property<Guid?>("AppointmentId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int?>("AppointmentStatus")
-                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
@@ -1737,17 +1690,6 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.SpecialistDocument", b =>
-                {
-                    b.HasOne("BoslaPlatform.Domain.Entities.Profile.Specialist", "Specialist")
-                        .WithMany("Documents")
-                        .HasForeignKey("SpecialistId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Specialist");
-                });
-
             modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.SpecialistVerification", b =>
                 {
                     b.HasOne("BoslaPlatform.Domain.Entities.Profile.Specialist", "Specialist")
@@ -2247,8 +2189,6 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.Navigation("Appointments");
 
                     b.Navigation("Availabilities");
-
-                    b.Navigation("Documents");
 
                     b.Navigation("Embedding");
 
