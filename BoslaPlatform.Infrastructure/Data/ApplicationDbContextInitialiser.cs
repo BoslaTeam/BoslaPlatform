@@ -1,4 +1,4 @@
-﻿using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Models.Lookup;
@@ -16,7 +16,7 @@ namespace BoslaPlatform.Infrastructure.Data
         private readonly AppDbContext _context;
         private readonly UserManager<User> _userManager;
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
-        private const string DefaultPassword = "0105140@Ma";
+        private const string DefaultPassword = "Pass@123";
 
         public ApplicationDbContextInitialiser(
             ILogger<ApplicationDbContextInitialiser> logger,
@@ -112,7 +112,8 @@ namespace BoslaPlatform.Infrastructure.Data
 
             foreach (var userData in defaultUsers)
             {
-                if (await _userManager.FindByEmailAsync(userData.Email) is null)
+                var existingUser = await _userManager.Users.FirstOrDefaultAsync(u => u.UserName == userData.Email || u.Email == userData.Email || u.NormalizedUserName == userData.Email.ToUpper());
+                if (existingUser is null)
                 {
                     var newUser = new User
                     {
@@ -122,7 +123,18 @@ namespace BoslaPlatform.Infrastructure.Data
                         Name = userData.Name
                     };
 
-                    var result = await _userManager.CreateAsync(newUser, DefaultPassword);
+                    IdentityResult? result = null;
+                    try
+                    {
+                        result = await _userManager.CreateAsync(newUser, DefaultPassword);
+                    }
+                    catch (DbUpdateException)
+                    {
+                        // Safely ignore if it was inserted concurrently or query filters hid it
+                        _logger.LogWarning($"User '{userData.Email}' already exists but couldn't be fetched. Skipping.");
+                        continue;
+                    }
+                    
                     if (!result.Succeeded)
                     {
                         var errors = string.Join(", ", result.Errors.Select(e => e.Description));
@@ -134,11 +146,19 @@ namespace BoslaPlatform.Infrastructure.Data
                         {
                             UserId = newUser.Id,
                             ExperienceYears = 5,
-                            HourlyRate = 100,
-                            VerificationStatus = VerificationStatus.Approved
+                            HourlyRate = 100
                         };
 
                         _context.Specialists.Add(specialist);
+
+                        var verification = new SpecialistVerification
+                        {
+                            Specialist = specialist
+                        };
+                        verification.Submit();
+                        verification.Approve(newUser.Id);
+                        _context.SpecialistVerifications.Add(verification);
+
                         await _context.SaveChangesAsync();
                     }
                     if (!string.IsNullOrWhiteSpace(newUser.Name))

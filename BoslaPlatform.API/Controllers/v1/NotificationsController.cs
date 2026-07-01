@@ -34,6 +34,15 @@ namespace BoslaPlatform.API.Controllers.v1
                 value => Results.Ok(ApiResponse<List<NotificationDto>>.SuccessResponse(value)),
                 errors => errors.ToProblem());
         }
+        [HttpGet("unread-count")]
+        [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status200OK)]
+        public async Task<IResult> GetUnreadCount(CancellationToken ct)
+        {
+            var result = await _notificationService.GetUnreadCountAsync(ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<int>.SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
 
         [HttpPut("{id}/read")]
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
@@ -42,6 +51,16 @@ namespace BoslaPlatform.API.Controllers.v1
             var result = await _notificationService.MarkReadAsync(id, ct);
             return result.Match(
                 value => Results.Ok(ApiResponse<bool>.SuccessResponse(value, "Notification marked as read.")),
+                errors => errors.ToProblem());
+        }
+
+        [HttpDelete("{id:guid}")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IResult> Delete(Guid id, CancellationToken ct)
+        {
+            var result = await _notificationService.DeleteAsync(id, ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<bool>.SuccessResponse(value, "Notification deleted.")),
                 errors => errors.ToProblem());
         }
 

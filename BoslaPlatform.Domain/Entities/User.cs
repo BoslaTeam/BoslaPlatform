@@ -34,7 +34,6 @@ namespace BoslaPlatform.Domain.Entities
         public ICollection<VideoSessionParticipant> VideoSessionParticipants { get; set; } = [];
         public ICollection<UserExpertise> UserExpertise { get; set; } = [];
         public ICollection<UserIndustry> UserIndustries { get; set; } = [];
-        public ICollection<Specialist> VerifiedSpecialists { get; set; } = new List<Specialist>();
         public DateTimeOffset CreatedAtUtc { get ; set ; }
         public Guid? CreatedBy { get ; set ; }
         public DateTimeOffset? LastModifiedUtc { get ; set ; }

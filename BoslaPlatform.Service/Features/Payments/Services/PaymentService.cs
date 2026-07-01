@@ -1,4 +1,4 @@
-﻿using BoslaPlatform.Application.Features.Payments.Dtos;
+using BoslaPlatform.Application.Features.Payments.Dtos;
 using BoslaPlatform.Application.Features.Payments.Requests;
 using BoslaPlatform.Application.Features.Specialists.DTOs;
 using BoslaPlatform.Application.Interfaces.Authentication;
@@ -67,18 +67,13 @@ namespace BoslaPlatform.Application.Features.Payments.Services
                 return MapToDto(existingPayment, null);
             }
 
-            var payment = Payment.Initiate(appointment.Id, appointment.Specialist.HourlyRate, request.Currency);
+            var payment = Payment.Initiate(appointment.Id, appointment.SessionPrice, request.Currency);
 
             try
             {
                 var (clientSecret, paymentIntentId) = await _paymentGateway.CreatePaymentIntentAsync(payment.Amount, payment.Currency);
 
-                payment.Complete(paymentIntentId, "Card");
-
-                typeof(Payment).GetProperty(nameof(Payment.ExternalPaymentId))?
-                    .SetValue(payment, paymentIntentId);
-                typeof(Payment).GetProperty(nameof(Payment.Status))?
-                    .SetValue(payment, PaymentStatus.Pending);
+                payment.AssignExternalId(paymentIntentId);
 
                 _context.Payments.Add(payment);
                 await _context.SaveChangesAsync(ct);
@@ -118,6 +113,26 @@ namespace BoslaPlatform.Application.Features.Payments.Services
 
             return MapToDto(payment, null);
         }
+        
+        public async Task<Result<IReadOnlyList<PaymentResponseDto>>> GetMyPaymentsAsync(CancellationToken ct = default)
+        {
+            if (!_currentUser.IsAuthenticated || !_currentUser.Id.HasValue)
+            {
+                return Error.Unauthorized("Auth.Unauthorized", "User must be authenticated.");
+            }
+
+            // A user's payments are those tied to their appointments
+            var payments = await _context.Payments
+                .Include(p => p.Appointment)
+                .Where(p => p.Appointment.UserId == _currentUser.Id.Value && p.Status == PaymentStatus.Completed)
+                .OrderByDescending(p => p.PaidAt)
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+            var dtos = payments.Select(p => MapToDto(p, null)).ToList();
+            return dtos;
+        }
+
         
         private PaymentResponseDto MapToDto(Payment payment, string? clientSecret)
         {

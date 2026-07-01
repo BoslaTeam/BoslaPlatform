@@ -4,12 +4,15 @@ using BoslaPlatform.API.Common.Responses;
 using BoslaPlatform.Application.Features.Specialists.DTOs;
 using BoslaPlatform.Application.Features.Specialists.Request;
 using BoslaPlatform.Application.Features.Specialists.Response;
-using BoslaPlatform.Application.Features.Specialists.Services;
+using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Application.Interfaces.Specialists;
+using BoslaPlatform.Application.Interfaces.AI;
+using BoslaPlatform.Infrastructure.AI.Gemini;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Shared.Pagination;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace BoslaPlatform.API.Controllers.v1
 {
@@ -18,25 +21,47 @@ namespace BoslaPlatform.API.Controllers.v1
     [Route("api/v{version:apiVersion}/specialists")]
     [Authorize]
     [ApiConventionType(typeof(DefaultApiConventions))]
-    public class SpecialistsController(ISpecialistService specialistService) : ControllerBase
+    public class SpecialistsController(ISpecialistService specialistService, IEmbeddingAdminService embeddingAdmin, IAppDbContext context) : ControllerBase
     {
+        private async Task<Guid> GetCurrentSpecialistIdAsync()
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (userIdClaim is null || !Guid.TryParse(userIdClaim, out var userId))
+                return Guid.Empty;
+
+            var specialistId = await context.Specialists
+                .Where(s => s.UserId == userId)
+                .Select(s => (Guid?)s.Id)
+                .FirstOrDefaultAsync();
+
+            return specialistId ?? Guid.Empty;
+        }
         #region Onboard & Profile 
 
-        [HttpPost("onboard")]
-        [ProducesResponseType(typeof(ApiResponse<SpecialistOnboardResponse>), StatusCodes.Status200OK)]
-        public async Task<IResult> Onboard([FromBody] SpecialistOnboardRequest request, CancellationToken ct)
+        [HttpPost("me/start")]
+        [ProducesResponseType(typeof(ApiResponse<StartResponse>), StatusCodes.Status200OK)]
+        public async Task<IResult> Start(CancellationToken ct)
         {
-            var result = await specialistService.OnboardAsync(request, ct);
+            var result = await specialistService.StartAsync(ct);
 
             return result.Match(
                 value => Results.Ok(
-                    ApiResponse<SpecialistOnboardResponse>.SuccessResponse(
-                        value, "Specialist onboarded successfully.")),
+                    ApiResponse<StartResponse>.SuccessResponse(
+                        value, "Specialist profile initialized successfully.")),
                 errors => errors.ToProblem());
         }
 
-        [HttpGet("me")]
+        [HttpPost("me/embedding/refresh")]
         [Authorize(Roles = nameof(UserRole.Specialist))]
+        public async Task<IResult> RefreshMyEmbeddings(CancellationToken ct)
+        {
+            var result = await embeddingAdmin.RebuildSelfAsync(ct);
+            if (result.IsSuccess) return Results.Ok(ApiResponse.SuccessResponse("Embedding refreshed."));
+            return result.Errors.ToProblem();
+        }
+
+        [HttpGet("me")]
+        [Authorize]
         [ProducesResponseType(typeof(ApiResponse<SpecialistProfileResponse>), StatusCodes.Status200OK)]
         public async Task<IResult> GetMyProfile(CancellationToken ct)
         {
@@ -49,7 +74,7 @@ namespace BoslaPlatform.API.Controllers.v1
         }
 
         [HttpPut("me")]
-        [Authorize(Roles = nameof(UserRole.Specialist))]
+        [Authorize]
         [ProducesResponseType(typeof(ApiResponse<SpecialistProfileResponse>), StatusCodes.Status200OK)]
         public async Task<IResult> Update([FromBody] UpdateSpecialistRequest request, CancellationToken ct)
         {
@@ -67,7 +92,7 @@ namespace BoslaPlatform.API.Controllers.v1
         #region Availability
 
         [HttpGet("me/availability")]
-        [Authorize(Roles = nameof(UserRole.Specialist))]
+        [Authorize]
         [ProducesResponseType(typeof(ApiResponse<List<AvailabilityResponse>>), StatusCodes.Status200OK)]
         public async Task<IResult> GetMyAvailability(CancellationToken ct)
         {
@@ -81,21 +106,20 @@ namespace BoslaPlatform.API.Controllers.v1
         }
 
         [HttpPost("me/availability")]
-        [Authorize(Roles = nameof(UserRole.Specialist))]
+        [Authorize]
         [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
-        public async Task<IResult> AddAvailability([FromBody] AddAvailabilityRequest request, CancellationToken ct)
+        public async Task<IResult> AddAvailabilities(AddAvailabilitiesRequest request, CancellationToken ct)
         {
-            var result = await specialistService
-                   .AddAvailabilityAsync(request, ct);
+            var result = await specialistService.AddAvailabilitiesAsync(request, ct);
 
             return result.Match(
                 value => Results.Ok(
-                    ApiResponse<Guid>.SuccessResponse(value, "Availability created successfully.")),
+                    ApiResponse<IReadOnlyList<Guid>>.SuccessResponse(value, "Availabilities created successfully.")),
                 errors => errors.ToProblem());
         }
 
         [HttpDelete("me/availability/{id:guid}")]
-        [Authorize(Roles = nameof(UserRole.Specialist))]
+        [Authorize]
         public async Task<IResult> DeleteAvailability(Guid id, CancellationToken ct)
         {
             var result = await specialistService.DeleteAvailabilityAsync(id, ct);
@@ -111,7 +135,7 @@ namespace BoslaPlatform.API.Controllers.v1
         #region Expertise
 
         [HttpPost("me/expertise")]
-        [Authorize(Roles = nameof(UserRole.Specialist))]
+        [Authorize]
         public async Task<IResult> AddExpertise([FromBody] AddExpertiseRequest request, CancellationToken ct)
         {
             var result = await specialistService
@@ -124,7 +148,7 @@ namespace BoslaPlatform.API.Controllers.v1
         }
 
         [HttpDelete("me/expertise/{id:guid}")]
-        [Authorize(Roles = nameof(UserRole.Specialist))]
+        [Authorize]
         public async Task<IResult> DeleteExpertise(Guid id, CancellationToken ct)
         {
             var result = await specialistService
@@ -141,6 +165,7 @@ namespace BoslaPlatform.API.Controllers.v1
         #region earnings
 
         [HttpGet("me/earnings")]
+        [Authorize(Roles = nameof(UserRole.Specialist))]
         public async Task<IActionResult> GetMyEarnings()
         {
             var result = await specialistService.GetEarningsAsync(HttpContext.RequestAborted);
@@ -212,15 +237,15 @@ namespace BoslaPlatform.API.Controllers.v1
 
 
         [HttpPost("me/experience")]
-        public async Task<IResult> AddExperience(AddExperienceRequestDTO request, CancellationToken ct)
+        public async Task<IResult> AddExperiences(AddExperiencesRequest request, CancellationToken ct)
         {
             var result =
                 await specialistService
-                    .AddExperienceAsync(request, ct);
+                    .AddExperiencesAsync(request, ct);
 
             return result.Match(
                 value => Results.Ok(
-                    ApiResponse<Guid>.SuccessResponse(value)),
+                    ApiResponse<IReadOnlyList<Guid>>.SuccessResponse(value)),
                 errors => errors.ToProblem());
         }
 
@@ -256,10 +281,10 @@ namespace BoslaPlatform.API.Controllers.v1
 
 
         [HttpPost("me/skills")]
-        public async Task<IResult> AddSkill(AddSkillRequest request, CancellationToken ct)
+        public async Task<IResult> AddSkills(AddSkillRequest request, CancellationToken ct)
         {
             var result = await specialistService
-                .AddSkillAsync(request, ct);
+                .AddSkillsAsync(request, ct);
 
             if (result.IsSuccess)
             {
@@ -294,7 +319,7 @@ namespace BoslaPlatform.API.Controllers.v1
         public async Task<IResult> AddTool(AddToolRequest request, CancellationToken ct)
         {
             var result = await specialistService
-                .AddToolAsync(request, ct);
+                .AddToolsAsync(request, ct);
 
             if (result.IsSuccess)
             {
@@ -368,21 +393,242 @@ namespace BoslaPlatform.API.Controllers.v1
         }
 
 
+        [HttpGet("me/dashboard")]
+        [Authorize(Roles = nameof(UserRole.Specialist))]
+        public async Task<IResult> GetDashboard(CancellationToken cancellationToken)
+
+        {
+            var result = await specialistService.GetDashboardAsync(
+                cancellationToken);
+
+            return result.Match(
+                value => Results.Ok(ApiResponse<SpecialistDashboardDto>
+                    .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
 
 
         [HttpGet("{id:guid}/reviews")]
-        [AllowAnonymous]
-        public async Task<IResult> GetSpecialistReviews(Guid id, CancellationToken ct)
+        public async Task<IResult> GetReviews(
+            Guid id,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken ct = default)
         {
-            var result = await specialistService
-                .GetSpecialistReviewsAsync(id, ct);
+            var result = await specialistService.GetReviewsAsync(
+                id,
+                pageNumber,
+                pageSize,
+                ct);
 
             return result.Match(
                 value => Results.Ok(
-                    ApiResponse<IReadOnlyList<SpecialistReviewResponse>>
+                    ApiResponse<SpecialistReviewsResponse>
                         .SuccessResponse(value)),
                 errors => errors.ToProblem());
         }
 
+        [HttpGet("me/reviews")]
+        [Authorize(Roles = nameof(UserRole.Specialist))]
+        public async Task<IResult> GetMyReviews(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken ct = default)
+        {
+            var result = await specialistService.GetMyReviewsAsync(
+                pageNumber,
+                pageSize,
+                ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<SpecialistReviewsResponse>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        [HttpGet("me/skills")]
+        public async Task<IResult> GetSkills(CancellationToken ct)
+        {
+            var result = await specialistService.GetSkillsAsync(ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<SkillResponse>>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        [HttpGet("me/tools")]
+        public async Task<IResult> GetTools(CancellationToken ct)
+        {
+            var result = await specialistService.GetToolsAsync(ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<ToolResponse>>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        #region Submission
+
+        [HttpPost("me/submit")]
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
+        public async Task<IResult> SubmitForReview(CancellationToken ct)
+        {
+            var result = await specialistService.SubmitForReviewAsync(ct);
+            if (result.IsSuccess)
+                return Results.Ok(ApiResponse.SuccessResponse("Profile submitted for review successfully."));
+            return result.Errors.ToProblem();
+        }
+
+        #endregion
+
+        #region Documents
+
+        [HttpGet("me/documents")]
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<SpecialistDocumentResponse>>), StatusCodes.Status200OK)]
+        public async Task<IResult> GetDocuments(CancellationToken ct)
+        {
+            var specialistId = await GetCurrentSpecialistIdAsync();
+            if (specialistId == Guid.Empty)
+                return Results.NotFound();
+
+            var result = await specialistService.GetDocumentsAsync(specialistId, ct);
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<SpecialistDocumentResponse>>.SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        [HttpPost("me/documents")]
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
+        public async Task<IResult> UploadDocument(
+            IFormFile file,
+            [FromQuery] SpecialistDocumentType type,
+            CancellationToken ct)
+        {
+            if (file == null || file.Length == 0)
+                return Results.BadRequest(ApiResponse<Guid>.FailureResponse(
+                    [BoslaPlatform.Shared.Error.Create(BoslaPlatform.Shared.ErrorKind.Validation, "File", "No file uploaded.")]));
+
+            if (file.Length > 10 * 1024 * 1024)
+                return Results.BadRequest(ApiResponse<Guid>.FailureResponse(
+                    [BoslaPlatform.Shared.Error.Create(BoslaPlatform.Shared.ErrorKind.Validation, "File", "File size must not exceed 10MB.")]));
+
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".pdf" };
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+                return Results.BadRequest(ApiResponse<Guid>.FailureResponse(
+                    [BoslaPlatform.Shared.Error.Create(BoslaPlatform.Shared.ErrorKind.Validation, "File", "Invalid file type. Allowed: JPG, JPEG, PNG, GIF, PDF.")]));
+
+            var webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var uploadsFolder = Path.Combine(webRootPath, "uploads", "specialists", "documents");
+            Directory.CreateDirectory(uploadsFolder);
+
+            var uniqueFileName = $"{Guid.NewGuid()}{extension}";
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            await using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream, ct);
+            }
+
+            var request = HttpContext.Request;
+            var baseUrl = $"{request.Scheme}://{request.Host}";
+            var fileUrl = $"{baseUrl}/uploads/specialists/documents/{uniqueFileName}";
+
+            var specialistId = await GetCurrentSpecialistIdAsync();
+            if (specialistId == Guid.Empty)
+                return Results.NotFound();
+
+            var docRequest = new UploadDocumentRequest
+            {
+                Type = type,
+                Url = fileUrl,
+                OriginalFileName = file.FileName
+            };
+
+            var result = await specialistService.UploadDocumentAsync(specialistId, docRequest, ct);
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<Guid>.SuccessResponse(value, "Document uploaded successfully.")),
+                errors => errors.ToProblem());
+        }
+
+        [HttpDelete("me/documents/{id:guid}")]
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        public async Task<IResult> DeleteDocument(Guid id, CancellationToken ct)
+        {
+            var specialistId = await GetCurrentSpecialistIdAsync();
+            if (specialistId == Guid.Empty)
+                return Results.NotFound();
+
+            var result = await specialistService.DeleteDocumentAsync(specialistId, id, ct);
+            if (result.IsSuccess)
+                return Results.Ok(ApiResponse.SuccessResponse("Document deleted successfully."));
+            return result.Errors.ToProblem();
+        }
+
+        #endregion
+
+        #region Verification
+
+        [HttpGet("me/verification")]
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<VerificationDetailsResponse>), StatusCodes.Status200OK)]
+        public async Task<IResult> GetVerification(CancellationToken ct)
+        {
+            var specialistId = await GetCurrentSpecialistIdAsync();
+            if (specialistId == Guid.Empty)
+                return Results.NotFound();
+
+            var result = await specialistService.GetVerificationAsync(specialistId, ct);
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<VerificationDetailsResponse>.SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        //[HttpGet("me/verification/status")]
+        //[Authorize]
+        //[ProducesResponseType(typeof(ApiResponse<VerificationStatusResponse>), StatusCodes.Status200OK)]
+        //public async Task<IResult> GetVerificationStatus(CancellationToken ct)
+        //{
+        //    var specialistId = await GetCurrentSpecialistIdAsync();
+        //    if (specialistId == Guid.Empty)
+        //        return Results.NotFound();
+
+        //    var result = await specialistService.GetVerificationStatusAsync(specialistId, ct);
+        //    return result.Match(
+        //        value => Results.Ok(
+        //            ApiResponse<VerificationStatusResponse>.SuccessResponse(value)),
+        //        errors => errors.ToProblem());
+        //}
+
+        [HttpPost("me/verification")]
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        public async Task<IResult> SubmitVerification(CancellationToken ct)
+        {
+            var specialistId = await GetCurrentSpecialistIdAsync();
+            if (specialistId == Guid.Empty)
+                return Results.NotFound();
+
+            var result = await specialistService.SubmitVerificationAsync(specialistId, ct);
+            if (result.IsSuccess)
+                return Results.Ok(ApiResponse.SuccessResponse("Verification submitted successfully."));
+            return result.Errors.ToProblem();
+        }
+
+        #endregion
     }
 }
+//Khaled$123
+//KH@gmail.com

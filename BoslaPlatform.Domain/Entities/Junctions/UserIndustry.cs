@@ -9,7 +9,7 @@ namespace BoslaPlatform.Domain.Models.Junctions
         public Guid UserId { get; set; }
         public Guid IndustryId { get; set; }
         public Industry Industry { get; set; } = null!;
-        public User User { get; set; }
+        public User User { get; set; } = null!;
 
     }
 }

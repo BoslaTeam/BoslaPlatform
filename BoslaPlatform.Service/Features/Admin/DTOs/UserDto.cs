@@ -9,5 +9,8 @@ namespace BoslaPlatform.Application.Features.Admin.DTOs
         public string? FullName { get; set; }
         public bool IsActive { get; set; }
         public string[]? Roles { get; set; }
+        public int Role { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string? AvatarUrl { get; set; }
     }
 }

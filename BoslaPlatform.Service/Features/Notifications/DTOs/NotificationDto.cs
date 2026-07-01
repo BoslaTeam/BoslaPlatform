@@ -8,5 +8,7 @@ namespace BoslaPlatform.Application.Features.Notifications.DTOs
         string Message,
         string Type,
         bool IsRead,
-        DateTimeOffset CreatedAtUtc);
+        DateTimeOffset CreatedAtUtc,
+        Guid? AppointmentId = null,
+        int? AppointmentStatus = null);
 }

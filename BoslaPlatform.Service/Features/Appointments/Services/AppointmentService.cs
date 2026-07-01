@@ -1,9 +1,13 @@
-﻿using BoslaPlatform.Application.Features.Appointments.DTOs;
+﻿using System.Collections;
+using BoslaPlatform.Application.Features.Appointments.DTOs;
 using BoslaPlatform.Application.Features.Appointments.Requests;
 using BoslaPlatform.Application.Features.Appointments.Services;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Persistence;
+using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Enums;
+using BoslaPlatform.Domain.Events.Apoointments;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Shared;
 using Microsoft.EntityFrameworkCore;
@@ -28,7 +32,12 @@ namespace BoslaPlatform.Application.Services
             {
                 return Error.Unauthorized("Auth.Unauthorized", "User must be logged in to schedule an appointment.");
             }
-
+           
+            var specialistExists = await _context.Specialists.AnyAsync(s => s.Id == request.SpecialistId, ct);
+            if (!specialistExists)
+            {
+                return Error.NotFound("Specialist.NotFound", "The requested specialist does not exist.");
+            }
             if (request.Start >= request.End)
             {
                 return Error.Validation("Appointment.InvalidTimeRange", "The appointment start time must be before the end time.");
@@ -50,18 +59,37 @@ namespace BoslaPlatform.Application.Services
 
             Guid currentUserId = _currentUser.Id.Value;
 
+            var specialist = await _context.Specialists
+                .AsNoTracking()
+            .FirstOrDefaultAsync(
+                s => s.Id == request.SpecialistId,
+                ct);
+
+            if (specialist is null)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "The requested specialist does not exist.");
+            }
+
+            var durationHours = (decimal)(request.End - request.Start).TotalHours;
+            var sessionPrice = specialist.HourlyRate * durationHours;
+
             var appointment = Appointment.Schedule(
-                request.SpecialistId,
-                currentUserId,
-                request.Start,
-                request.End,
-                request.SessionTopic,
-                request.Notes
+                   request.SpecialistId,
+                    currentUserId,
+                    request.Start,
+                    request.End,
+                    request.SessionTopic,
+                    request.Notes,
+                    sessionPrice
+
             );
 
             _context.Appointments.Add(appointment);
             await _context.SaveChangesAsync(ct);
 
+            appointment.AddDomainEvent(new AppointmentScheduledEvent(appointment.Id, appointment.SpecialistId, appointment.UserId, appointment.Start));
             return appointment.Id;
         }
 
@@ -70,17 +98,26 @@ namespace BoslaPlatform.Application.Services
         {
             var appointment = await _context.Appointments
                 .AsNoTracking()
+                .Include(a => a.User)
+                .Include(a => a.Specialist)
+                    .ThenInclude(s => s.User)
                 .Where(a => a.Id == id)
                 .Select(a => new AppointmentDto
                 {
                     Id = a.Id,
                     SpecialistId = a.SpecialistId,
+                    SpecialistName = a.Specialist.User.Name,
                     UserId = a.UserId,
+                    UserName = a.User.Name,
                     Start = a.Start,
                     End = a.End,
                     Status = a.Status,
                     SessionTopic = a.SessionTopic,
-                    Notes = a.Notes
+                    Notes = a.Notes,
+                    SessionPrice = a.SessionPrice,
+
+                    IsPaid = a.Payment != null
+                        && a.Payment.Status == PaymentStatus.Completed
                 })
                 .FirstOrDefaultAsync(ct);
 
@@ -92,7 +129,7 @@ namespace BoslaPlatform.Application.Services
             return appointment;
         }
 
-        // 3. Read Paginated List for Logged-In Patient
+        // 3. Read Paginated List for Logged-In User (Patient + Specialist)
         public async Task<Result<PaginatedList<AppointmentDto>>> GetMyAppointmentsAsync(int pageNumber, int pageSize, CancellationToken ct)
         {
             if (!_currentUser.Id.HasValue)
@@ -102,9 +139,22 @@ namespace BoslaPlatform.Application.Services
 
             Guid currentUserId = _currentUser.Id.Value;
 
+            // Resolve Specialist.Id if the current user has a specialist profile
+            var specialistId = await _context.Specialists
+                .Where(s => s.UserId == currentUserId)
+                .Select(s => (Guid?)s.Id)
+                .FirstOrDefaultAsync(ct);
+
             var query = _context.Appointments
                 .AsNoTracking()
                 .Where(a => a.UserId == currentUserId);
+
+            if (specialistId.HasValue)
+            {
+                query = _context.Appointments
+                    .AsNoTracking()
+                    .Where(a => a.UserId == currentUserId || a.SpecialistId == specialistId.Value);
+            }
 
             int totalCount = await query.CountAsync(ct);
 
@@ -121,7 +171,9 @@ namespace BoslaPlatform.Application.Services
                     End = a.End,
                     Status = a.Status,
                     SessionTopic = a.SessionTopic,
-                    Notes = a.Notes
+                    Notes = a.Notes,
+                    SessionPrice = a.SessionPrice,
+                    IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed
                 })
                 .ToListAsync(ct);
 
@@ -152,12 +204,61 @@ namespace BoslaPlatform.Application.Services
                     End = a.End,
                     Status = a.Status,
                     SessionTopic = a.SessionTopic,
-                    Notes = a.Notes
+                    Notes = a.Notes,
+                    SessionPrice = a.SessionPrice,
+                    IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed
                 })
                 .ToListAsync(ct);
 
             var metadata = PaginationMetadata.Create(pageNumber, pageSize, totalCount);
 
+            return new PaginatedList<AppointmentDto>(items, metadata);
+        }
+
+        // 4b. Read Paginated List for Current Specialist
+        public async Task<Result<PaginatedList<AppointmentDto>>> GetMySpecialistAppointmentsAsync(int pageNumber, int pageSize, CancellationToken ct)
+        {
+            if (!_currentUser.Id.HasValue)
+            {
+                return Error.Unauthorized("Auth.Unauthorized", "User identification missing.");
+            }
+
+            var specialistId = await _context.Specialists
+                .Where(s => s.UserId == _currentUser.Id.Value)
+                .Select(s => (Guid?)s.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (!specialistId.HasValue)
+            {
+                return Error.Forbidden("Appointment.NotSpecialist", "Current user does not have a specialist profile.");
+            }
+
+            var query = _context.Appointments
+                .AsNoTracking()
+                .Where(a => a.SpecialistId == specialistId.Value);
+
+            int totalCount = await query.CountAsync(ct);
+
+            var items = await query
+                .OrderByDescending(a => a.Start)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(a => new AppointmentDto
+                {
+                    Id = a.Id,
+                    SpecialistId = a.SpecialistId,
+                    UserId = a.UserId,
+                    Start = a.Start,
+                    End = a.End,
+                    Status = a.Status,
+                    SessionTopic = a.SessionTopic,
+                    Notes = a.Notes,
+                    SessionPrice = a.SessionPrice,
+                    IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed
+                })
+                .ToListAsync(ct);
+
+            var metadata = PaginationMetadata.Create(pageNumber, pageSize, totalCount);
             return new PaginatedList<AppointmentDto>(items, metadata);
         }
 
@@ -171,10 +272,17 @@ namespace BoslaPlatform.Application.Services
 
             Guid currentUserId = _currentUser.Id.Value;
 
+            // Resolve Specialist.Id if the current user has a specialist profile
+            var specialistId = await _context.Specialists
+                .Where(s => s.UserId == currentUserId)
+                .Select(s => (Guid?)s.Id)
+                .FirstOrDefaultAsync(ct);
+
             // Fetch active upcoming appointments for either the patient or specialist
             var upcomingAppointments = await _context.Appointments
                 .AsNoTracking()
-                .Where(a => (a.UserId == currentUserId || a.SpecialistId == currentUserId) &&
+                .Where(a => (a.UserId == currentUserId ||
+                             (specialistId.HasValue && a.SpecialistId == specialistId.Value)) &&
                             a.Start >= DateTimeOffset.UtcNow &&
                             a.Status != AppointmentStatus.Cancelled)
                 .OrderBy(a => a.Start)
@@ -187,7 +295,9 @@ namespace BoslaPlatform.Application.Services
                     End = a.End,
                     Status = a.Status,
                     SessionTopic = a.SessionTopic,
-                    Notes = a.Notes
+                    Notes = a.Notes,
+                    SessionPrice = a.SessionPrice,
+                    IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed
                 })
                 .ToListAsync(ct);
 
@@ -221,6 +331,32 @@ namespace BoslaPlatform.Application.Services
             return historyDto;
         }
 
+        // 6a. Confirm Payment after Stripe success
+        public async Task<Result> ConfirmPaymentAsync(Guid id, string paymentIntentId, CancellationToken ct)
+        {
+            var appointment = await _context.Appointments
+                .Include(a => a.StatusHistory)
+                .FirstOrDefaultAsync(a => a.Id == id, ct);
+
+            if (appointment is null) return Error.NotFound("Appointment.NotFound", "The appointment was not found.");
+
+            if (!_currentUser.Id.HasValue || appointment.UserId != _currentUser.Id.Value)
+                return Error.Forbidden("Payment.Forbidden", "You are not authorized to confirm payment for this appointment.");
+
+            var payment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.AppointmentId == id, ct);
+
+            if (payment is null) return Error.NotFound("Payment.NotFound", "No payment found for this appointment.");
+
+            payment.Complete(paymentIntentId, "Card");
+
+            var result = appointment.MarkAsPaid();
+            if (result.IsError) return result.Errors;
+
+            await _context.SaveChangesAsync(ct);
+            return Result.Success();
+        }
+
         // 7. Confirm Appointment
         public async Task<Result> ConfirmAsync(Guid id, CancellationToken ct)
         {
@@ -242,10 +378,11 @@ namespace BoslaPlatform.Application.Services
         }
 
         // 8. Cancel Appointment
-        public async Task<Result> CancelAsync(Guid id, string reason, CancellationToken ct)
+        public async Task<Result> CancelAsync(Guid id, string? reason, CancellationToken ct)
         {
             var appointment = await _context.Appointments
                 .Include(a => a.StatusHistory)
+                .Include(a => a.Payment)
                 .FirstOrDefaultAsync(a => a.Id == id, ct);
 
             if (appointment is null) return Error.NotFound("Appointment.NotFound", "The appointment was not found.");
@@ -254,8 +391,13 @@ namespace BoslaPlatform.Application.Services
 
             Guid executingUserId = _currentUser.Id.Value;
 
-            var result = appointment.Cancel(executingUserId, reason);
+            var result = appointment.Cancel(executingUserId, reason ?? "");
             if (result.IsError) return result.Errors;
+
+            if (appointment.Payment is not null && appointment.Payment.Status == PaymentStatus.Completed)
+            {
+                appointment.Payment.MarkAsRefunded("Appointment cancelled.");
+            }
 
             await _context.SaveChangesAsync(ct);
             return Result.Success();
@@ -343,6 +485,138 @@ namespace BoslaPlatform.Application.Services
             appointment.UpdateNotes(notes); 
 
             await _context.SaveChangesAsync(ct);
+            return Result.Success();
+        }
+
+
+        // 13. Submit Review
+        public async Task<Result<Guid>> SubmitReviewAsync(Guid appointmentId, SubmitReviewRequest request, CancellationToken ct)
+        {
+            if (!_currentUser.IsAuthenticated || !_currentUser.Id.HasValue)
+            {
+                return Error.Unauthorized("Auth.Unauthorized", "User must be logged in to submit a review.");
+            }
+
+            var appointment = await _context.Appointments
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == appointmentId, ct);
+
+            if (appointment is null)
+            {
+                return Error.NotFound("Appointment.NotFound", "The appointment was not found.");
+            }
+
+
+            if (appointment.UserId != _currentUser.Id.Value)
+            {
+                return Error.Forbidden("Review.Forbidden", "You can only review appointments that belong to you.");
+            }
+
+
+            bool alreadyReviewed = await _context.Reviews
+                .AnyAsync(r => r.AppointmentId == appointmentId, ct);
+
+            if (alreadyReviewed)
+            {
+                return Error.Conflict("Review.AlreadyExists", "You have already submitted a review for this appointment.");
+            }
+
+            var review = new Review
+            {
+                
+                AppointmentId = appointmentId,
+                ReviewerId = _currentUser.Id.Value,
+                SpecialistId = appointment.SpecialistId,
+                Rating = (byte)request.Rating,
+                Comment = request.Comment
+            };
+
+            _context.Reviews.Add(review);
+            await _context.SaveChangesAsync(ct);
+
+            return review.Id;
+        }
+
+        // 14. Get Reminders for a Specific Appointment
+        public async Task<Result<List<ReminderDto>>> GetRemindersAsync(Guid appointmentId, CancellationToken ct)
+        {
+            if (!_currentUser.Id.HasValue)
+            {
+                return Error.Unauthorized("Auth.Unauthorized", "User identification missing.");
+            }
+
+            var reminders = await _context.Reminders
+                .AsNoTracking()
+                .Where(r => r.AppointmentId == appointmentId && r.UserId == _currentUser.Id.Value)
+                .Select(r => new ReminderDto
+                {
+                    Id = r.Id,
+                    AppointmentId = r.AppointmentId,
+                    ReminderTime = r.ReminderTime, 
+                    Message = r.Message,
+                    IsSent = r.IsSent
+                })
+                .ToListAsync(ct);
+
+            return reminders;
+        }
+
+        // 15. Add New Reminder
+        public async Task<Result<Guid>> AddReminderAsync(Guid appointmentId, AddReminderRequest request, CancellationToken ct)
+        {
+            if (!_currentUser.IsAuthenticated || !_currentUser.Id.HasValue)
+            {
+                return Error.Unauthorized("Auth.Unauthorized", "User must be logged in to create reminders.");
+            }
+
+            var appointment = await _context.Appointments
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == appointmentId, ct);
+
+            if (appointment is null)
+            {
+                return Error.NotFound("Appointment.NotFound", "The appointment was not found.");
+            }
+
+            var reminder = new Reminder
+            {
+                AppointmentId = appointmentId,
+                UserId = _currentUser.Id.Value,
+                ReminderTime = request.ReminderTime.UtcDateTime,
+                Message = request.Message,
+                IsSent = false
+            };
+
+            _context.Reminders.Add(reminder);
+            await _context.SaveChangesAsync(ct);
+
+            return reminder.Id;
+        }
+
+        // 16. Delete Specific Reminder
+        public async Task<Result> DeleteReminderAsync(Guid appointmentId, Guid reminderId, CancellationToken ct)
+        {
+            if (!_currentUser.Id.HasValue)
+            {
+                return Error.Unauthorized("Auth.Unauthorized", "User identification missing.");
+            }
+
+            var reminder = await _context.Reminders
+                .FirstOrDefaultAsync(r => r.Id == reminderId && r.AppointmentId == appointmentId, ct);
+
+            if (reminder is null)
+            {
+                return Error.NotFound("Reminder.NotFound", "The requested reminder was not found.");
+            }
+
+            if (reminder.UserId != _currentUser.Id.Value)
+            {
+                return Error.Forbidden("Reminder.Forbidden", "You do not have permission to delete this reminder.");
+            }
+
+            _context.Reminders.Remove(reminder);
+            await _context.SaveChangesAsync(ct);
+
             return Result.Success();
         }
     }

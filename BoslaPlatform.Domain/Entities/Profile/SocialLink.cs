@@ -8,7 +8,7 @@ namespace BoslaPlatform.Domain.Models.Profile
         public Guid UserId { get; set; }
         public string Title { get; set; } = string.Empty;
         public string Url { get; set; } = string.Empty;
-        public User User { get; set; }
+        public User User { get; set; } = null!;
 
     }
 }

@@ -22,7 +22,7 @@ namespace BoslaPlatform.Domain.Models.Identity
 
         [NotMapped]
         public bool IsExpired =>DateTime.UtcNow >= ExpiresOnUtc;
-        public User User { get; set; }
+        public User User { get; set; } = null!;
 
 
 

@@ -9,6 +9,7 @@ namespace BoslaPlatform.Application.Interfaces.Authentication
         Task<Result<UserProfileDto>> GetMyProfileAsync(CancellationToken ct = default);
         Task<Result<UserProfileDto>> UpdateProfileAsync(UpdateProfileRequest request, CancellationToken ct = default);
         Task<Result<bool>> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken ct = default);
+        Task<Result<bool>> SetPasswordAsync(SetPasswordRequest request, CancellationToken ct = default);
         
         Task<Result<List<EducationDto>>> GetEducationAsync(CancellationToken ct = default);
         Task<Result<EducationDto>> AddEducationAsync(AddEducationRequest request, CancellationToken ct = default);

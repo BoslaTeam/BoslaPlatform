@@ -1,7 +1,4 @@
 ﻿using BoslaPlatform.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace BoslaPlatform.Application.Features.Specialists.Response
 {
@@ -23,7 +20,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Response
 
         public string? Country { get; init; }
 
-        public string Gender { get; init; }
+        public string? Gender { get; init; }
 
         public string? PreferredLanguage { get; init; }
 
@@ -40,5 +37,11 @@ namespace BoslaPlatform.Application.Features.Specialists.Response
         public List<string> Tools { get; init; } = new();
         public List<string> Skills { get; init; } = new();
         public List<string> Industries { get; init; } = new();
+
+        public decimal Rating { get; init; }
+
+        public int ReviewsCount { get; init; }
+
+        public bool IsOnline { get; init; }
     }
 }

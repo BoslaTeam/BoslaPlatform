@@ -117,6 +117,29 @@ namespace BoslaPlatform.Infrastructure.Identity
             return Result<bool>.Success(true);
         }
 
+        public async Task<Result<bool>> SetPasswordAsync(SetPasswordRequest request, CancellationToken ct = default)
+        {
+            var userId = GetUserId();
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+
+            if (user == null)
+                return Error.NotFound(description: "User not found.");
+
+            var hasPassword = await _userManager.HasPasswordAsync(user);
+            if (hasPassword)
+                return Error.Validation(description: "User already has a password. Use ChangePassword instead.");
+
+            var result = await _userManager.AddPasswordAsync(user, request.NewPassword);
+            if (!result.Succeeded)
+            {
+                return result.Errors.Select(e => Error.Create(ErrorKind.Validation, e.Code, e.Description)).ToList();
+            }
+
+            await _emailService.SendEmailAsync(user.Email!, "Password Set", "Your password has been successfully set. You can now use it to log in.");
+
+            return Result<bool>.Success(true);
+        }
+
         public async Task<Result<List<EducationDto>>> GetEducationAsync(CancellationToken ct = default)
         {
             var userId = GetUserId();
@@ -143,7 +166,7 @@ namespace BoslaPlatform.Infrastructure.Identity
                 FieldOfStudy = request.Degree,
                 InstitutionName = request.Institution,
                 StartDate = new DateOnly(request.StartYear, 1, 1),
-                EndDate = new DateOnly(request.EndYear, 1, 1)
+                EndDate = request.EndYear.HasValue ? new DateOnly(request.EndYear.Value, 1, 1) : null
             };
 
             _context.Set<Education>().Add(education);
@@ -171,7 +194,7 @@ namespace BoslaPlatform.Infrastructure.Identity
             education.FieldOfStudy = request.Degree;
             education.InstitutionName = request.Institution;
             education.StartDate = new DateOnly(request.StartYear, 1, 1);
-            education.EndDate = new DateOnly(request.EndYear, 1, 1);
+            education.EndDate = request.EndYear.HasValue ? new DateOnly(request.EndYear.Value, 1, 1) : null;
 
             await _context.SaveChangesAsync(ct);
 

@@ -18,6 +18,8 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
 
         DbSet<Specialist> Specialists { get; }
         DbSet<SpecialistExperience> SpecialistExperiences { get; }
+        DbSet<SpecialistVerification> SpecialistVerifications { get; }
+        DbSet<SpecialistDocument> SpecialistDocuments { get; }
 
         DbSet<Education> Educations { get; }
 
@@ -49,6 +51,7 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
         DbSet<VideoSession> VideoSessions { get; }
         DbSet<VideoSessionParticipant> VideoSessionParticipants { get; }
         DbSet<SpecialistTool> SpecialistTools { get; }
+        DbSet<Reminder> Reminders { get; }
 
         DbSet<TEntity> Set<TEntity>()
             where TEntity : class;

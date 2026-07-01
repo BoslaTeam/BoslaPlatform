@@ -60,7 +60,6 @@ namespace BoslaPlatform.Infrastructure.Agora.Services
                     "User.Unauthorized",
                     "User is not authenticated.");
             }
-
             var appointment = await _context.Appointments
             .Include(x => x.VideoSession)
                 .ThenInclude(x => x.Participants)

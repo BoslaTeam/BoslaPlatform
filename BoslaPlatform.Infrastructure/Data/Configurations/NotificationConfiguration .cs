@@ -13,6 +13,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
             builder.Property(n => n.Message).HasMaxLength(1000).IsRequired();
             builder.Property(n => n.Type).HasConversion<string>().HasMaxLength(30).IsRequired();
             builder.Property(n => n.IsRead).HasDefaultValue(false);
+            builder.Property(n => n.AppointmentId).IsRequired(false);
             builder.HasOne(n => n.User)
                 .WithMany(u => u.Notifications)
                 .HasForeignKey(n => n.UserId)

@@ -8,17 +8,23 @@ using BoslaPlatform.Application.Features.Notifications.Services;
 using BoslaPlatform.Application.Interfaces.AI;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Communication;
+using BoslaPlatform.Application.Features.Admin.Repositories;
 using BoslaPlatform.Application.Interfaces.Persistence;
+using BoslaPlatform.Application.Interfaces.Specialists;
 using BoslaPlatform.Application.Interfaces.Video;
+using BoslaPlatform.Application.Features.Specialists.Services;
 using BoslaPlatform.Application.Features.VideoSessions.Interfaces;
 using BoslaPlatform.Application.Features.VideoSessions.Services;
 using BoslaPlatform.Application.Services;
 using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Infrastructure.AI.SemanticKernel;
+using Microsoft.SemanticKernel.Connectors.Qdrant;
 using BoslaPlatform.Infrastructure.Agora;
 using BoslaPlatform.Infrastructure.Agora.Interfaces;
 using BoslaPlatform.Infrastructure.Agora.Services;
-using BoslaPlatform.Infrastructure.AI.OpenAi;
+using BoslaPlatform.Infrastructure.BackgroundJobs;
+//using BoslaPlatform.Infrastructure.AI.OpenAi;
 using BoslaPlatform.Infrastructure.Communication;
 using BoslaPlatform.Infrastructure.Data;
 using BoslaPlatform.Infrastructure.Data.Interceptors;
@@ -49,6 +55,7 @@ public static class DependencyInjection
 
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationAssemblyReference).Assembly));
 
+            services.AddScoped<ISaveChangesInterceptor, AuditLogInterceptor>();
             services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
             services.AddScoped<ISaveChangesInterceptor, DomainEventsInterceptor>();
             services.AddScoped<ApplicationDbContextInitialiser>();
@@ -72,10 +79,14 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
             options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
-            options.UseSqlServer(connectionString);
+            options.UseSqlServer(connectionString, sqlOptions => sqlOptions.CommandTimeout(60));
         });
 
         services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
+
+        services.AddScoped<IDashboardRepository>(provider =>
+            new DapperDashboardRepository(connectionString));
+
 
         services.AddScoped<IAdminService, AdminService>();
 
@@ -150,25 +161,53 @@ public static class DependencyInjection
         services.AddAuthorization();
         services.AddHttpContextAccessor();
 
-        services.Configure<OpenAISettings>(configuration.GetSection("OpenAISettings"));
-        services.AddHttpClient("openai").ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(10));
-        services.AddScoped<IChatService, OpenAiChatService>();
-        
-        services.AddHttpClient<OpenAiEmbeddingService>();
-        services.AddScoped<IEmbeddingService,OpenAiEmbeddingService>();
-        
-        services.AddHttpClient<OpenAiChatService>();
-        services.AddSingleton<BoslaPlatform.Infrastructure.AI.Tokenizers.ITokenizer, BoslaPlatform.Infrastructure.AI.Tokenizers.SimpleTokenizer>();
-        
-        services.Configure<QdrantSettings>(configuration.GetSection("QdrantSettings"));
-        services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Qdrant.QdrantClient>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(10));
+        // Gemini is the only AI provider (mandatory)
+        services.Configure<GeminiSettings>(configuration.GetSection("GeminiSettings"));
+        services.AddHttpClient("gemini").ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30));
 
-        services.AddScoped<IVectorStore, BoslaPlatform.Infrastructure.AI.Qdrant.QdrantVectorStore>();
-        services.AddScoped<IAiSearchService, BoslaPlatform.Infrastructure.AI.AiSearchService>();
-                        
+        services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Gemini.GeminiEmbeddingService>();
+        services.AddScoped<IEmbeddingService, BoslaPlatform.Infrastructure.AI.Gemini.GeminiEmbeddingService>();
+
+        services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Gemini.GeminiChatService>();
+        services.AddScoped<IChatService, BoslaPlatform.Infrastructure.AI.Gemini.GeminiChatService>();
+        //services.AddSingleton<BoslaPlatform.Infrastructure.AI.Tokenizers.ITokenizer, BoslaPlatform.Infrastructure.AI.Tokenizers.SimpleTokenizer>();
+
+
+        // Register Qdrant settings early
+        services.Configure<QdrantSettings>(configuration.GetSection("QdrantSettings"));
+
+        // Register Semantic Kernel v1.77 with Gemini plugins
+        services.AddSemanticKernelForGemini();
+
+        // Register the official Semantic Kernel Qdrant connector (vector store)
+        // This makes the Microsoft.SemanticKernel.Connectors.Qdrant vector store available via DI.
+        var qdrantBaseUrl = configuration.GetSection("QdrantSettings")["BaseUrl"] ?? configuration.GetSection("QdrantSettings")["Url"];
+        if (!string.IsNullOrEmpty(qdrantBaseUrl))
+        {
+            // AddQdrantVectorStore is an extension from Microsoft.SemanticKernel.Connectors.Qdrant
+            services.AddQdrantVectorStore(qdrantBaseUrl);
+            }
+
+            // Register Qdrant HTTP client used by the local QdrantVectorStore implementation
+            services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Qdrant.QdrantClient>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30));
+
+            // Register application IVectorStore to the local QdrantVectorStore implementation
+            // Keep the Semantic Kernel QdrantVectorStore registered by AddQdrantVectorStore for SK components
+            services.AddScoped<IVectorStore, BoslaPlatform.Infrastructure.AI.Qdrant.QdrantVectorStore>();
+
+            services.AddScoped<IAiSearchService, BoslaPlatform.Infrastructure.AI.AiSearchService>();
+            services.AddScoped<BoslaPlatform.Application.Interfaces.AI.IEmbeddingAdminService, BoslaPlatform.Infrastructure.AI.EmbeddingAdminService>();
+
+        // Tokenizer implementation used by AiSearchService
+        services.AddSingleton<BoslaPlatform.Infrastructure.AI.Tokenizers.ITokenizer, BoslaPlatform.Infrastructure.AI.Tokenizers.SimpleTokenizer>();
+
+        // Summary service
+        services.AddScoped<BoslaPlatform.Application.Interfaces.AI.ISummaryService, BoslaPlatform.Infrastructure.AI.SummaryService>();
+
             services.AddAuthorization();
 
 
             return services;
         }
     }
+
