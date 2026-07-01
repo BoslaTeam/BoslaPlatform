@@ -16,7 +16,6 @@ builder.Services.AddApplication()
     .AddPresentation();
 
 
-builder.Services.AddSignalR();
 // Rate limiting (disabled for now) — policy code previously added removed per request
 
 var app = builder.Build();

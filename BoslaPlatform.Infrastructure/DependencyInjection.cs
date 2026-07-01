@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using BoslaPlatform.Application;
 using BoslaPlatform.Application.Common.Interfaces;
 using BoslaPlatform.Application.Features.Admin.Services;
@@ -39,6 +40,7 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddSingleton(TimeProvider.System);
+            services.AddSingleton<UserPresenceTracker>();
         
         var connectionString = configuration.GetConnectionString("DefaultConnection");
         ArgumentNullException.ThrowIfNull(connectionString);
@@ -80,7 +82,14 @@ public static class DependencyInjection
         services.AddScoped<IAppointmentService, AppointmentService>();
         services.AddScoped<INotificationSender, SignalRNotificationSender>();
         services.AddScoped<IEmailService, EmailService>();
-        services.AddSignalR();
+        // SignalR: use camelCase JSON so Angular handlers receive the expected
+        // property names (userId, isOnline, lastSeen) instead of PascalCase.
+        services.AddSignalR()
+            .AddJsonProtocol(options =>
+            {
+                options.PayloadSerializerOptions.PropertyNamingPolicy =
+                    JsonNamingPolicy.CamelCase;
+            });
 
         services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
         services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
