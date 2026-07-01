@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddValidatorsFromAssemblyContaining<ApplicationAssemblyReference>();
 
         services.AddScoped<ISpecialistService, SpecialistService>();
+        services.AddScoped<ISpecialistSubmissionValidator, SpecialistSubmissionValidator>();
         services.AddScoped<ILookupService, LookupService>();
 
         services.AddScoped<IPaymentService, PaymentService>();

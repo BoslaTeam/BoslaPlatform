@@ -250,6 +250,7 @@ namespace BoslaPlatform.Infrastructure.Services
                 .Include(s => s.SpecialistExpertise).ThenInclude(se => se.Expertise)
                 .Include(s => s.Appointments)
                     .ThenInclude(a => a.Payment)
+                .Include(s => s.Verification)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(search))
@@ -262,7 +263,7 @@ namespace BoslaPlatform.Infrastructure.Services
             if (!string.IsNullOrWhiteSpace(verificationStatus)
                 && Enum.TryParse<VerificationStatus>(verificationStatus, true, out var status))
             {
-                query = query.Where(s => s.VerificationStatus == status);
+                query = query.Where(s => s.Verification != null && s.Verification.Status == status);
             }
 
             var totalCount = await query.CountAsync(cancellationToken);
@@ -282,7 +283,7 @@ namespace BoslaPlatform.Infrastructure.Services
                 ProfileImageUrl = s.User.ProfileImageUrl,
                 HourlyRate = s.HourlyRate,
                 ExperienceLevel = s.ExperienceLevel.ToString(),
-                VerificationStatus = s.VerificationStatus.ToString(),
+                VerificationStatus = s.Verification?.Status.ToString() ?? nameof(VerificationStatus.Pending),
                 Rating = s.Reviews.Any() ? Math.Round(s.Reviews.Average(r => (double)r.Rating), 1) : 0,
                 IsOnline = false,
                 CreatedAt = s.CreatedAtUtc.UtcDateTime,
@@ -321,6 +322,7 @@ namespace BoslaPlatform.Infrastructure.Services
                 .Include(s => s.Experiences)
                 .Include(s => s.Reviews).ThenInclude(r => r.Reviewer)
                 .Include(s => s.Appointments).ThenInclude(a => a.Payment)
+                .Include(s => s.Verification)
                 .FirstOrDefaultAsync(s => s.Id == specialistId, cancellationToken);
 
             if (specialist == null)
@@ -341,9 +343,9 @@ namespace BoslaPlatform.Infrastructure.Services
                 Gender = specialist.User.Gender,
                 Country = specialist.User.Country,
                 PreferredLanguage = specialist.User.PreferredLanguage,
-                VerificationStatus = specialist.VerificationStatus.ToString(),
-                IsVerified = specialist.VerificationStatus == VerificationStatus.Approved,
-                VerifiedAt = specialist.VerifiedAt,
+                VerificationStatus = specialist.Verification?.Status.ToString() ?? nameof(VerificationStatus.Pending),
+                IsVerified = specialist.Verification?.Status == VerificationStatus.Approved,
+                VerifiedAt = specialist.Verification?.ReviewedAt,
                 Rating = specialist.Reviews.Any()
                     ? Math.Round(specialist.Reviews.Average(r => (double)r.Rating), 1)
                     : 0,
@@ -396,13 +398,19 @@ namespace BoslaPlatform.Infrastructure.Services
 
         public async Task<Result> VerifySpecialistAsync(Guid specialistId, bool isVerified, Guid verifiedByUserId, CancellationToken cancellationToken = default)
         {
-            var specialist = await _context.Specialists.FirstOrDefaultAsync(s => s.Id == specialistId, cancellationToken);
+            var specialist = await _context.Specialists
+                .Include(s => s.Verification)
+                .FirstOrDefaultAsync(s => s.Id == specialistId, cancellationToken);
             if (specialist == null)
                 return Error.NotFound(description: "Specialist not found.");
 
-            specialist.VerificationStatus = isVerified ? VerificationStatus.Approved : VerificationStatus.Rejected;
-            specialist.VerifiedAt = isVerified ? DateTime.UtcNow : null;
-            specialist.VerifiedBy = isVerified ? verifiedByUserId : null;
+            if (specialist.Verification == null)
+                return Error.NotFound(description: "Specialist verification not found.");
+
+            if (isVerified)
+                specialist.Verification.Approve(verifiedByUserId);
+            else
+                specialist.Verification.Reject(verifiedByUserId, null);
 
             await _context.SaveChangesAsync(cancellationToken);
 
@@ -570,16 +578,32 @@ namespace BoslaPlatform.Infrastructure.Services
 
         public async Task<Result> UpdateSpecialistStatusAsync(Guid specialistId, string status, Guid? verifiedByUserId, CancellationToken cancellationToken = default)
         {
-            var specialist = await _context.Specialists.FirstOrDefaultAsync(s => s.Id == specialistId, cancellationToken);
+            var specialist = await _context.Specialists
+                .Include(s => s.Verification)
+                .FirstOrDefaultAsync(s => s.Id == specialistId, cancellationToken);
             if (specialist == null)
                 return Error.NotFound(description: "Specialist not found.");
+
+            if (specialist.Verification == null)
+                return Error.NotFound(description: "Specialist verification not found.");
 
             if (!Enum.TryParse<VerificationStatus>(status, true, out var parsedStatus))
                 return Error.Validation(description: $"Invalid verification status: {status}");
 
-            specialist.VerificationStatus = parsedStatus;
-            specialist.VerifiedAt = parsedStatus == VerificationStatus.Approved ? DateTime.UtcNow : null;
-            specialist.VerifiedBy = parsedStatus == VerificationStatus.Approved ? verifiedByUserId : null;
+            if (parsedStatus == VerificationStatus.Approved)
+            {
+                if (!verifiedByUserId.HasValue)
+                    return Error.Validation(description: "Admin ID is required for approval.");
+                specialist.Verification.Approve(verifiedByUserId.Value);
+            }
+            else if (parsedStatus == VerificationStatus.Rejected)
+            {
+                specialist.Verification.Reject(verifiedByUserId ?? Guid.Empty, null);
+            }
+            else
+            {
+                return Error.Validation(description: $"Cannot set status to {status} via this endpoint.");
+            }
 
             await _context.SaveChangesAsync(cancellationToken);
             return Result.Success();
@@ -729,8 +753,8 @@ namespace BoslaPlatform.Infrastructure.Services
                 .Where(p => p.Status == BoslaPlatform.Domain.Enums.PaymentStatus.Completed)
                 .SumAsync(p => p.Amount, cancellationToken);
 
-            var pendingVerifications = await _context.Specialists
-                .CountAsync(s => s.VerificationStatus == BoslaPlatform.Domain.Enums.VerificationStatus.Pending, cancellationToken);
+            var pendingVerifications = await _context.SpecialistVerifications
+                .CountAsync(v => v.Status == VerificationStatus.Pending, cancellationToken);
 
             var activeAppointments = await _context.Appointments
                 .CountAsync(a => a.Status == BoslaPlatform.Domain.Enums.AppointmentStatus.Confirmed || a.Status == BoslaPlatform.Domain.Enums.AppointmentStatus.Rescheduled, cancellationToken);

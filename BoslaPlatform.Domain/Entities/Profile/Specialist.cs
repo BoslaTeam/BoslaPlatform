@@ -18,9 +18,6 @@ namespace BoslaPlatform.Domain.Entities.Profile
         public int MaxSessionsPerDay { get; set; } = 8;
         public int MaxSessionsPerWeek { get; set; } = 40;
         public string? IntroVideoUrl { get; set; }
-        public VerificationStatus VerificationStatus { get; set; } = VerificationStatus.Pending;
-        public DateTime? VerifiedAt { get; set; }
-        public Guid? VerifiedBy { get; set; }
         public int CancellationDeadlineHours { get; set; } = 24;
         public decimal CancellationFeePercent { get; set; } = 0;
         public string? BookingPolicy { get; set; }
@@ -42,31 +39,18 @@ namespace BoslaPlatform.Domain.Entities.Profile
         public ICollection<SpecialistIndustry> SpecialistIndustries { get; set; } = [];
         public ICollection<SpecialistSkill> SpecialistSkills { get; set; } = [];
         public ICollection<SpecialistTool> SpecialistTools { get; set; } = [];
+        public ICollection<SpecialistDocument> Documents { get; set; } = [];
         public SpecialistEmbedding? Embedding { get; set; }
+        public SpecialistVerification? Verification { get; set; }
         public User User { get; set; } = null!;
-        public User? VerifiedByUser { get; set; }
 
 
-        public static Specialist Create(
-            Guid userId,
-            int experienceYears,
-            ExperienceLevel experienceLevel,
-            decimal hourlyRate,
-            string? bookingPolicy)
+        public static Specialist Create(Guid userId)
         {
-            var specialist = new Specialist
+            return new Specialist
             {
-                UserId = userId,
-                ExperienceYears = experienceYears,
-                ExperienceLevel = experienceLevel,
-                HourlyRate = hourlyRate,
-                BookingPolicy = bookingPolicy,
-                VerificationStatus = VerificationStatus.Pending
+                UserId = userId
             };
-
-            specialist.AddDomainEvent(new SpecialistOnboardedEvent(userId));
-
-            return specialist;
         }
 
         public void UpdateProfile(

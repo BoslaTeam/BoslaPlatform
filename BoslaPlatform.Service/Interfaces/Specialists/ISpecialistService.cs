@@ -8,7 +8,21 @@ namespace BoslaPlatform.Application.Interfaces.Specialists
 {
     public interface ISpecialistService
     {
-        Task<Result<SpecialistOnboardResponse>> OnboardAsync(SpecialistOnboardRequest request, CancellationToken ct = default);
+        // Onboarding
+        Task<Result<StartResponse>> StartAsync(CancellationToken ct = default);
+
+        // Submission
+        Task<Result> SubmitForReviewAsync(CancellationToken ct = default);
+
+        // Documents
+        Task<Result<Guid>> UploadDocumentAsync(Guid specialistId, UploadDocumentRequest request, CancellationToken ct = default);
+        Task<Result<IReadOnlyList<SpecialistDocumentResponse>>> GetDocumentsAsync(Guid specialistId, CancellationToken ct = default);
+        Task<Result> DeleteDocumentAsync(Guid specialistId, Guid documentId, CancellationToken ct = default);
+
+        // Verification
+        Task<Result<VerificationDetailsResponse>> GetVerificationAsync(Guid specialistId, CancellationToken ct = default);
+        //Task<Result<VerificationStatusResponse>> GetVerificationStatusAsync(Guid specialistId, CancellationToken ct = default);
+        Task<Result> SubmitVerificationAsync(Guid specialistId, CancellationToken ct = default);
 
         Task<Result<SpecialistProfileResponse>> GetMyProfileAsync(CancellationToken ct = default);
 
