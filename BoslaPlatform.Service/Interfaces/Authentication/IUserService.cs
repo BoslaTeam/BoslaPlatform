@@ -21,5 +21,7 @@ namespace BoslaPlatform.Application.Interfaces.Authentication
         Task<Result<bool>> DeleteSocialLinkAsync(Guid id, CancellationToken ct = default);
 
         Task<Result<UserProfileDto>> GetByIdAsync(Guid id, CancellationToken ct = default);
+
+        Task<Result> AddToRoleAsync(Guid userId, string role, CancellationToken ct = default);
     }
 }

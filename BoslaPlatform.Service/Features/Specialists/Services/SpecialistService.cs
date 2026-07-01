@@ -11,6 +11,7 @@ using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Junctions;
 using BoslaPlatform.Domain.Models.Profile;
 using BoslaPlatform.Shared;
+using BoslaPlatform.Shared.Constants;
 using BoslaPlatform.Shared.Pagination;
 using Dapper;
 using Microsoft.EntityFrameworkCore;
@@ -21,7 +22,8 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         IAppDbContext context,
         IUser currentUser,
         IOnlineUserTracker onlineUserTracker,
-        ISpecialistSubmissionValidator submissionValidator) : ISpecialistService
+        ISpecialistSubmissionValidator submissionValidator,
+        IUserService userService) : ISpecialistService
     {
         #region Onboard & Profile Methods
 
@@ -48,6 +50,10 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             };
 
             await context.SaveChangesAsync(ct);
+
+            var roleResult = await userService.AddToRoleAsync(userId, Roles.Specialist, ct);
+            if (roleResult.IsError)
+                return roleResult.Errors;
 
             return new StartResponse(specialist.Id, specialist.Verification.Status);
         }
