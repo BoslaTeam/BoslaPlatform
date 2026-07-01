@@ -244,7 +244,7 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             return Result<StartVideoSessionResponse>.Success(
                 new StartVideoSessionResponse(
                     session.Id,
-                    DateTime.UtcNow));
+                    session.StartedAt!.Value));
         }
         /// <summary>
         /// Ends a video session manually.

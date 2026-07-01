@@ -67,10 +67,10 @@ namespace BoslaPlatform.Domain.Models.Video
                     "Session already ended.");
             }
 
-            // Start() is a preparation/validation step only.
-            // The session transitions to Active exclusively via ChannelCreated()
-            // when Agora confirms the first participant has joined the channel.
-            // No status change, no StartedAt, no VideoSessionStartedEvent raised here.
+            Status = VideoSessionStatus.Active;
+            StartedAt = DateTime.UtcNow;
+
+            AddDomainEvent(new VideoSessionStartedEvent(Id, StartedAt.Value));
 
             return Result.Success();
         }
@@ -86,7 +86,7 @@ namespace BoslaPlatform.Domain.Models.Video
             Status = VideoSessionStatus.Ended;
             EndedAt = DateTime.UtcNow;
 
-            AddDomainEvent(new VideoSessionEndedEvent(Id, AppointmentId));
+            AddDomainEvent(new VideoSessionEndedEvent(Id, AppointmentId, EndedAt.Value));
 
             return Result.Success();
         }
@@ -295,7 +295,7 @@ namespace BoslaPlatform.Domain.Models.Video
             Status = VideoSessionStatus.Active;
             StartedAt = occurredAtUtc.UtcDateTime;
 
-            AddDomainEvent(new VideoSessionStartedEvent(Id));
+            AddDomainEvent(new VideoSessionStartedEvent(Id, StartedAt.Value));
             AddDomainEvent(
                 new ChannelCreatedEvent(Id, channelName, occurredAtUtc));
 
@@ -326,7 +326,7 @@ namespace BoslaPlatform.Domain.Models.Video
             Status = VideoSessionStatus.Ended;
             EndedAt = occurredAtUtc.UtcDateTime;
 
-            AddDomainEvent(new VideoSessionEndedEvent(Id, AppointmentId));
+            AddDomainEvent(new VideoSessionEndedEvent(Id, AppointmentId, EndedAt.Value));
             AddDomainEvent(
                 new ChannelDestroyedEvent(Id, AppointmentId, channelName, occurredAtUtc));
 
