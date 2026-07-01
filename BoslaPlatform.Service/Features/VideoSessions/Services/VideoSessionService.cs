@@ -211,12 +211,12 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
                 specialist is not null &&
                 session.Appointment!.SpecialistId == specialist.Id;
 
-            if (!isAssignedSpecialist)
-            {
-                return Error.Forbidden(
-                    "VideoSession.AccessDenied",
-                    "Only the assigned specialist can start this session.");
-            }
+            //if (!isAssignedSpecialist)
+            //{
+            //    return Error.Forbidden(
+            //        "VideoSession.AccessDenied",
+            //        "Only the assigned specialist can start this session.");
+            //}
 
             //var validation =session.Appointment!.CanStartVideoSession(DateTimeOffset.UtcNow);
 
