@@ -27,21 +27,21 @@ namespace BoslaPlatform.Domain.Models.Booking
         public Specialist Specialist { get; private set; } = null!;
 
         private readonly List<AppointmentStatusHistory> _statusHistory = new();
-        public IReadOnlyCollection<AppointmentStatusHistory> StatusHistory => _statusHistory.AsReadOnly();
+        public virtual IReadOnlyCollection<AppointmentStatusHistory> StatusHistory => _statusHistory.AsReadOnly();
 
-        public VideoSession? VideoSession { get; private set; }
+        public virtual VideoSession? VideoSession { get; private set; }
 
-        public ICollection<Reminder> Reminders { get; private set; } = new List<Reminder>();
+       public Payment? Payment { get; private set; }
 
-        public Review? Review { get; private set; }
+        public virtual SessionSummary? SessionSummary { get; private set; }
+        public virtual Review? Review { get; private set; }
 
-        public Payment? Payment { get; private set; }
+        public virtual ScreenRecording? ScreenRecording { get; private set; }
 
-        public SessionSummary? SessionSummary { get; private set; }
 
-        public ScreenRecording? ScreenRecording { get; private set; }
-
-        public Conversation? Conversation { get; private set; }
+        private readonly List<Reminder> _reminders = new();
+        public virtual IReadOnlyCollection<Reminder> Reminders => _reminders.AsReadOnly();
+        public virtual Conversation? Conversation { get; private set; }
 
         private Appointment() { }
 
@@ -72,7 +72,6 @@ namespace BoslaPlatform.Domain.Models.Booking
                 AppointmentStatus.Pending,
                 "Initial booking request."));
 
-            appointment.AddDomainEvent(new AppointmentScheduledEvent(appointment.Id, specialistId, userId, start));
 
             return appointment;
         }
@@ -148,6 +147,32 @@ namespace BoslaPlatform.Domain.Models.Booking
         public void UpdateNotes(string notes)
         {
             Notes = notes;
+        }
+        public void AttachVideoSession(VideoSession videoSession)
+        {
+            VideoSession = videoSession;
+        }
+        public Result CanStartVideoSession(DateTimeOffset currentTime)
+        {
+            var allowedStart = Start.AddMinutes(-15);
+
+            var allowedEnd = Start.AddMinutes(15);
+
+            if (currentTime < allowedStart)
+            {
+                return Error.Validation(
+                    "Appointment.TooEarly",
+                    "Video session cannot start yet.");
+            }
+
+            if (currentTime > allowedEnd)
+            {
+                return Error.Validation(
+                    "Appointment.StartWindowExpired",
+                    "Video session start window has expired.");
+            }
+
+            return Result.Success();
         }
     }
 }

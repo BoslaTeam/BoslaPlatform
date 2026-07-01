@@ -1,22 +1,28 @@
 using System.Text;
 using BoslaPlatform.Application;
 using BoslaPlatform.Application.Common.Interfaces;
+using BoslaPlatform.Application.Features.Admin.Services;
 using BoslaPlatform.Application.Features.Appointments.Services;
 using BoslaPlatform.Application.Features.Notifications.Services;
 using BoslaPlatform.Application.Interfaces.AI;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Communication;
+using BoslaPlatform.Application.Features.Admin.Repositories;
 using BoslaPlatform.Application.Interfaces.Persistence;
+using BoslaPlatform.Application.Interfaces.Video;
 using BoslaPlatform.Application.Services;
 using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Infrastructure.AI.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.Qdrant;
+using BoslaPlatform.Infrastructure.Agora;
+using BoslaPlatform.Infrastructure.Agora.Services;
 using BoslaPlatform.Infrastructure.Communication;
 using BoslaPlatform.Infrastructure.Data;
 using BoslaPlatform.Infrastructure.Data.Interceptors;
 using BoslaPlatform.Infrastructure.Identity;
 using BoslaPlatform.Infrastructure.Realtime;
+using BoslaPlatform.Infrastructure.Services;
 using BoslaPlatform.Infrastructure.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -48,29 +54,35 @@ public static class DependencyInjection
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IChatNotifier, SignalRChatNotifier>();
+            services.AddScoped<IAgoraTokenService, AgoraTokenService>();
+
 
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
             options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
-            options.UseSqlServer(connectionString);
+            options.UseSqlServer(connectionString, sqlOptions => sqlOptions.CommandTimeout(60));
         });
 
         services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
 
-        services.AddScoped<BoslaPlatform.Application.Features.Admin.Repositories.IDashboardRepository>(provider =>
-            new BoslaPlatform.Infrastructure.Data.DapperDashboardRepository(connectionString));
+        services.AddScoped<IDashboardRepository>(provider =>
+            new DapperDashboardRepository(connectionString));
 
-        services.AddScoped<BoslaPlatform.Application.Features.Admin.Services.IAdminService, BoslaPlatform.Infrastructure.Services.AdminService>();
+
+        services.AddScoped<IAdminService, AdminService>();
 
         services.AddScoped<IAppointmentService, AppointmentService>();
-        services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<INotificationSender, SignalRNotificationSender>();
         services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<IContactService, ContactService>();
         services.AddSignalR();
 
         services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
         services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
         services.Configure<GoogleSettings>(configuration.GetSection("GoogleSettings"));
+        services.AddOptions<AgoraSettings>().Bind(configuration.GetSection(AgoraSettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         services.AddIdentity<User, IdentityRole<Guid>>(options =>
         {
@@ -133,6 +145,8 @@ public static class DependencyInjection
 
         services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Gemini.GeminiChatService>();
         services.AddScoped<IChatService, BoslaPlatform.Infrastructure.AI.Gemini.GeminiChatService>();
+        //services.AddSingleton<BoslaPlatform.Infrastructure.AI.Tokenizers.ITokenizer, BoslaPlatform.Infrastructure.AI.Tokenizers.SimpleTokenizer>();
+
 
         // Register Qdrant settings early
         services.Configure<QdrantSettings>(configuration.GetSection("QdrantSettings"));

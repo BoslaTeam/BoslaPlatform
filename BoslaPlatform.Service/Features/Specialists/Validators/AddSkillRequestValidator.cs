@@ -1,17 +1,16 @@
 ﻿using BoslaPlatform.Application.Features.Specialists.Request;
 using FluentValidation;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace BoslaPlatform.Application.Features.Specialists.Validators
 {
-    public sealed class AddSkillRequestValidator
-     : AbstractValidator<AddSkillRequest>
+    public sealed class AddSkillsRequestValidator : AbstractValidator<AddSkillRequest>
     {
-        public AddSkillRequestValidator()
+        public AddSkillsRequestValidator()
         {
-            RuleFor(x => x.SkillId)
+            RuleFor(x => x.SkillIds)
+                .NotEmpty();
+
+            RuleForEach(x => x.SkillIds)
                 .NotEmpty();
         }
     }

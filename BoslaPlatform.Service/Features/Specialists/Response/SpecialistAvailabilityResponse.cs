@@ -8,10 +8,8 @@ namespace BoslaPlatform.Application.Features.Specialists.Response
     {
         public Guid Id { get; init; }
 
-        public DayOfWeek DayOfWeek { get; init; }
+        public DateTimeOffset Start { get; init; }
 
-        public TimeOnly StartTime { get; init; }
-
-        public TimeOnly EndTime { get; init; }
+        public DateTimeOffset End { get; init; }
     }
 }

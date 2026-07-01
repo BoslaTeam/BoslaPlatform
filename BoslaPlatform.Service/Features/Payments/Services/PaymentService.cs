@@ -1,4 +1,4 @@
-﻿using BoslaPlatform.Application.Features.Payments.Dtos;
+using BoslaPlatform.Application.Features.Payments.Dtos;
 using BoslaPlatform.Application.Features.Payments.Requests;
 using BoslaPlatform.Application.Features.Specialists.DTOs;
 using BoslaPlatform.Application.Interfaces.Authentication;
@@ -118,6 +118,26 @@ namespace BoslaPlatform.Application.Features.Payments.Services
 
             return MapToDto(payment, null);
         }
+        
+        public async Task<Result<IReadOnlyList<PaymentResponseDto>>> GetMyPaymentsAsync(CancellationToken ct = default)
+        {
+            if (!_currentUser.IsAuthenticated || !_currentUser.Id.HasValue)
+            {
+                return Error.Unauthorized("Auth.Unauthorized", "User must be authenticated.");
+            }
+
+            // A user's payments are those tied to their appointments
+            var payments = await _context.Payments
+                .Include(p => p.Appointment)
+                .Where(p => p.Appointment.UserId == _currentUser.Id.Value && p.Status == PaymentStatus.Completed)
+                .OrderByDescending(p => p.PaidAt)
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+            var dtos = payments.Select(p => MapToDto(p, null)).ToList();
+            return dtos;
+        }
+
         
         private PaymentResponseDto MapToDto(Payment payment, string? clientSecret)
         {

@@ -539,6 +539,10 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("LastModifiedUtc")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("ReminderTime")
                         .HasColumnType("datetime2");
 
@@ -1347,8 +1351,10 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasColumnType("nvarchar(30)")
+                        .HasDefaultValue("Pending");
 
                     b.Property<string>("StorageProvider")
                         .IsRequired()
@@ -1357,8 +1363,8 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.Property<string>("Url")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.HasKey("Id");
 
@@ -1393,7 +1399,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<Guid?>("AppointmentId")
+                    b.Property<Guid>("AppointmentId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTimeOffset>("CreatedAtUtc")
@@ -1412,16 +1418,18 @@ namespace BoslaPlatform.Infrastructure.Migrations
                         .HasColumnType("datetimeoffset");
 
                     b.Property<string>("RecordingUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<DateTime?>("StartedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Status")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Waiting");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -1434,8 +1442,7 @@ namespace BoslaPlatform.Infrastructure.Migrations
                         .IsUnique();
 
                     b.HasIndex("AppointmentId")
-                        .IsUnique()
-                        .HasFilter("[AppointmentId] IS NOT NULL");
+                        .IsUnique();
 
                     b.ToTable("VideoSessions", (string)null);
                 });
@@ -2047,7 +2054,8 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.HasOne("BoslaPlatform.Domain.Models.Booking.Appointment", "Appointment")
                         .WithOne("VideoSession")
                         .HasForeignKey("BoslaPlatform.Domain.Models.Video.VideoSession", "AppointmentId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Appointment");
                 });

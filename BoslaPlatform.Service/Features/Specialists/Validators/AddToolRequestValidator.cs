@@ -6,11 +6,15 @@ using System.Text;
 
 namespace BoslaPlatform.Application.Features.Specialists.Validators
 {
-    public sealed class AddToolRequestValidator: AbstractValidator<AddToolRequest>
+    public sealed class AddToolsRequestValidator : AbstractValidator<AddToolRequest>
     {
-        public AddToolRequestValidator()
+        public AddToolsRequestValidator()
         {
-            RuleFor(x => x.ToolId).NotEmpty();
+            RuleFor(x => x.ToolIds)
+                .NotEmpty();
+
+            RuleForEach(x => x.ToolIds)
+                .NotEmpty();
         }
     }
 }

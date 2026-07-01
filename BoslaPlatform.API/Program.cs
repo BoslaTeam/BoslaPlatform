@@ -5,6 +5,13 @@ using BoslaPlatform.Infrastructure.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+if (!Directory.Exists(webRootPath))
+{
+    Directory.CreateDirectory(webRootPath);
+}
+builder.Environment.WebRootPath = webRootPath;
+
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<FluentValidationFilter>();
@@ -45,8 +52,8 @@ if (app.Environment.IsDevelopment())
 app.UseCoreMiddlewares(builder.Configuration);
 app.MapControllers();
 
-app.MapControllers();
 app.MapHub<BoslaPlatform.Infrastructure.RealTime.NotificationHub>("/hubs/notifications");
 app.MapHub<ChatHub>("/hubs/chat");
+app.MapControllers();
 
 app.Run();

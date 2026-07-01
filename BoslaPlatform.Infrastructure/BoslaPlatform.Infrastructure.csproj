@@ -25,6 +25,8 @@
 		<PackageReference Include="Stripe.net" Version="52.0.0" />
 		<PackageReference Include="Dapper" Version="2.1.79" />
 		<PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.1" />
+		<PackageReference Include="AgoraIO.Token" Version="1.0.0" />
+		<PackageReference Include="Google.Apis.Auth" Version="1.69.0" />
 		<PackageReference Include="MailKit" Version="4.17.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.8" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
@@ -38,7 +40,8 @@
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-	<!-- Polly packages can be added if desired: Polly v8+ and Polly.Contrib.WaitAndRetry. Not adding by default. -->
+		<PackageReference Include="SharpZipLib" Version="1.4.2" />
+		<!-- Polly packages can be added if desired: Polly v8+ and Polly.Contrib.WaitAndRetry. Not adding by default. -->
 	</ItemGroup>
 
   <ItemGroup>
@@ -56,6 +59,8 @@
 	  <Folder Include="AI\" />
 	  <Folder Include="Realtime\" />
 	  <Folder Include="Observability\" />
+	  <Folder Include="Services\Specialist\" />
+	  <Folder Include="Services\Video\" />
 	</ItemGroup>
 
 </Project>

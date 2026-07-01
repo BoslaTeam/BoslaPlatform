@@ -17,9 +17,9 @@ namespace BoslaPlatform.API.Controllers.V1
     public class AppointmentsController : ControllerBase
     {
         private readonly IAppointmentService _appointmentService;
-        private readonly BoslaPlatform.Application.Interfaces.AI.ISummaryService _summaryService;
+        private readonly ISummaryService _summaryService;
 
-        public AppointmentsController(IAppointmentService appointmentService, BoslaPlatform.Application.Interfaces.AI.ISummaryService summaryService)
+        public AppointmentsController(IAppointmentService appointmentService, ISummaryService summaryService)
         {
             _appointmentService = appointmentService;
             _summaryService = summaryService;
@@ -185,6 +185,58 @@ namespace BoslaPlatform.API.Controllers.V1
             return Ok(result.ToApiResponse("Appointment notes updated successfully."));
         }
 
+        // 13. POST: api/v1/appointments/{id}/reviews
+
+        [HttpPost("{id:guid}/reviews")]
+        [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> SubmitReview([FromRoute] Guid id, [FromBody] SubmitReviewRequest request, CancellationToken ct)
+        {
+            var result = await _appointmentService.SubmitReviewAsync(id, request, ct);
+            if (result.IsError) return DetermineStatusCode(result.Errors[0].Type, result.ToApiResponse());
+            return Ok(result.ToApiResponse("Review submitted successfully."));
+        }
+
+        // 14. GET: api/v1/appointments/{id}/reminders
+
+        [HttpGet("{id:guid}/reminders")]
+        [ProducesResponseType(typeof(ApiResponse<List<ReminderDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetReminders([FromRoute] Guid id, CancellationToken ct)
+        {
+            var result = await _appointmentService.GetRemindersAsync(id, ct);
+            if (result.IsError) return DetermineStatusCode(result.Errors[0].Type, result.ToApiResponse());
+            return Ok(result.ToApiResponse("Reminders retrieved successfully."));
+        }
+
+        // 15. POST: api/v1/appointments/{id}/reminders
+
+        [HttpPost("{id:guid}/reminders")]
+        [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status410Gone)]
+        public async Task<IActionResult> AddReminder([FromRoute] Guid id, [FromBody] AddReminderRequest request, CancellationToken ct)
+        {
+            var result = await _appointmentService.AddReminderAsync(id, request, ct);
+            if (result.IsError) return DetermineStatusCode(result.Errors[0].Type, result.ToApiResponse());
+            return Ok(result.ToApiResponse("Reminder added successfully."));
+        }
+
+        // 16. DELETE: api/v1/appointments/{id}/reminders/{rid}
+
+        [HttpDelete("{id:guid}/reminders/{rid:guid}")]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> DeleteReminder([FromRoute] Guid id, [FromRoute] Guid rid, CancellationToken ct)
+        {
+            var result = await _appointmentService.DeleteReminderAsync(id, rid, ct);
+            if (result.IsError) return DetermineStatusCode(result.Errors[0].Type, result.ToApiResponse());
+            return Ok(result.ToApiResponse("Reminder deleted successfully."));
+        }
+
         [HttpGet("{id:guid}/summary")]
         [ProducesResponseType(typeof(ApiResponse<BoslaPlatform.Application.Features.Appointments.DTOs.SessionSummaryDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
@@ -226,5 +278,7 @@ namespace BoslaPlatform.API.Controllers.V1
                 _ => StatusCode(500, responseBody)
             };
         }
+
+
     }
 }

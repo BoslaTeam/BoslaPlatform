@@ -1,4 +1,4 @@
-﻿using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Models.Lookup;
@@ -112,7 +112,8 @@ namespace BoslaPlatform.Infrastructure.Data
 
             foreach (var userData in defaultUsers)
             {
-                if (await _userManager.FindByEmailAsync(userData.Email) is null)
+                var existingUser = await _userManager.Users.FirstOrDefaultAsync(u => u.UserName == userData.Email || u.Email == userData.Email || u.NormalizedUserName == userData.Email.ToUpper());
+                if (existingUser is null)
                 {
                     var newUser = new User
                     {
@@ -122,7 +123,18 @@ namespace BoslaPlatform.Infrastructure.Data
                         Name = userData.Name
                     };
 
-                    var result = await _userManager.CreateAsync(newUser, DefaultPassword);
+                    IdentityResult result = null;
+                    try
+                    {
+                        result = await _userManager.CreateAsync(newUser, DefaultPassword);
+                    }
+                    catch (DbUpdateException)
+                    {
+                        // Safely ignore if it was inserted concurrently or query filters hid it
+                        _logger.LogWarning($"User '{userData.Email}' already exists but couldn't be fetched. Skipping.");
+                        continue;
+                    }
+                    
                     if (!result.Succeeded)
                     {
                         var errors = string.Join(", ", result.Errors.Select(e => e.Description));
