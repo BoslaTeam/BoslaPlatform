@@ -6,6 +6,8 @@ using BoslaPlatform.Application.Features.Specialists.Request;
 using BoslaPlatform.Application.Features.Specialists.Response;
 using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Application.Interfaces.Specialists;
+using BoslaPlatform.Application.Interfaces.AI;
+using BoslaPlatform.Infrastructure.AI.Gemini;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Shared.Pagination;
 using Microsoft.AspNetCore.Authorization;
@@ -19,7 +21,7 @@ namespace BoslaPlatform.API.Controllers.v1
     [Route("api/v{version:apiVersion}/specialists")]
     [Authorize]
     [ApiConventionType(typeof(DefaultApiConventions))]
-    public class SpecialistsController(ISpecialistService specialistService, IAppDbContext context) : ControllerBase
+    public class SpecialistsController(ISpecialistService specialistService, IEmbeddingAdminService embeddingAdmin, IAppDbContext context) : ControllerBase
     {
         private async Task<Guid> GetCurrentSpecialistIdAsync()
         {

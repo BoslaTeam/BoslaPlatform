@@ -23,6 +23,7 @@ using Microsoft.Extensions.Options;
 using Stripe;
 using System.Security.Cryptography;
 using System.Text;
+using BoslaPlatform.Application.Interfaces.AI;
 
 namespace BoslaPlatform.Infrastructure.Services
 {
@@ -35,14 +36,14 @@ namespace BoslaPlatform.Infrastructure.Services
         private readonly IUser _currentUser;
         private readonly IEmbeddingService _embeddingService;
         private readonly IVectorStore _vectorStore;
-        private readonly StripeSettings _stripeSettings;
-        public AdminService(IAppDbContext context, UserManager<User> userManager, IUser currentUser, IEmbeddingService embeddingService, IVectorStore vectorStore, IOptions<StripeSettings> stripeSettings)
+        public AdminService(IAppDbContext context, UserManager<User> userManager, IOptions<StripeSettings> stripeSettings, IDashboardRepository dashboardRepository, IUser currentUser, IEmbeddingService embeddingService, IVectorStore vectorStore)
         {
             _context = context;
             _userManager = userManager;
             _dashboardRepository = dashboardRepository;
             _currentUser = currentUser;
-            _dashboardRepository = dashboardRepository;
+            _embeddingService = embeddingService;
+            _vectorStore = vectorStore;
             _stripeSettings = stripeSettings?.Value ?? new StripeSettings();
             if (!string.IsNullOrWhiteSpace(_stripeSettings.SecretKey))
             {
