@@ -103,7 +103,20 @@ namespace BoslaPlatform.API.Controllers.V1
             return Ok(result.ToApiResponse("Appointment history retrieved successfully."));
         }
 
-        // 7. PUT: api/v1/appointments/{id}/confirm
+        // 7. PUT: api/v1/appointments/{id}/mark-as-paid
+        [HttpPut("{id:guid}/mark-as-paid")]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> MarkAsPaid([FromRoute] Guid id, CancellationToken ct)
+        {
+            var result = await _appointmentService.MarkAsPaidAsync(id, ct);
+            if (result.IsError) return DetermineStatusCode(result.Errors[0].Type, result.ToApiResponse());
+            return Ok(result.ToApiResponse("Appointment marked as paid successfully."));
+        }
+
+        // 8. PUT: api/v1/appointments/{id}/confirm
         [HttpPut("{id:guid}/confirm")]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
@@ -116,7 +129,7 @@ namespace BoslaPlatform.API.Controllers.V1
             return Ok(result.ToApiResponse("Appointment confirmed successfully."));
         }
 
-        // 8. PUT: api/v1/appointments/{id}/cancel
+        // 9. PUT: api/v1/appointments/{id}/cancel
         [HttpPut("{id:guid}/cancel")]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
@@ -129,7 +142,7 @@ namespace BoslaPlatform.API.Controllers.V1
             return Ok(result.ToApiResponse("Appointment cancelled successfully."));
         }
 
-        // 9. PUT: api/v1/appointments/{id}/reschedule
+        // 10. PUT: api/v1/appointments/{id}/reschedule
         [HttpPut("{id:guid}/reschedule")]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
@@ -143,7 +156,7 @@ namespace BoslaPlatform.API.Controllers.V1
             return Ok(result.ToApiResponse("Appointment rescheduled successfully."));
         }
 
-        // 10. PUT: api/v1/appointments/{id}/complete
+        // 11. PUT: api/v1/appointments/{id}/complete
         [HttpPut("{id:guid}/complete")]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
@@ -156,7 +169,7 @@ namespace BoslaPlatform.API.Controllers.V1
             return Ok(result.ToApiResponse("Appointment marked as completed successfully."));
         }
 
-        // 11. PUT: api/v1/appointments/{id}/reject
+        // 12. PUT: api/v1/appointments/{id}/reject
         [HttpPut("{id:guid}/reject")]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
@@ -169,7 +182,7 @@ namespace BoslaPlatform.API.Controllers.V1
             return Ok(result.ToApiResponse("Appointment request rejected successfully."));
         }
 
-        // 12. PATCH: api/v1/appointments/{id}/notes
+        // 13. PATCH: api/v1/appointments/{id}/notes
         [HttpPatch("{id:guid}/notes")]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
@@ -181,7 +194,7 @@ namespace BoslaPlatform.API.Controllers.V1
             return Ok(result.ToApiResponse("Appointment notes updated successfully."));
         }
 
-        // 13. POST: api/v1/appointments/{id}/reviews
+        // 14. POST: api/v1/appointments/{id}/reviews
 
         [HttpPost("{id:guid}/reviews")]
         [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
@@ -195,7 +208,7 @@ namespace BoslaPlatform.API.Controllers.V1
             return Ok(result.ToApiResponse("Review submitted successfully."));
         }
 
-        // 14. GET: api/v1/appointments/{id}/reminders
+        // 15. GET: api/v1/appointments/{id}/reminders
 
         [HttpGet("{id:guid}/reminders")]
         [ProducesResponseType(typeof(ApiResponse<List<ReminderDto>>), StatusCodes.Status200OK)]
@@ -207,7 +220,7 @@ namespace BoslaPlatform.API.Controllers.V1
             return Ok(result.ToApiResponse("Reminders retrieved successfully."));
         }
 
-        // 15. POST: api/v1/appointments/{id}/reminders
+        // 16. POST: api/v1/appointments/{id}/reminders
 
         [HttpPost("{id:guid}/reminders")]
         [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
@@ -220,7 +233,7 @@ namespace BoslaPlatform.API.Controllers.V1
             return Ok(result.ToApiResponse("Reminder added successfully."));
         }
 
-        // 16. DELETE: api/v1/appointments/{id}/reminders/{rid}
+        // 17. DELETE: api/v1/appointments/{id}/reminders/{rid}
 
         [HttpDelete("{id:guid}/reminders/{rid:guid}")]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]

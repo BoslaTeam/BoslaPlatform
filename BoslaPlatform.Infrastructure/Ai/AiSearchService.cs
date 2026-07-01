@@ -137,7 +137,7 @@ public class AiSearchService : IAiSearchService
             _db.Set<SearchInteraction>().Add(si);
             await _db.SaveChangesAsync(cancellationToken);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // best-effort: log if logging is added; ignore otherwise
         }

@@ -4,6 +4,7 @@ using BoslaPlatform.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BoslaPlatform.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260630202051_FixnotificationpaymentState")]
+    partial class FixnotificationpaymentState
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -100,110 +103,25 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("VerificationStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("VerifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("VerifiedBy")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("UserId")
                         .IsUnique();
 
+                    b.HasIndex("VerifiedBy");
+
                     b.ToTable("Specialists");
-                });
-
-            modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.SpecialistDocument", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasDefaultValueSql("NEWSEQUENTIALID()");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("LastModifiedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("LastModifiedUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("OriginalFileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<Guid>("SpecialistId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Url")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SpecialistId");
-
-                    b.ToTable("SpecialistDocuments");
-                });
-
-            modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.SpecialistVerification", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasDefaultValueSql("NEWSEQUENTIALID()");
-
-                    b.Property<string>("AdminNotes")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsSubmitted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<Guid?>("LastModifiedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("LastModifiedUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTime?>("LastUpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("ReviewedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ReviewedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("SpecialistId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<DateTime?>("SubmittedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SpecialistId")
-                        .IsUnique();
-
-                    b.ToTable("SpecialistVerifications");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Entities.User", b =>
@@ -1734,29 +1652,14 @@ namespace BoslaPlatform.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("BoslaPlatform.Domain.Entities.User", "VerifiedByUser")
+                        .WithMany("VerifiedSpecialists")
+                        .HasForeignKey("VerifiedBy")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.Navigation("User");
-                });
 
-            modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.SpecialistDocument", b =>
-                {
-                    b.HasOne("BoslaPlatform.Domain.Entities.Profile.Specialist", "Specialist")
-                        .WithMany("Documents")
-                        .HasForeignKey("SpecialistId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Specialist");
-                });
-
-            modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.SpecialistVerification", b =>
-                {
-                    b.HasOne("BoslaPlatform.Domain.Entities.Profile.Specialist", "Specialist")
-                        .WithOne("Verification")
-                        .HasForeignKey("BoslaPlatform.Domain.Entities.Profile.SpecialistVerification", "SpecialistId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Specialist");
+                    b.Navigation("VerifiedByUser");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.AuditLog", b =>
@@ -2248,8 +2151,6 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.Navigation("Availabilities");
 
-                    b.Navigation("Documents");
-
                     b.Navigation("Embedding");
 
                     b.Navigation("Experiences");
@@ -2263,8 +2164,6 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.Navigation("SpecialistSkills");
 
                     b.Navigation("SpecialistTools");
-
-                    b.Navigation("Verification");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Entities.User", b =>
@@ -2288,6 +2187,8 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.Navigation("UserExpertise");
 
                     b.Navigation("UserIndustries");
+
+                    b.Navigation("VerifiedSpecialists");
 
                     b.Navigation("VideoSessionParticipants");
                 });

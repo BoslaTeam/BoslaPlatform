@@ -8,12 +8,15 @@ using BoslaPlatform.Application.Interfaces.AI;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Communication;
 using BoslaPlatform.Application.Interfaces.Persistence;
+using BoslaPlatform.Application.Interfaces.Specialists;
 using BoslaPlatform.Application.Interfaces.Video;
+using BoslaPlatform.Application.Features.Specialists.Services;
 using BoslaPlatform.Application.Services;
 using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Infrastructure.Agora;
 using BoslaPlatform.Infrastructure.Agora.Services;
+using BoslaPlatform.Infrastructure.BackgroundJobs;
 using BoslaPlatform.Infrastructure.AI.OpenAi;
 using BoslaPlatform.Infrastructure.Communication;
 using BoslaPlatform.Infrastructure.Data;
@@ -44,6 +47,7 @@ public static class DependencyInjection
 
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationAssemblyReference).Assembly));
 
+            services.AddScoped<ISaveChangesInterceptor, AuditLogInterceptor>();
             services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
             services.AddScoped<ISaveChangesInterceptor, DomainEventsInterceptor>();
             services.AddScoped<ApplicationDbContextInitialiser>();
@@ -51,6 +55,7 @@ public static class DependencyInjection
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<IOnlineUserTracker, OnlineUserTracker>();
             services.AddScoped<IChatNotifier, SignalRChatNotifier>();
             services.AddScoped<IAgoraTokenService, AgoraTokenService>();
 
@@ -63,13 +68,14 @@ public static class DependencyInjection
 
         services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
 
-        services.AddScoped<IAdminService, AdminService>();
+services.AddScoped<IAdminService, AdminService>();
 
-        services.AddScoped<IAppointmentService, AppointmentService>();
-        services.AddScoped<INotificationSender, SignalRNotificationSender>();
-        services.AddScoped<IEmailService, EmailService>();
-        services.AddScoped<IContactService, ContactService>();
-        services.AddSignalR();
+services.AddScoped<IAppointmentService, AppointmentService>();
+services.AddScoped<INotificationSender, SignalRNotificationSender>();
+services.AddScoped<IEmailService, EmailService>();
+services.AddScoped<IContactService, ContactService>();
+services.AddHostedService<ReminderBackgroundService>();
+services.AddSignalR();
 
         services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
         services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
@@ -148,6 +154,7 @@ public static class DependencyInjection
                         
             services.AddAuthorization();
 
+            services.AddHostedService<BoslaPlatform.Infrastructure.BackgroundJobs.ReminderBackgroundService>();
 
             return services;
         }
