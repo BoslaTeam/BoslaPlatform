@@ -6,6 +6,7 @@ using BoslaPlatform.Application.Features.Specialists.Request;
 using BoslaPlatform.Application.Features.Specialists.Response;
 using BoslaPlatform.Application.Features.Specialists.Services;
 using BoslaPlatform.Application.Interfaces.Specialists;
+using BoslaPlatform.Infrastructure.AI.Gemini;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Shared.Constants;
 using BoslaPlatform.Shared.Pagination;
@@ -40,7 +41,7 @@ namespace BoslaPlatform.API.Controllers.v1
         [Authorize(Roles = nameof(UserRole.Specialist))]
         public async Task<IResult> RefreshMyEmbeddings(CancellationToken ct)
         {
-            var result = await embeddingAdmin.RebuildSelfAsync(ct);
+            var result = await EmbeddingAdminService.RebuildSelfAsync(ct);
             if (result.IsSuccess) return Results.Ok(ApiResponse.SuccessResponse("Embedding refreshed."));
             return result.Errors.ToProblem();
         }

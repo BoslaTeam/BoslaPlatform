@@ -86,7 +86,7 @@ namespace BoslaPlatform.Application.Features.Admin.Services
 
         Task<Result> RefundPaymentAsync(Guid paymentId, CancellationToken cancellationToken = default);
 
-        Task<Result<AuditLogDto>> GetAuditLogByIdAsync(Guid id, CancellationToken cancellationToken = default);
+        //Task<Result<AuditLogDto>> GetAuditLogByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
         Task<Result<DashboardDto>> GetDashboardAsync(CancellationToken cancellationToken = default);
 

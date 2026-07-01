@@ -29,13 +29,15 @@ namespace BoslaPlatform.Infrastructure.Services
         private readonly StripeSettings _stripeSettings;
         private readonly IDashboardRepository _dashboardRepository;
         private readonly IUser _currentUser;
+        private readonly IEmbeddingService _embeddingService;
+        private readonly IVectorStore _vectorStore;
+        public AdminService(IAppDbContext context, UserManager<User> userManager, IUser currentUser, IEmbeddingService embeddingService, IVectorStore vectorStore, IOptions<StripeSettings> stripeSettings)
         public AdminService(IAppDbContext context, UserManager<User> userManager, IOptions<StripeSettings> stripeSettings, IDashboardRepository dashboardRepository, IUser currentUser)
         {
             _context = context;
             _userManager = userManager;
             _dashboardRepository = dashboardRepository;
             _currentUser = currentUser;
-            _dashboardRepository = dashboardRepository;
             _stripeSettings = stripeSettings?.Value ?? new StripeSettings();
             if (!string.IsNullOrWhiteSpace(_stripeSettings.SecretKey))
             {
