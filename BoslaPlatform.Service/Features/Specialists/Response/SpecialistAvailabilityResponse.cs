@@ -11,5 +11,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Response
         public DateTimeOffset Start { get; init; }
 
         public DateTimeOffset End { get; init; }
+
+        public bool IsBooked { get; init; }
     }
 }
