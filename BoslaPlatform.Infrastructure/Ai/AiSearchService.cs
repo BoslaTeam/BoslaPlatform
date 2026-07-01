@@ -6,6 +6,8 @@ using BoslaPlatform.Service.Features.AI.Responses;
 using BoslaPlatform.Domain.Models;
 using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Application.Interfaces.Authentication;
+using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 namespace BoslaPlatform.Infrastructure.AI;
 
 public class AiSearchService : IAiSearchService
@@ -16,8 +18,9 @@ public class AiSearchService : IAiSearchService
     private readonly IAppDbContext _db;
     private readonly IUser _currentUser;
     private readonly ITokenizer _tokenizer;
+    private readonly ILogger<AiSearchService> _logger;
 
-    public AiSearchService(IEmbeddingService emb, IVectorStore vectors, IChatService chat, IAppDbContext db, IUser currentUser, ITokenizer tokenizer)
+    public AiSearchService(IEmbeddingService emb, IVectorStore vectors, IChatService chat, IAppDbContext db, IUser currentUser, ITokenizer tokenizer, ILogger<AiSearchService> logger)
     {
         _emb = emb;
         _vectors = vectors;
@@ -25,6 +28,7 @@ public class AiSearchService : IAiSearchService
         _db = db;
         _currentUser = currentUser;
         _tokenizer = tokenizer;
+        _logger = logger;
     }
 
     public async Task<List<SearchHistoryItemDto>> GetHistoryAsync(CancellationToken cancellationToken = default)
@@ -71,9 +75,9 @@ public class AiSearchService : IAiSearchService
         var specialistQuery = _db.Set<Specialist>().Where(s => ids.Contains(s.Id));
         List<Specialist> specialists = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync<Specialist>(specialistQuery, cancellationToken);
 
-        // Load related users
+        // Load related users (use IgnoreQueryFilters for debugging so RAG can access user data that may be globally filtered)
         var userIds = specialists.Select(s => s.UserId).Distinct().ToList();
-        var userQuery = _db.Set<BoslaPlatform.Domain.Entities.User>().Where(u => userIds.Contains(u.Id));
+        var userQuery = _db.Set<BoslaPlatform.Domain.Entities.User>().IgnoreQueryFilters().Where(u => userIds.Contains(u.Id));
         var users = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync<BoslaPlatform.Domain.Entities.User>(userQuery, cancellationToken);
         foreach (var s in specialists)
         {
@@ -82,7 +86,7 @@ public class AiSearchService : IAiSearchService
 
         // Load related SpecialistSkills and Experiences
         var specialistIds = specialists.Select(s => s.Id).ToList();
-        var skillsQuery = _db.Set<Domain.Models.Junctions.SpecialistSkill>().Where(ss => specialistIds.Contains(ss.SpecialistId));
+        var skillsQuery = _db.Set<Domain.Models.Junctions.SpecialistSkill>().Include(ss => ss.Skill).Where(ss => specialistIds.Contains(ss.SpecialistId));
         var skills = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync<Domain.Models.Junctions.SpecialistSkill>(skillsQuery, cancellationToken);
         var experiencesQuery = _db.Set<Domain.Models.Profile.SpecialistExperience>().Where(e => specialistIds.Contains(e.SpecialistId));
         var experiences = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync<Domain.Models.Profile.SpecialistExperience>(experiencesQuery, cancellationToken);
@@ -98,13 +102,23 @@ public class AiSearchService : IAiSearchService
             var specialist = specialists.FirstOrDefault(s => s.Id == id);
             if (specialist == null) continue;
 
+            var name = specialist.User?.Name ?? string.Empty;
             var bio = specialist.User?.Bio ?? string.Empty;
             var title = specialist.User?.Title ?? string.Empty;
             var skillNames = specialist.SpecialistSkills?.Select(ss => ss.Skill?.Name).Where(n => !string.IsNullOrEmpty(n)).ToList() ?? new List<string?>();
-            var expSummary = specialist.Experiences?.Take(3).Select(e => e.JobTitle ?? string.Empty) ?? Enumerable.Empty<string>();
+            var expSummary = specialist.Experiences?.Take(3).Select(e =>
+                {
+                    var job = e.JobTitle ?? string.Empty;
+                    var company = string.IsNullOrWhiteSpace(e.CompanyName) ? string.Empty : $" at {e.CompanyName}";
+                    var period = $" ({e.FromDate.ToString("yyyy")}-{(e.ToDate.HasValue ? e.ToDate.Value.ToString("yyyy") : "present")})";
+                    return (job + company + period).Trim();
+                }) ?? Enumerable.Empty<string>();
 
             var snippetParts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(name)) snippetParts.Add(name);
             if (!string.IsNullOrWhiteSpace(title)) snippetParts.Add(title);
+            if (specialist.ExperienceYears > 0) snippetParts.Add($"{specialist.ExperienceYears} years experience");
+            if (specialist.HourlyRate > 0) snippetParts.Add($"{specialist.HourlyRate}/hr");
             if (!string.IsNullOrWhiteSpace(bio)) snippetParts.Add(bio);
             if (skillNames.Any()) snippetParts.Add(string.Join(", ", skillNames));
             if (expSummary.Any()) snippetParts.Add(string.Join("; ", expSummary));
@@ -117,9 +131,25 @@ public class AiSearchService : IAiSearchService
 
         // 4. Build RAG prompt
         var combined = string.Join("\n\n---\n\n", results.Select(r => $"[Score: {r.Score}] {r.Snippet}"));
+
+        // Log snippets for debugging (preview)
+        try
+        {
+            _logger.LogInformation("RAG results count={Count}. Snippets: {Snippets}", results.Count, results.Select(r => r.Snippet).Take(10).ToList());
+        }
+        catch { }
+
         // Truncate context to token budget using tokenizer
         var truncated = _tokenizer.Truncate(combined, 2000);
         var prompt = PromptTemplate.Build(truncated, request.Query);
+
+        // Log prompt preview for debugging
+        try
+        {
+            var preview = prompt.Length > 2000 ? prompt.Substring(0, 2000) + "..." : prompt;
+            _logger.LogInformation("RAG prompt length={Len}. Prompt preview: {Preview}", prompt.Length, preview);
+        }
+        catch { }
 
         // 5. Call chat (RAG)
         resp.Answer = await _chat.ChatAsync(prompt, cancellationToken);
@@ -128,14 +158,19 @@ public class AiSearchService : IAiSearchService
         // 6. record SearchInteraction (best-effort)
         try
         {
-            var si = new SearchInteraction
+            var userId = _currentUser.Id ?? Guid.Empty;
+            // Only record if user is authenticated (not Guid.Empty)
+            if (userId != Guid.Empty)
             {
-                RawQuery = request.Query,
-                ResultSpecialistIds = string.Join(',', results.Select(r => r.SpecialistId)),
-                UserId = _currentUser.Id ?? Guid.Empty,
-            };
-            _db.Set<SearchInteraction>().Add(si);
-            await _db.SaveChangesAsync(cancellationToken);
+                var si = new SearchInteraction
+                {
+                    RawQuery = request.Query,
+                    ResultSpecialistIds = string.Join(',', results.Select(r => r.SpecialistId)),
+                    UserId = userId,
+                };
+                _db.Set<SearchInteraction>().Add(si);
+                await _db.SaveChangesAsync(cancellationToken);
+            }
         }
         catch (Exception ex)
         {
