@@ -54,5 +54,7 @@ namespace BoslaPlatform.Application.Features.Appointments.Services
 
         Task<Result> DeleteReminderAsync(Guid appointmentId, Guid reminderId, CancellationToken ct);
 
+        Task<Result> DeleteAsync(Guid id, CancellationToken ct);
+
     }
 }
