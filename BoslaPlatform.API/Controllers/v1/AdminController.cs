@@ -113,7 +113,7 @@ public class AdminController(
             errors => errors.ToProblem());
     }
 
-    [HttpGet("specialists/{id:guid}")]
+    [HttpGet("specialists/{id:guid}/detail")]
     [ProducesResponseType(typeof(ApiResponse<AdminSpecialistDetailDto>), StatusCodes.Status200OK)]
     public async Task<IResult> GetSpecialistDetail(Guid id, CancellationToken ct = default)
     {
@@ -347,7 +347,7 @@ public class AdminController(
             errors => errors.ToProblem());
     }
 
-    [HttpGet("specialists/pending")]
+    [HttpGet("specialists/thepending")]
     [ProducesResponseType(typeof(ApiResponse<List<SpecialistDto>>), StatusCodes.Status200OK)]
     public async Task<IResult> GetPendingSpecialists(int page = 1, int pageSize = 20, CancellationToken ct = default)
     {
@@ -367,7 +367,7 @@ public class AdminController(
             errors => errors.ToProblem());
     }
 
-    [HttpGet("appointments")]
+    [HttpGet("appointments/list")]
     [ProducesResponseType(typeof(ApiResponse<List<AppointmentDto>>), StatusCodes.Status200OK)]
     public async Task<IResult> GetAppointments(int page = 1, int pageSize = 20, CancellationToken ct = default)
     {
@@ -394,14 +394,14 @@ public class AdminController(
         return result.Errors.ToProblem();
     }
 
-    //[HttpPost("appointments/{id:guid}/cancel")]
-    //public async Task<IResult> CancelAppointment(Guid id, [FromBody] CancelAppointmentRequest request, CancellationToken ct = default)
-    //{
-    //    var result = await adminService.CancelAppointmentAsync(id, request.Reason, ct);
-    //    if (result.IsSuccess)
-    //        return Results.Ok(ApiResponse.SuccessResponse("Appointment cancelled."));
-    //    return result.Errors.ToProblem();
-    //}
+    [HttpPost("appointments/{id:guid}/delete")]
+    public async Task<IResult> CancelTheAppointment(Guid id, [FromBody] CancelAppointmentRequest request, CancellationToken ct = default)
+    {
+        var result = await adminService.CancelAppointmentAsync(id, request.Reason , ct);
+        if (result.IsSuccess)
+            return Results.Ok(ApiResponse.SuccessResponse("Appointment cancelled."));
+        return result.Errors.ToProblem();
+    }
 
     [HttpPost("appointments/{id:guid}/reschedule")]
     public async Task<IResult> RescheduleAppointment(Guid id, [FromBody] RescheduleAppointmentRequest request, CancellationToken ct = default)

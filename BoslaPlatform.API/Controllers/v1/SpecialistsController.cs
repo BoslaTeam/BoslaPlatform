@@ -6,6 +6,7 @@ using BoslaPlatform.Application.Features.Specialists.Request;
 using BoslaPlatform.Application.Features.Specialists.Response;
 using BoslaPlatform.Application.Features.Specialists.Services;
 using BoslaPlatform.Application.Interfaces.Specialists;
+using BoslaPlatform.Application.Interfaces.AI;
 using BoslaPlatform.Infrastructure.AI.Gemini;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Shared.Constants;
@@ -20,7 +21,7 @@ namespace BoslaPlatform.API.Controllers.v1
     [Route("api/v{version:apiVersion}/specialists")]
     [Authorize]
     [ApiConventionType(typeof(DefaultApiConventions))]
-    public class SpecialistsController(ISpecialistService specialistService, BoslaPlatform.Application.Interfaces.AI.IEmbeddingAdminService embeddingAdmin) : ControllerBase
+    public class SpecialistsController(ISpecialistService specialistService, IEmbeddingAdminService embeddingAdmin) : ControllerBase
     {
         #region Onboard & Profile 
 
@@ -41,7 +42,7 @@ namespace BoslaPlatform.API.Controllers.v1
         [Authorize(Roles = nameof(UserRole.Specialist))]
         public async Task<IResult> RefreshMyEmbeddings(CancellationToken ct)
         {
-            var result = await EmbeddingAdminService.RebuildSelfAsync(ct);
+            var result = await embeddingAdmin.RebuildSelfAsync(ct);
             if (result.IsSuccess) return Results.Ok(ApiResponse.SuccessResponse("Embedding refreshed."));
             return result.Errors.ToProblem();
         }
