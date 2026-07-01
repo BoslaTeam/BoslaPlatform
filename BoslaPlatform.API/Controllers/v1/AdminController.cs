@@ -4,7 +4,7 @@ using BoslaPlatform.API.Common.Extensions;
 using BoslaPlatform.Application.Features.Admin.DTOs;
 using BoslaPlatform.Application.Features.Admin.Requests;
 using BoslaPlatform.Application.Features.Admin.Services;
-usung BoslaPlatform.Application.Interfaces.AI;
+using BoslaPlatform.Application.Interfaces.AI;
 using BoslaPlatform.Application.Features.Lookup.Response;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Domain.Enums;
@@ -361,7 +361,7 @@ public class AdminController(
     [ProducesResponseType(typeof(ApiResponse<SpecialistDetailsDto>), StatusCodes.Status200OK)]
     public async Task<IResult> GetSpecialist(Guid id, CancellationToken ct = default)
     {
-        var result = await adminService.GetSpecialistDetailAsync(id, ct);
+        var result = await adminService.GetTheSpecialistDetailAsync(id, ct);
         return result.Match(
             value => Results.Ok(ApiResponse<SpecialistDetailsDto>.SuccessResponse(value)),
             errors => errors.ToProblem());
@@ -394,14 +394,14 @@ public class AdminController(
         return result.Errors.ToProblem();
     }
 
-    [HttpPost("appointments/{id:guid}/cancel")]
-    public async Task<IResult> CancelAppointment(Guid id, [FromBody] CancelAppointmentRequest request, CancellationToken ct = default)
-    {
-        var result = await adminService.CancelAppointmentAsync(id, request.Reason, ct);
-        if (result.IsSuccess)
-            return Results.Ok(ApiResponse.SuccessResponse("Appointment cancelled."));
-        return result.Errors.ToProblem();
-    }
+    //[HttpPost("appointments/{id:guid}/cancel")]
+    //public async Task<IResult> CancelAppointment(Guid id, [FromBody] CancelAppointmentRequest request, CancellationToken ct = default)
+    //{
+    //    var result = await adminService.CancelAppointmentAsync(id, request.Reason, ct);
+    //    if (result.IsSuccess)
+    //        return Results.Ok(ApiResponse.SuccessResponse("Appointment cancelled."));
+    //    return result.Errors.ToProblem();
+    //}
 
     [HttpPost("appointments/{id:guid}/reschedule")]
     public async Task<IResult> RescheduleAppointment(Guid id, [FromBody] RescheduleAppointmentRequest request, CancellationToken ct = default)

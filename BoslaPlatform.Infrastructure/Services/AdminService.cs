@@ -36,7 +36,7 @@ namespace BoslaPlatform.Infrastructure.Services
             _dashboardRepository = dashboardRepository;
             _currentUser = currentUser;
             _dashboardRepository = dashboardRepository;
-            _stripeSettings = stripeOptions?.Value ?? new StripeSettings();
+            _stripeSettings = stripeSettings?.Value ?? new StripeSettings();
             if (!string.IsNullOrWhiteSpace(_stripeSettings.SecretKey))
             {
                 StripeConfiguration.ApiKey = _stripeSettings.SecretKey;
@@ -278,7 +278,7 @@ namespace BoslaPlatform.Infrastructure.Services
             return Result<List<SpecialistDto>>.Success(dtos);
         }
 
-        public async Task<Result<SpecialistDetailsDto>> GetSpecialistDetailAsync(Guid specialistId, CancellationToken cancellationToken = default)
+        public async Task<Result<SpecialistDetailsDto>> GetTheSpecialistDetailAsync(Guid specialistId, CancellationToken cancellationToken = default)
         {
             var specialist = await _context.Specialists
                 .IgnoreQueryFilters()

@@ -17,7 +17,6 @@ using BoslaPlatform.Infrastructure.AI.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.Qdrant;
 using BoslaPlatform.Infrastructure.Agora;
 using BoslaPlatform.Infrastructure.Agora.Services;
-using BoslaPlatform.Infrastructure.AI.OpenAi;
 using BoslaPlatform.Infrastructure.Communication;
 using BoslaPlatform.Infrastructure.Data;
 using BoslaPlatform.Infrastructure.Data.Interceptors;
