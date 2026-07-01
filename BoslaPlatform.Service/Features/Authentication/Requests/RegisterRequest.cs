@@ -26,6 +26,6 @@ namespace BoslaPlatform.Application
 
         public string? Gender { get; set; }
         public string Country { get; set; } = string.Empty;
-        public string Role { get; set; } = string.Empty;
+        public string Role { get; set; } = "User";
     }
 }
