@@ -1,3 +1,6 @@
+using BoslaPlatform.API.Common.Extensions;
+using BoslaPlatform.API.Common.Responses;
+using BoslaPlatform.Application.Features.Payments.Dtos;
 using BoslaPlatform.Application.Features.Payments.Requests;
 using BoslaPlatform.Application.Interfaces.Payments;
 using BoslaPlatform.Application.Interfaces.Persistence;
@@ -35,33 +38,33 @@ namespace BoslaPlatform.API.Controllers.v1
 
             if (result.IsError)
             {
-                return BadRequest(result.Errors);
+                return BadRequest(result.ToApiResponse<PaymentResponseDto>());
             }
-            return Ok(result.Value);
+            return Ok(result.ToApiResponse<PaymentResponseDto>());
         }
 
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id)
         {
             var result = await _paymentService.GetByIdAsync(id, HttpContext.RequestAborted);
-            if (result.IsError) return BadRequest(result.Errors);
-            return Ok(result.Value);
+            if (result.IsError) return BadRequest(result.ToApiResponse<PaymentResponseDto>());
+            return Ok(result.ToApiResponse<PaymentResponseDto>());
         }
 
         [HttpGet("appointments/{appointmentId:guid}/payment")]
         public async Task<IActionResult> GetByAppointment(Guid appointmentId)
         {
             var result = await _paymentService.GetByAppointmentAsync(appointmentId, HttpContext.RequestAborted);
-            if (result.IsError) return BadRequest(result.Errors);
-            return Ok(result.Value);
+            if (result.IsError) return BadRequest(result.ToApiResponse<PaymentResponseDto>());
+            return Ok(result.ToApiResponse<PaymentResponseDto>());
         }
 
         [HttpGet("me")]
         public async Task<IActionResult> GetMyPayments()
         {
             var result = await _paymentService.GetMyPaymentsAsync(HttpContext.RequestAborted);
-            if (result.IsError) return BadRequest(result.Errors);
-            return Ok(result.Value);
+            if (result.IsError) return BadRequest(result.ToApiResponse<IReadOnlyList<PaymentResponseDto>>());
+            return Ok(result.ToApiResponse<IReadOnlyList<PaymentResponseDto>>());
         }
 
         [HttpPost("webhook")]
