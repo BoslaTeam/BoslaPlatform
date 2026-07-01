@@ -1514,6 +1514,9 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("LastModifiedUtc")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<DateTime?>("RecordingCompletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("RecordingUrl")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");

@@ -169,7 +169,13 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
         //            DateTime.UtcNow));
         //}
         /// <summary>
-        /// Starts a video session.
+        /// Prepares a video session for joining.
+        ///
+        /// This is a VALIDATION and PREPARATION step only.
+        /// It does NOT activate the session — the session transitions to Active
+        /// exclusively when Agora fires the channel_created webhook callback
+        /// (VideoSession.ChannelCreated()). The specialist and participants can
+        /// obtain tokens and prepare to join after this step succeeds.
         /// </summary>
         /// <param name="videoSessionId">
         /// Video session identifier.
@@ -178,7 +184,8 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
         /// Cancellation token.
         /// </param>
         /// <returns>
-        /// Started session details.
+        /// Preparation confirmation with acknowledgment timestamp.
+        /// The actual StartedAt is set when Agora confirms the first participant join.
         /// </returns>
         public async Task<Result<StartVideoSessionResponse>> StartAsync(Guid videoSessionId,CancellationToken ct = default)
         {
@@ -218,12 +225,13 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
                     "Only the assigned specialist can start this session.");
             }
 
-            //var validation =session.Appointment!.CanStartVideoSession(DateTimeOffset.UtcNow);
+            //var validation = session.Appointment!.CanStartVideoSession(DateTimeOffset.UtcNow);
 
             //if (validation.IsError)
             //{
             //    return validation.Errors;
             //}
+
             var result = session.Start();
 
             if (result.IsError)
@@ -236,10 +244,14 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             return Result<StartVideoSessionResponse>.Success(
                 new StartVideoSessionResponse(
                     session.Id,
-                    session.StartedAt!.Value));
+                    DateTime.UtcNow));
         }
         /// <summary>
-        /// Ends a video session.
+        /// Ends a video session manually.
+        /// The specialist can end the session before the scheduled appointment end.
+        /// If the session has not been activated yet (Waiting status), ending it
+        /// cancels the preparation — the session will be marked as Ended and
+        /// will not transition to Active when Agora fires channel_created.
         /// </summary>
         /// <param name="videoSessionId">
         /// Video session identifier.
@@ -285,7 +297,7 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             {
                 return Error.Forbidden(
                     "VideoSession.AccessDenied",
-                    "Only the assigned specialist can start this session.");
+                    "Only the assigned specialist can end this session.");
             }
 
             var result = session.End();
