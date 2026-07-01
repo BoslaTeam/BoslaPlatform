@@ -23,7 +23,7 @@ using Microsoft.Extensions.Options;
 using Stripe;
 using System.Security.Cryptography;
 using System.Text;
-using BoslaPlatform.Application.Interfaces.AI;
+//using BoslaPlatform.Application.Interfaces.AI;
 
 namespace BoslaPlatform.Infrastructure.Services
 {
@@ -261,56 +261,56 @@ namespace BoslaPlatform.Infrastructure.Services
             return Result.Success();
         }
 
-        public async Task<Result<List<SpecialistDto>>> GetPendingSpecialistsAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
-        {
-            var skip = (page - 1) * pageSize;
-            var specialists = await _context.Specialists
-                .IgnoreQueryFilters()
-                .Include(s => s.User)
-                .Where(s => s.VerificationStatus == VerificationStatus.Pending)
-                .OrderBy(s => s.CreatedAtUtc)
-                .Skip(skip)
-                .Take(pageSize)
-                .ToListAsync(cancellationToken);
+        //public async Task<Result<List<SpecialistDto>>> GetPendingSpecialistsAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+        //{
+        //    var skip = (page - 1) * pageSize;
+        //    var specialists = await _context.Specialists
+        //        .IgnoreQueryFilters()
+        //        .Include(s => s.User)
+        //        .Where(s => s.VerificationStatus == VerificationStatus.Pending)
+        //        .OrderBy(s => s.CreatedAtUtc)
+        //        .Skip(skip)
+        //        .Take(pageSize)
+        //        .ToListAsync(cancellationToken);
 
-            var dtos = specialists.Select(s => new SpecialistDto
-            {
-                Id = s.Id,
-                UserId = s.UserId,
-                Name = s.User?.Name,
-                Title = s.User?.Title,
-                HourlyRate = s.HourlyRate,
-                VerificationStatus = s.VerificationStatus.ToString()
-            }).ToList();
+        //    var dtos = specialists.Select(s => new SpecialistDto
+        //    {
+        //        Id = s.Id,
+        //        UserId = s.UserId,
+        //        Name = s.User?.Name,
+        //        Title = s.User?.Title,
+        //        HourlyRate = s.HourlyRate,
+        //        VerificationStatus = s.VerificationStatus.ToString()
+        //    }).ToList();
 
-            return Result<List<SpecialistDto>>.Success(dtos);
-        }
+        //    return Result<List<SpecialistDto>>.Success(dtos);
+        //}
 
-        public async Task<Result<SpecialistDetailsDto>> GetTheSpecialistDetailAsync(Guid specialistId, CancellationToken cancellationToken = default)
-        {
-            var specialist = await _context.Specialists
-                .IgnoreQueryFilters()
-                .Include(s => s.User)
-                .FirstOrDefaultAsync(s => s.Id == specialistId, cancellationToken);
+        //public async Task<Result<SpecialistDetailsDto>> GetTheSpecialistDetailAsync(Guid specialistId, CancellationToken cancellationToken = default)
+        //{
+        //    var specialist = await _context.Specialists
+        //        .IgnoreQueryFilters()
+        //        .Include(s => s.User)
+        //        .FirstOrDefaultAsync(s => s.Id == specialistId, cancellationToken);
 
-            if (specialist == null)
-                return Error.NotFound(description: "Specialist not found.");
+        //    if (specialist == null)
+        //        return Error.NotFound(description: "Specialist not found.");
 
-            var dto = new SpecialistDetailsDto
-            {
-                Id = specialist.Id,
-                UserId = specialist.UserId,
-                Name = specialist.User?.Name,
-                Title = specialist.User?.Title,
-                Bio = specialist.User?.Bio ?? specialist.BookingPolicy,
-                HourlyRate = specialist.HourlyRate,
-                ExperienceYears = specialist.ExperienceYears,
-                VerificationStatus = specialist.VerificationStatus.ToString(),
-                VerifiedAt = specialist.VerifiedAt
-            };
+        //    var dto = new SpecialistDetailsDto
+        //    {
+        //        Id = specialist.Id,
+        //        UserId = specialist.UserId,
+        //        Name = specialist.User?.Name,
+        //        Title = specialist.User?.Title,
+        //        Bio = specialist.User?.Bio ?? specialist.BookingPolicy,
+        //        HourlyRate = specialist.HourlyRate,
+        //        ExperienceYears = specialist.ExperienceYears,
+        //        VerificationStatus = specialist.VerificationStatus.ToString(),
+        //        VerifiedAt = specialist.VerifiedAt
+        //    };
 
-            return Result<SpecialistDetailsDto>.Success(dto);
-        }
+        //    return Result<SpecialistDetailsDto>.Success(dto);
+        //}
 
         public async Task<Result<List<AppointmentDto>>> GetAllAppointmentsAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
         {
@@ -488,53 +488,53 @@ namespace BoslaPlatform.Infrastructure.Services
             return Result.Success();
         }
 
-        public async Task<Result<AuditLogDto>> GetAuditLogByIdAsync(Guid id, CancellationToken cancellationToken = default)
-        {
-            var l = await _context.Set<BoslaPlatform.Domain.Models.AuditLog>().IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
-            if (l == null)
-                return Error.NotFound(description: "Audit log not found.");
+        //public async Task<Result<AuditLogDto>> GetAuditLogByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        //{
+        //    var l = await _context.Set<BoslaPlatform.Domain.Models.AuditLog>().IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+        //    if (l == null)
+        //        return Error.NotFound(description: "Audit log not found.");
 
-            var dto = new AuditLogDto
-            {
-                Id = l.Id,
-                Action = l.Action.ToString(),
-                Details = l.NewValues ?? l.OldValues,
-                PerformedBy = l.ChangedByUser?.Name,
-                PerformedAt = l.Timestamp
-            };
+        //    var dto = new AuditLogDto
+        //    {
+        //        Id = l.Id,
+        //        Action = l.Action.ToString(),
+        //        Details = l.NewValues ?? l.OldValues,
+        //        PerformedBy = l.ChangedByUser?.Name,
+        //        PerformedAt = l.Timestamp
+        //    };
 
-            return Result<AuditLogDto>.Success(dto);
-        }
+        //    return Result<AuditLogDto>.Success(dto);
+        //}
 
-        public async Task<Result<DashboardDto>> GetDashboardAsync(CancellationToken cancellationToken = default)
-        {
-            // Prefer the Dapper read model for aggregated dashboard queries
-            try
-            {
-                var dto = await _dashboardRepository.GetDashboardAsync(cancellationToken);
-                return Result<DashboardDto>.Success(dto);
-            }
-            catch
-            {
-                // Fallback to EF counts if Dapper fails
-                var totalUsers = await _context.Users.IgnoreQueryFilters().CountAsync(cancellationToken);
-                var totalSpecialists = await _context.Specialists.IgnoreQueryFilters().CountAsync(cancellationToken);
-                var pendingSpecialists = await _context.Specialists.IgnoreQueryFilters().CountAsync(s => s.VerificationStatus == VerificationStatus.Pending, cancellationToken: cancellationToken);
-                var totalAppointments = await _context.Appointments.IgnoreQueryFilters().CountAsync(cancellationToken);
-                var totalPayments = await _context.Payments.IgnoreQueryFilters().SumAsync(p => p.Amount, cancellationToken);
+        //public async Task<Result<DashboardDto>> GetDashboardAsync(CancellationToken cancellationToken = default)
+        //{
+        //    // Prefer the Dapper read model for aggregated dashboard queries
+        //    try
+        //    {
+        //        var dto = await _dashboardRepository.GetDashboardAsync(cancellationToken);
+        //        return Result<DashboardDto>.Success(dto);
+        //    }
+        //    catch
+        //    {
+        //        // Fallback to EF counts if Dapper fails
+        //        var totalUsers = await _context.Users.IgnoreQueryFilters().CountAsync(cancellationToken);
+        //        var totalSpecialists = await _context.Specialists.IgnoreQueryFilters().CountAsync(cancellationToken);
+        //        var pendingSpecialists = await _context.Specialists.IgnoreQueryFilters().CountAsync(s => s.VerificationStatus == VerificationStatus.Pending, cancellationToken: cancellationToken);
+        //        var totalAppointments = await _context.Appointments.IgnoreQueryFilters().CountAsync(cancellationToken);
+        //        var totalPayments = await _context.Payments.IgnoreQueryFilters().SumAsync(p => p.Amount, cancellationToken);
 
-                var dto = new DashboardDto
-                {
-                    TotalUsers = totalUsers,
-                    TotalSpecialists = totalSpecialists,
-                    PendingSpecialists = pendingSpecialists,
-                    TotalAppointments = totalAppointments,
-                    TotalPayments = totalPayments
-                };
+        //        var dto = new DashboardDto
+        //        {
+        //            TotalUsers = totalUsers,
+        //            TotalSpecialists = totalSpecialists,
+        //            PendingSpecialists = pendingSpecialists,
+        //            TotalAppointments = totalAppointments,
+        //            TotalPayments = totalPayments
+        //        };
 
-                return Result<DashboardDto>.Success(dto);
-            }
-        }
+        //        return Result<DashboardDto>.Success(dto);
+        //    }
+        //}
 
         public async Task<Result> DeactivateUserAsync(Guid userId, CancellationToken cancellationToken = default)
         {
@@ -761,39 +761,39 @@ namespace BoslaPlatform.Infrastructure.Services
             return Result<AdminSpecialistDetailDto>.Success(dto);
         }
 
-        public async Task<Result> VerifyOfSpecialistAsync(Guid specialistId, bool isVerified, Guid verifiedByUserId, CancellationToken cancellationToken = default)
-        {
-            var specialist = await _context.Specialists.FirstOrDefaultAsync(s => s.Id == specialistId, cancellationToken);
-            if (specialist == null)
-                return Error.NotFound(description: "Specialist not found.");
+        //public async Task<Result> VerifyOfSpecialistAsync(Guid specialistId, bool isVerified, Guid verifiedByUserId, CancellationToken cancellationToken = default)
+        //{
+        //    var specialist = await _context.Specialists.FirstOrDefaultAsync(s => s.Id == specialistId, cancellationToken);
+        //    if (specialist == null)
+        //        return Error.NotFound(description: "Specialist not found.");
 
-            var old = specialist.VerificationStatus;
+        //    var old = specialist.VerificationStatus;
 
-            specialist.VerificationStatus = isVerified ? VerificationStatus.Approved : VerificationStatus.Rejected;
-            specialist.VerifiedAt = isVerified ? DateTime.UtcNow : null;
-            await _context.SaveChangesAsync(cancellationToken);
+        //    specialist.VerificationStatus = isVerified ? VerificationStatus.Approved : VerificationStatus.Rejected;
+        //    specialist.VerifiedAt = isVerified ? DateTime.UtcNow : null;
+        //    await _context.SaveChangesAsync(cancellationToken);
 
-            // Audit
-            try
-            {
-                var audit = new BoslaPlatform.Domain.Models.AuditLog
-                {
-                    EntityType = "Specialist",
-                    EntityId = specialist.Id.ToString(),
-                    Action = BoslaPlatform.Domain.Enums.AuditAction.Verified,
-                    OldValues = $"VerificationStatus={old}",
-                    NewValues = $"VerificationStatus={specialist.VerificationStatus}",
-                    Timestamp = DateTime.UtcNow
-                };
-                _context.Set<BoslaPlatform.Domain.Models.AuditLog>().Add(audit);
-                await _context.SaveChangesAsync(cancellationToken);
-            }
-            catch
-            {
-            }
+        //    // Audit
+        //    try
+        //    {
+        //        var audit = new BoslaPlatform.Domain.Models.AuditLog
+        //        {
+        //            EntityType = "Specialist",
+        //            EntityId = specialist.Id.ToString(),
+        //            Action = BoslaPlatform.Domain.Enums.AuditAction.Verified,
+        //            OldValues = $"VerificationStatus={old}",
+        //            NewValues = $"VerificationStatus={specialist.VerificationStatus}",
+        //            Timestamp = DateTime.UtcNow
+        //        };
+        //        _context.Set<BoslaPlatform.Domain.Models.AuditLog>().Add(audit);
+        //        await _context.SaveChangesAsync(cancellationToken);
+        //    }
+        //    catch
+        //    {
+        //    }
 
-            return Result.Success();
-        }
+        //    return Result.Success();
+        //}
 
         // VerifiedBy should be set by current user; leave null if not available.
 
@@ -815,62 +815,62 @@ namespace BoslaPlatform.Infrastructure.Services
             return Result.Success();
         }
 
-        public async Task<Result<List<AuditLogDto>>> GetAuditLogsAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
-        {
-            var skip = (page - 1) * pageSize;
-            var logs = await _context.Set<BoslaPlatform.Domain.Models.AuditLog>()
-                .IgnoreQueryFilters()
-                .OrderByDescending(a => a.Timestamp)
-                .Skip(skip)
-                .Take(pageSize)
-                .ToListAsync(cancellationToken);
+        //public async Task<Result<List<AuditLogDto>>> GetAuditLogsAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+        //{
+        //    var skip = (page - 1) * pageSize;
+        //    var logs = await _context.Set<BoslaPlatform.Domain.Models.AuditLog>()
+        //        .IgnoreQueryFilters()
+        //        .OrderByDescending(a => a.Timestamp)
+        //        .Skip(skip)
+        //        .Take(pageSize)
+        //        .ToListAsync(cancellationToken);
 
-            var dtos = logs.Select(l => new AuditLogDto
-            {
-                Id = l.Id,
-                Action = l.Action.ToString(),
-                Details = l.NewValues ?? l.OldValues,
-                PerformedBy = l.ChangedByUser?.Name,
-                PerformedAt = l.Timestamp
-            }).ToList();
+        //    var dtos = logs.Select(l => new AuditLogDto
+        //    {
+        //        Id = l.Id,
+        //        Action = l.Action.ToString(),
+        //        Details = l.NewValues ?? l.OldValues,
+        //        PerformedBy = l.ChangedByUser?.Name,
+        //        PerformedAt = l.Timestamp
+        //    }).ToList();
 
-            return Result<List<AuditLogDto>>.Success(dtos);
-        }
+        //    return Result<List<AuditLogDto>>.Success(dtos);
+        //}
 
-        public async Task<Result> VerifyTheSpecialistAsync(Guid specialistId, bool isVerified, CancellationToken cancellationToken = default)
-        {
-            var specialist = await _context.Specialists.FirstOrDefaultAsync(s => s.Id == specialistId, cancellationToken);
-            if (specialist == null)
-                return Error.NotFound(description: "Specialist not found.");
+        //public async Task<Result> VerifyTheSpecialistAsync(Guid specialistId, bool isVerified, CancellationToken cancellationToken = default)
+        //{
+        //    var specialist = await _context.Specialists.FirstOrDefaultAsync(s => s.Id == specialistId, cancellationToken);
+        //    if (specialist == null)
+        //        return Error.NotFound(description: "Specialist not found.");
 
-            var old = specialist.VerificationStatus;
+        //    var old = specialist.VerificationStatus;
 
-            specialist.VerificationStatus = isVerified ? VerificationStatus.Approved : VerificationStatus.Rejected;
-            specialist.VerifiedAt = isVerified ? DateTime.UtcNow : null;
+        //    specialist.VerificationStatus = isVerified ? VerificationStatus.Approved : VerificationStatus.Rejected;
+        //    specialist.VerifiedAt = isVerified ? DateTime.UtcNow : null;
 
-            await _context.SaveChangesAsync(cancellationToken);
+        //    await _context.SaveChangesAsync(cancellationToken);
 
-            // Audit
-            try
-            {
-                var audit = new BoslaPlatform.Domain.Models.AuditLog
-                {
-                    EntityType = "Specialist",
-                    EntityId = specialist.Id.ToString(),
-                    Action = BoslaPlatform.Domain.Enums.AuditAction.Verified,
-                    OldValues = $"VerificationStatus={old}",
-                    NewValues = $"VerificationStatus={specialist.VerificationStatus}",
-                    Timestamp = DateTime.UtcNow
-                };
-                _context.Set<BoslaPlatform.Domain.Models.AuditLog>().Add(audit);
-                await _context.SaveChangesAsync(cancellationToken);
-            }
-            catch
-            {
-            }
+        //    // Audit
+        //    try
+        //    {
+        //        var audit = new BoslaPlatform.Domain.Models.AuditLog
+        //        {
+        //            EntityType = "Specialist",
+        //            EntityId = specialist.Id.ToString(),
+        //            Action = BoslaPlatform.Domain.Enums.AuditAction.Verified,
+        //            OldValues = $"VerificationStatus={old}",
+        //            NewValues = $"VerificationStatus={specialist.VerificationStatus}",
+        //            Timestamp = DateTime.UtcNow
+        //        };
+        //        _context.Set<BoslaPlatform.Domain.Models.AuditLog>().Add(audit);
+        //        await _context.SaveChangesAsync(cancellationToken);
+        //    }
+        //    catch
+        //    {
+        //    }
 
-            return Result.Success();
-        }
+        //    return Result.Success();
+        //}
 
 
         public async Task<Result> VerifySpecialistAsync(Guid specialistId, bool isVerified, Guid verifiedByUserId, CancellationToken cancellationToken = default)
@@ -1319,23 +1319,23 @@ namespace BoslaPlatform.Infrastructure.Services
             return entity.Id;
         }
 
-        public async Task<Result> UpdateToolAsync(Guid id, string name, CancellationToken cancellationToken = default)
-        {
-            var entity = await _context.Tools.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
-            if (entity == null) return Error.NotFound(description: "Tool not found.");
-            entity.Name = name;
-            await _context.SaveChangesAsync(cancellationToken);
-            return Result.Success();
-        }
+        //public async Task<Result> UpdateToolAsync(Guid id, string name, CancellationToken cancellationToken = default)
+        //{
+        //    var entity = await _context.Tools.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        //    if (entity == null) return Error.NotFound(description: "Tool not found.");
+        //    entity.Name = name;
+        //    await _context.SaveChangesAsync(cancellationToken);
+        //    return Result.Success();
+        //}
 
-        public async Task<Result> DeleteToolAsync(Guid id, CancellationToken cancellationToken = default)
-        {
-            var entity = await _context.Tools.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
-            if (entity == null) return Error.NotFound(description: "Tool not found.");
-            _context.Tools.Remove(entity);
-            await _context.SaveChangesAsync(cancellationToken);
-            return Result.Success();
-        }
+        //public async Task<Result> DeleteToolAsync(Guid id, CancellationToken cancellationToken = default)
+        //{
+        //    var entity = await _context.Tools.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        //    if (entity == null) return Error.NotFound(description: "Tool not found.");
+        //    _context.Tools.Remove(entity);
+        //    await _context.SaveChangesAsync(cancellationToken);
+        //    return Result.Success();
+        //}
 
         // ── Industries ──
 
