@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿#pragma warning disable CS8981
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 

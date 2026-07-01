@@ -19,7 +19,7 @@ namespace BoslaPlatform.Application.Features.Payments.Services
         {
             var options = new PaymentIntentCreateOptions
             {
-                Amount = (long)(amount * 100),
+                Amount = (long)Math.Round(amount * 100, MidpointRounding.AwayFromZero),
                 Currency = currency.ToLowerProviderInvariant(),
                 PaymentMethodTypes = new List<string> { "card" }
             };
