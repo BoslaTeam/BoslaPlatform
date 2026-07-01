@@ -215,6 +215,53 @@ namespace BoslaPlatform.Application.Services
             return new PaginatedList<AppointmentDto>(items, metadata);
         }
 
+        // 4b. Read Paginated List for Current Specialist
+        public async Task<Result<PaginatedList<AppointmentDto>>> GetMySpecialistAppointmentsAsync(int pageNumber, int pageSize, CancellationToken ct)
+        {
+            if (!_currentUser.Id.HasValue)
+            {
+                return Error.Unauthorized("Auth.Unauthorized", "User identification missing.");
+            }
+
+            var specialistId = await _context.Specialists
+                .Where(s => s.UserId == _currentUser.Id.Value)
+                .Select(s => (Guid?)s.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (!specialistId.HasValue)
+            {
+                return Error.Forbidden("Appointment.NotSpecialist", "Current user does not have a specialist profile.");
+            }
+
+            var query = _context.Appointments
+                .AsNoTracking()
+                .Where(a => a.SpecialistId == specialistId.Value);
+
+            int totalCount = await query.CountAsync(ct);
+
+            var items = await query
+                .OrderByDescending(a => a.Start)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(a => new AppointmentDto
+                {
+                    Id = a.Id,
+                    SpecialistId = a.SpecialistId,
+                    UserId = a.UserId,
+                    Start = a.Start,
+                    End = a.End,
+                    Status = a.Status,
+                    SessionTopic = a.SessionTopic,
+                    Notes = a.Notes,
+                    SessionPrice = a.SessionPrice,
+                    IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed
+                })
+                .ToListAsync(ct);
+
+            var metadata = PaginationMetadata.Create(pageNumber, pageSize, totalCount);
+            return new PaginatedList<AppointmentDto>(items, metadata);
+        }
+
         // 5. Get Upcoming Appointments
         public async Task<Result<List<AppointmentDto>>> GetUpcomingAppointmentsAsync(CancellationToken ct)
         {
@@ -284,8 +331,8 @@ namespace BoslaPlatform.Application.Services
             return historyDto;
         }
 
-        // 6b. Mark as Paid
-        public async Task<Result> MarkAsPaidAsync(Guid id, CancellationToken ct)
+        // 6a. Confirm Payment after Stripe success
+        public async Task<Result> ConfirmPaymentAsync(Guid id, string paymentIntentId, CancellationToken ct)
         {
             var appointment = await _context.Appointments
                 .Include(a => a.StatusHistory)
@@ -293,22 +340,18 @@ namespace BoslaPlatform.Application.Services
 
             if (appointment is null) return Error.NotFound("Appointment.NotFound", "The appointment was not found.");
 
-            var result = appointment.MarkAsPaid();
-            if (result.IsError) return result.Errors;
+            if (!_currentUser.Id.HasValue || appointment.UserId != _currentUser.Id.Value)
+                return Error.Forbidden("Payment.Forbidden", "You are not authorized to confirm payment for this appointment.");
 
-            var existingPayment = await _context.Payments
+            var payment = await _context.Payments
                 .FirstOrDefaultAsync(p => p.AppointmentId == id, ct);
 
-            if (existingPayment is not null)
-            {
-                existingPayment.Complete($"DEMO-{Guid.NewGuid():N}".ToUpper(), "Demo");
-            }
-            else
-            {
-                var payment = Payment.Initiate(id, appointment.SessionPrice, "sar");
-                payment.Complete($"DEMO-{Guid.NewGuid():N}".ToUpper(), "Demo");
-                _context.Payments.Add(payment);
-            }
+            if (payment is null) return Error.NotFound("Payment.NotFound", "No payment found for this appointment.");
+
+            payment.Complete(paymentIntentId, "Card");
+
+            var result = appointment.MarkAsPaid();
+            if (result.IsError) return result.Errors;
 
             await _context.SaveChangesAsync(ct);
             return Result.Success();

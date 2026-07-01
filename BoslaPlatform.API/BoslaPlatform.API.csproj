@@ -30,6 +30,7 @@
 
   <ItemGroup>
     <Folder Include="Common\Filters\" />
+    <Folder Include="wwwroot\" />
     <Folder Include="Services\" />
   </ItemGroup>
 

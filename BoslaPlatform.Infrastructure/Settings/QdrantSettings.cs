@@ -6,4 +6,6 @@ public class QdrantSettings
     public string ApiKey { get; set; } = string.Empty;
     public string CollectionName { get; set; } = "specialists";
     public int DefaultTopK { get; set; } = 10;
+    // Vector size for the collection (must match embedding dimension returned by the embedding model)
+    public int VectorSize { get; set; } = 3072;
 }

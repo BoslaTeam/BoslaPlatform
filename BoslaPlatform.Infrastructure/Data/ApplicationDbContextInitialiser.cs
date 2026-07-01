@@ -16,7 +16,7 @@ namespace BoslaPlatform.Infrastructure.Data
         private readonly AppDbContext _context;
         private readonly UserManager<User> _userManager;
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
-        private const string DefaultPassword = "0105140@Ma";
+        private const string DefaultPassword = "Pass@123";
 
         public ApplicationDbContextInitialiser(
             ILogger<ApplicationDbContextInitialiser> logger,
@@ -123,7 +123,7 @@ namespace BoslaPlatform.Infrastructure.Data
                         Name = userData.Name
                     };
 
-                    IdentityResult result = null;
+                    IdentityResult? result = null;
                     try
                     {
                         result = await _userManager.CreateAsync(newUser, DefaultPassword);
@@ -146,11 +146,19 @@ namespace BoslaPlatform.Infrastructure.Data
                         {
                             UserId = newUser.Id,
                             ExperienceYears = 5,
-                            HourlyRate = 100,
-                            VerificationStatus = VerificationStatus.Approved
+                            HourlyRate = 100
                         };
 
                         _context.Specialists.Add(specialist);
+
+                        var verification = new SpecialistVerification
+                        {
+                            Specialist = specialist
+                        };
+                        verification.Submit();
+                        verification.Approve(newUser.Id);
+                        _context.SpecialistVerifications.Add(verification);
+
                         await _context.SaveChangesAsync();
                     }
                     if (!string.IsNullOrWhiteSpace(newUser.Name))

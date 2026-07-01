@@ -13,7 +13,7 @@ namespace BoslaPlatform.Domain.Models.Communication
         public bool IsRead { get; set; } = false;
         public Guid? AppointmentId { get; set; }
         public int? AppointmentStatus { get; set; }
-        public User User { get; set; }
+        public User User { get; set; } = null!;
 
     }
 }

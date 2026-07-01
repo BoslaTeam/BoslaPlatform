@@ -62,7 +62,7 @@ namespace BoslaPlatform.Infrastructure.Agora.Services
             }
             var appointment = await _context.Appointments
             .Include(x => x.VideoSession)
-            .ThenInclude(v=>v.Participants)
+                .ThenInclude(x => x.Participants)
             .FirstOrDefaultAsync(
                 x => x.Id == appointmentId,
                 ct);

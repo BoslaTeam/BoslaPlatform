@@ -82,6 +82,9 @@ namespace BoslaPlatform.Domain.Models.Booking
 
         public Result MarkAsPaid()
         {
+            if (Status == AppointmentStatus.Paid)
+                return Result.Success();
+
             if (Status != AppointmentStatus.Pending && Status != AppointmentStatus.Confirmed)
                 return Result.Failure(Error.Validation(
                     "Appointment.InvalidStatusTransition",

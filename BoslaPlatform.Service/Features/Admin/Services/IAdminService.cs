@@ -104,6 +104,22 @@ namespace BoslaPlatform.Application.Features.Admin.Services
             DateTime? to = null,
             CancellationToken cancellationToken = default);
 
+        //Task<Result<List<SpecialistDto>>> GetPendingSpecialistsAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
+
+        //Task<Result<SpecialistDetailsDto>> GetTheSpecialistDetailAsync(Guid specialistId, CancellationToken cancellationToken = default);
+
+        Task<Result<List<AppointmentDto>>> GetAllAppointmentsAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
+
+        Task<Result> RescheduleAppointmentAsync(Guid appointmentId, DateTime newStart, DateTime newEnd, CancellationToken cancellationToken = default);
+
+        Task<Result<List<PaymentDto>>> GetAllPaymentsAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
+
+        Task<Result> RefundPaymentAsync(Guid paymentId, CancellationToken cancellationToken = default);
+
+        //Task<Result<AuditLogDto>> GetAuditLogByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
+        //Task<Result<DashboardDto>> GetDashboardAsync(CancellationToken cancellationToken = default);
+
         Task<Result<AdminDashboardDto>> GetDashboardStatsAsync(CancellationToken cancellationToken = default);
 
         // ── AI Embeddings ──

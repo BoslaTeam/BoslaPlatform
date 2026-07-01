@@ -8,7 +8,7 @@ namespace BoslaPlatform.Domain.Models.Junctions
         public Guid UserId { get; set; }
         public Guid ExpertiseId { get; set; }
         public Expertise Expertise { get; set; } = null!;
-        public User User { get; set; }
+        public User User { get; set; } = null!;
 
     }
 }

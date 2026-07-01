@@ -8,17 +8,19 @@ namespace BoslaPlatform.API.Controllers.V1;
 
 [ApiController]
 [Route("api/v1/ai")]
-//[Authorize]
+[Authorize]
 /// <summary>
 /// AI endpoints (Smart Search, RAG)
 /// </summary>
 public class AiController : ControllerBase
 {
     private readonly IAiSearchService _ai;
+    private readonly BoslaPlatform.Application.Interfaces.AI.ISummaryService _summaryService;
 
-    public AiController(IAiSearchService ai)
+    public AiController(IAiSearchService ai, BoslaPlatform.Application.Interfaces.AI.ISummaryService summaryService)
     {
         _ai = ai;
+        _summaryService = summaryService;
     }
 
     /// <summary>
@@ -47,6 +49,15 @@ public class AiController : ControllerBase
     public async Task<IActionResult> RecordFeedback([FromRoute] Guid id, [FromBody] BoslaPlatform.Service.Features.AI.Requests.FeedbackRequest req)
     {
         await _ai.RecordFeedbackAsync(id, req);
+        return NoContent();
+    }
+
+    [HttpPost("summaries/{id:guid}/regenerate")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> RegenerateSummary([FromRoute] Guid id, CancellationToken ct)
+    {
+        var result = await _summaryService.RegenerateAsync(id, ct);
+        if (result.IsError) return Problem(statusCode: 500, title: "Failed to regenerate summary");
         return NoContent();
     }
 }

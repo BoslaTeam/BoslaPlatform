@@ -4,6 +4,7 @@ using BoslaPlatform.API.Common.Extensions;
 using BoslaPlatform.Application.Features.Admin.DTOs;
 using BoslaPlatform.Application.Features.Admin.Requests;
 using BoslaPlatform.Application.Features.Admin.Services;
+using BoslaPlatform.Application.Interfaces.AI;
 using BoslaPlatform.Application.Features.Lookup.Response;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Domain.Enums;
@@ -20,8 +21,7 @@ namespace BoslaPlatform.API.Controllers.v1;
 [Route("api/v{version:apiVersion}/admin")]
 [Authorize(Roles = nameof(UserRole.Admin))]
 public class AdminController(
-    IAdminService adminService,
-    IUser currentUser) : ControllerBase
+    IAdminService adminService, IEmbeddingAdminService embeddingAdmin, IUser currentUser) : ControllerBase
 {
     [HttpGet("users")]
     [ProducesResponseType(typeof(ApiResponse<BoslaPlatform.Shared.PaginatedList<UserDto>>), StatusCodes.Status200OK)]
@@ -113,7 +113,7 @@ public class AdminController(
             errors => errors.ToProblem());
     }
 
-    [HttpGet("specialists/{id:guid}")]
+    [HttpGet("specialists/{id:guid}/detail")]
     [ProducesResponseType(typeof(ApiResponse<AdminSpecialistDetailDto>), StatusCodes.Status200OK)]
     public async Task<IResult> GetSpecialistDetail(Guid id, CancellationToken ct = default)
     {
@@ -410,15 +410,15 @@ public class AdminController(
         return result.Errors.ToProblem();
     }
 
-    [HttpGet("audit-logs/{id:guid}")]
-    [ProducesResponseType(typeof(ApiResponse<AuditLogDto>), StatusCodes.Status200OK)]
-    public async Task<IResult> GetAuditLogById(Guid id, CancellationToken ct = default)
-    {
-        var result = await adminService.GetAuditLogByIdAsync(id, ct);
-        return result.Match(
-            value => Results.Ok(ApiResponse<AuditLogDto>.SuccessResponse(value)),
-            errors => errors.ToProblem());
-    }
+    //[HttpGet("audit-logs/{id:guid}")]
+    //[ProducesResponseType(typeof(ApiResponse<AuditLogDto>), StatusCodes.Status200OK)]
+    //public async Task<IResult> GetAuditLogById(Guid id, CancellationToken ct = default)
+    //{
+    //    var result = await adminService.GetAuditLogByIdAsync(id, ct);
+    //    return result.Match(
+    //        value => Results.Ok(ApiResponse<AuditLogDto>.SuccessResponse(value)),
+    //        errors => errors.ToProblem());
+    //}
 
     [HttpGet("audit-logs")]
     [ProducesResponseType(typeof(ApiResponse<PaginatedList<AuditLogDto>>), StatusCodes.Status200OK)]
@@ -438,7 +438,7 @@ public class AdminController(
             errors => errors.ToProblem());
     }
 
-    [HttpGet("dashboard")]
+    [HttpGet("dashboardstats")]
     [ProducesResponseType(typeof(ApiResponse<AdminDashboardDto>), StatusCodes.Status200OK)]
     public async Task<IResult> GetDashboardStats(CancellationToken ct = default)
     {
@@ -460,12 +460,107 @@ public class AdminController(
             errors => errors.ToProblem());
     }
 
+    [HttpGet("audit-logs/{id:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<AuditLogDto>), StatusCodes.Status200OK)]
+    public async Task<IResult> GetAuditLog(Guid id, CancellationToken ct = default)
+    {
+        var result = await adminService.GetAuditLogByIdAsync(id, ct);
+        return result.Match(
+            value => Results.Ok(ApiResponse<AuditLogDto>.SuccessResponse(value)),
+            errors => errors.ToProblem());
+    }
+
+    //[HttpGet("specialists/thepending")]
+    //[ProducesResponseType(typeof(ApiResponse<List<SpecialistDto>>), StatusCodes.Status200OK)]
+    //public async Task<IResult> GetPendingSpecialists(int page = 1, int pageSize = 20, CancellationToken ct = default)
+    //{
+    //    var result = await adminService.GetPendingSpecialistsAsync(page, pageSize, ct);
+    //    return result.Match(
+    //        value => Results.Ok(ApiResponse<List<SpecialistDto>>.SuccessResponse(value)),
+    //        errors => errors.ToProblem());
+    //}
+
+    //[HttpGet("specialists/{id:guid}")]
+    //[ProducesResponseType(typeof(ApiResponse<SpecialistDetailsDto>), StatusCodes.Status200OK)]
+    //public async Task<IResult> GetSpecialist(Guid id, CancellationToken ct = default)
+    //{
+    //    var result = await adminService.GetTheSpecialistDetailAsync(id, ct);
+    //    return result.Match(
+    //        value => Results.Ok(ApiResponse<SpecialistDetailsDto>.SuccessResponse(value)),
+    //        errors => errors.ToProblem());
+    //}
+
+    [HttpGet("appointments/list")]
+    [ProducesResponseType(typeof(ApiResponse<List<AppointmentDto>>), StatusCodes.Status200OK)]
+    public async Task<IResult> GetAppointments(int page = 1, int pageSize = 20, CancellationToken ct = default)
+    {
+        var result = await adminService.GetAllAppointmentsAsync(page, pageSize, ct);
+        return result.Match(
+            value => Results.Ok(ApiResponse<List<AppointmentDto>>.SuccessResponse(value)),
+            errors => errors.ToProblem());
+    }
+
+    [HttpGet("ai/embedding/all")]
+    public async Task<IResult> GetEmbeddingStatus(CancellationToken ct = default)
+    {
+        var result = await embeddingAdmin.GetStatusAsync(ct);
+        return result.Match(
+            value => Results.Ok(ApiResponse<object>.SuccessResponse(value)),
+            errors => errors.ToProblem());
+    }
+
     [HttpPost("ai/embeddings/rebuild")]
     public async Task<IResult> RebuildEmbeddings(CancellationToken ct = default)
     {
-        var result = await adminService.RebuildEmbeddingsAsync(ct);
-        if (result.IsSuccess)
-            return Results.Ok(ApiResponse.SuccessResponse("Embeddings rebuild initiated."));
+        var result = await embeddingAdmin.RebuildAllAsync(ct);
+        if (result.IsSuccess) return Results.Ok(ApiResponse.SuccessResponse("Rebuild started."));
         return result.Errors.ToProblem();
     }
+
+    [HttpPost("appointments/{id:guid}/delete")]
+    public async Task<IResult> CancelTheAppointment(Guid id, [FromBody] CancelAppointmentRequest request, CancellationToken ct = default)
+    {
+        var result = await adminService.CancelAppointmentAsync(id, request.Reason , ct);
+        if (result.IsSuccess)
+            return Results.Ok(ApiResponse.SuccessResponse("Appointment cancelled."));
+        return result.Errors.ToProblem();
+    }
+
+    [HttpPost("appointments/{id:guid}/reschedule")]
+    public async Task<IResult> RescheduleAppointment(Guid id, [FromBody] RescheduleAppointmentRequest request, CancellationToken ct = default)
+    {
+        var result = await adminService.RescheduleAppointmentAsync(id, request.NewStart, request.NewEnd, ct);
+        if (result.IsSuccess)
+            return Results.Ok(ApiResponse.SuccessResponse("Appointment rescheduled."));
+        return result.Errors.ToProblem();
+    }
+
+    [HttpGet("payments/all")]
+    [ProducesResponseType(typeof(ApiResponse<List<PaymentDto>>), StatusCodes.Status200OK)]
+    public async Task<IResult> GetPayments(int page = 1, int pageSize = 20, CancellationToken ct = default)
+    {
+        var result = await adminService.GetAllPaymentsAsync(page, pageSize, ct);
+        return result.Match(
+            value => Results.Ok(ApiResponse<List<PaymentDto>>.SuccessResponse(value)),
+            errors => errors.ToProblem());
+    }
+
+    //[HttpPost("payments/{id:guid}/refund")]
+    //public async Task<IResult> RefundPayment(Guid id, CancellationToken ct = default)
+    //{
+    //    var result = await adminService.RefundPaymentAsync(id, ct);
+    //    if (result.IsSuccess)
+    //        return Results.Ok(ApiResponse.SuccessResponse("Refund processed."));
+    //    return result.Errors.ToProblem();
+    //}
+
+    //[HttpGet("dashboard")]
+    //[ProducesResponseType(typeof(ApiResponse<DashboardDto>), StatusCodes.Status200OK)]
+    //public async Task<IResult> GetDashboard(CancellationToken ct = default)
+    //{
+    //    var result = await adminService.GetDashboardAsync(ct);
+    //    return result.Match(
+    //        value => Results.Ok(ApiResponse<DashboardDto>.SuccessResponse(value)),
+    //        errors => errors.ToProblem());
+    //}
 }

@@ -6,6 +6,8 @@ using BoslaPlatform.Application.Features.Appointments.DTOs;
 using BoslaPlatform.API.Common.Extensions;
 using BoslaPlatform.API.Common.Responses;
 using BoslaPlatform.Shared;
+using BoslaPlatform.Application.Interfaces.AI;
+using BoslaPlatform.Domain.Models;
 
 namespace BoslaPlatform.API.Controllers.V1
 {
@@ -15,10 +17,12 @@ namespace BoslaPlatform.API.Controllers.V1
     public class AppointmentsController : ControllerBase
     {
         private readonly IAppointmentService _appointmentService;
+        private readonly ISummaryService _summaryService;
 
-        public AppointmentsController(IAppointmentService appointmentService)
+        public AppointmentsController(IAppointmentService appointmentService, ISummaryService summaryService)
         {
             _appointmentService = appointmentService;
+            _summaryService = summaryService;
         }
 
         // 1. POST: api/v1/appointments
@@ -80,7 +84,25 @@ namespace BoslaPlatform.API.Controllers.V1
             return Ok(response);
         }
 
-        // 5. GET: api/v1/appointments/upcoming
+        // 5. GET: api/v1/appointments/my-specialist-appointments
+        [HttpGet("my-specialist-appointments")]
+        [ProducesResponseType(typeof(ApiResponse<IReadOnlyCollection<AppointmentDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> GetMySpecialistAppointments([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
+        {
+            var result = await _appointmentService.GetMySpecialistAppointmentsAsync(pageNumber, pageSize, ct);
+            if (result.IsError) return DetermineStatusCode(result.Errors[0].Type, result.ToApiResponse());
+
+            var response = ApiResponse<IReadOnlyCollection<AppointmentDto>>.PaginatedResponse(
+                result.Value.Items,
+                result.Value.Metadata,
+                "Specialist appointments retrieved successfully."
+            );
+            return Ok(response);
+        }
+
+        // 6. GET: api/v1/appointments/upcoming
         [HttpGet("upcoming")]
         [ProducesResponseType(typeof(ApiResponse<List<AppointmentDto>>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
@@ -103,17 +125,17 @@ namespace BoslaPlatform.API.Controllers.V1
             return Ok(result.ToApiResponse("Appointment history retrieved successfully."));
         }
 
-        // 7. PUT: api/v1/appointments/{id}/mark-as-paid
-        [HttpPut("{id:guid}/mark-as-paid")]
+        // 7. PUT: api/v1/appointments/{id}/confirm-payment
+        [HttpPut("{id:guid}/confirm-payment")]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> MarkAsPaid([FromRoute] Guid id, CancellationToken ct)
+        public async Task<IActionResult> ConfirmPayment([FromRoute] Guid id, [FromBody] ConfirmPaymentRequest request, CancellationToken ct)
         {
-            var result = await _appointmentService.MarkAsPaidAsync(id, ct);
+            var result = await _appointmentService.ConfirmPaymentAsync(id, request.PaymentIntentId, ct);
             if (result.IsError) return DetermineStatusCode(result.Errors[0].Type, result.ToApiResponse());
-            return Ok(result.ToApiResponse("Appointment marked as paid successfully."));
+            return Ok(result.ToApiResponse("Payment confirmed and appointment marked as paid successfully."));
         }
 
         // 8. PUT: api/v1/appointments/{id}/confirm
@@ -258,6 +280,34 @@ namespace BoslaPlatform.API.Controllers.V1
             var result = await _appointmentService.DeleteReminderAsync(id, rid, ct);
             if (result.IsError) return DetermineStatusCode(result.Errors[0].Type, result.ToApiResponse());
             return Ok(result.ToApiResponse("Reminder deleted successfully."));
+        }
+
+        [HttpGet("{id:guid}/summary")]
+        [ProducesResponseType(typeof(ApiResponse<BoslaPlatform.Application.Features.Appointments.DTOs.SessionSummaryDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetSummary([FromRoute] Guid id, CancellationToken ct)
+        {
+            var result = await _summaryService.GetAsync(id, ct);
+            if (result.IsError) return DetermineStatusCode(result.Errors[0].Type, result.ToApiResponse());
+
+            var summaryDto = new SessionSummaryDto
+            {
+                Id = result.Value.Id,
+                AppointmentId = result.Value.AppointmentId,
+                TranscriptId = result.Value.TranscriptId,
+                KeyTakeaways = result.Value.KeyTakeaways,
+                ActionItemsForUser = result.Value.ActionItemsForUser,
+                ActionItemsForSpec = result.Value.ActionItemsForSpec,
+                LlmProvider = result.Value.LlmProvider,
+                Status = result.Value.Status,
+                CreatedAtUtc = result.Value.CreatedAtUtc,
+                CreatedBy = result.Value.CreatedBy,
+                LastModifiedUtc = result.Value.LastModifiedUtc,
+                LastModifiedBy = result.Value.LastModifiedBy
+            };
+
+            return Ok(ApiResponse<SessionSummaryDto>.SuccessResponse(summaryDto, "Summary retrieved successfully."));
         }
 
         private IActionResult DetermineStatusCode(ErrorKind type, object responseBody)

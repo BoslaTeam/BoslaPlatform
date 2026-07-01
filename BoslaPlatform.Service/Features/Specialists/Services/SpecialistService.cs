@@ -4,7 +4,6 @@ using BoslaPlatform.Application.Features.Specialists.Response;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Application.Interfaces.Specialists;
-using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Events.Specialists;
@@ -12,9 +11,9 @@ using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Junctions;
 using BoslaPlatform.Domain.Models.Profile;
 using BoslaPlatform.Shared;
+using BoslaPlatform.Shared.Constants;
 using BoslaPlatform.Shared.Pagination;
 using Dapper;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace BoslaPlatform.Application.Features.Specialists.Services
@@ -22,24 +21,18 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
     public class SpecialistService(
         IAppDbContext context,
         IUser currentUser,
-        UserManager<User> userManager,
         IOnlineUserTracker onlineUserTracker,
-        ITokenService tokenService) : ISpecialistService
+        ISpecialistSubmissionValidator submissionValidator,
+        IUserService userService) : ISpecialistService
     {
         #region Onboard & Profile Methods
 
-        public async Task<Result<SpecialistOnboardResponse>> OnboardAsync(SpecialistOnboardRequest request, CancellationToken ct = default)
+        public async Task<Result<StartResponse>> StartAsync(CancellationToken ct = default)
         {
             if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
-            {
                 return Error.Unauthorized(description: "User is not authenticated.");
-            }
 
             var userId = currentUser.Id.Value;
-
-            var user = await userManager.FindByIdAsync(userId.ToString());
-            if (user is null)
-                return Error.NotFound(description: "User not found.");
 
             var alreadySpecialist = await context.Specialists
                 .AnyAsync(x => x.UserId == userId, ct);
@@ -47,40 +40,22 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             if (alreadySpecialist)
                 return Error.Conflict(description: "User is already a specialist.");
 
-            var specialist = Specialist.Create(
-                userId,
-                request.ExperienceYears,
-                request.ExperienceLevel,
-                request.HourlyRate,
-                request.BookingPolicy
-            );
+            var specialist = Specialist.Create(userId);
 
             await context.Specialists.AddAsync(specialist, ct);
 
-            var addRoleResult = await userManager.AddToRoleAsync(user, nameof(UserRole.Specialist));
-            if (!addRoleResult.Succeeded)
+            specialist.Verification = new SpecialistVerification
             {
-                return addRoleResult.Errors
-                    .Select(x => Error.Validation(x.Code, x.Description))
-                    .ToList();
-            }
+                SpecialistId = specialist.Id
+            };
 
             await context.SaveChangesAsync(ct);
 
-            var tokenResult = await tokenService.CreateTokenAsync(user, ct);
+            var roleResult = await userService.AddToRoleAsync(userId, Roles.Specialist, ct);
+            if (roleResult.IsError)
+                return roleResult.Errors;
 
-            if (tokenResult.IsError)
-            {
-                return tokenResult.Errors;
-            }
-
-            return Result<SpecialistOnboardResponse>.Success(
-                new SpecialistOnboardResponse(
-                    specialist.Id,
-                    specialist.VerificationStatus,
-                    tokenResult.Value
-                )
-            );
+            return new StartResponse(specialist.Id, specialist.Verification.Status);
         }
 
         public async Task<Result<SpecialistProfileResponse>> GetMyProfileAsync(CancellationToken ct = default)
@@ -90,6 +65,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
             var specialist = await context.Specialists
                 .Include(x => x.User)
+                .Include(x => x.Verification)
                 .FirstOrDefaultAsync(x => x.UserId == currentUser.Id.Value, ct);
 
             if (specialist is null)
@@ -105,6 +81,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
             var specialist = await context.Specialists
                 .Include(x => x.User)
+                .Include(x => x.Verification)
                 .FirstOrDefaultAsync(x => x.UserId == currentUser.Id.Value, ct);
 
             if (specialist is null)
@@ -384,7 +361,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 specialist.ExperienceLevel,
                 specialist.HourlyRate,
                 specialist.IntroVideoUrl,
-                specialist.VerificationStatus,
+                specialist.Verification!.Status,
                 specialist.BookingPolicy,
                 specialist.MinBookingNoticeHours,
                 specialist.MaxSessionsPerDay,
@@ -911,7 +888,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
             var query = context.Specialists
                 .AsNoTracking()
-                .Where(x => x.VerificationStatus == VerificationStatus.Approved);
+                .Where(x => x.Verification != null && x.Verification.Status == VerificationStatus.Approved);
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
@@ -975,7 +952,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                     ProfileImageUrl = x.User.ProfileImageUrl,
                     x.HourlyRate,
                     x.ExperienceLevel,
-                    x.VerificationStatus,
+                    VerificationStatus = x.Verification != null ? x.Verification.Status : VerificationStatus.Pending,
 
                     Rating = x.Reviews
                         .Select(r => (decimal?)r.Rating)
@@ -1021,9 +998,10 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                     .ThenInclude(st => st.Tool)
                 .Include(x => x.SpecialistSkills)
                     .ThenInclude(ss => ss.Skill)
+                .Include(x => x.Verification)
                 .FirstOrDefaultAsync(
                     x => x.Id == specialistId &&
-                         x.VerificationStatus == VerificationStatus.Approved,
+                         x.Verification != null && x.Verification.Status == VerificationStatus.Approved,
                     ct);
 
             if (specialist is null)
@@ -1049,7 +1027,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 ExperienceLevel = specialist.ExperienceLevel,
                 HourlyRate = specialist.HourlyRate,
                 IntroVideoUrl = specialist.IntroVideoUrl,
-                VerificationStatus = specialist.VerificationStatus,
+                VerificationStatus = specialist.Verification!.Status,
 
                 Rating = specialist.Reviews.Count == 0
                     ? 0m
@@ -1077,7 +1055,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             GetSpecialistAvailabilityAsync(Guid specialistId, CancellationToken ct)
         {
             var specialistExists = await context.Specialists
-                .Where(x => x.VerificationStatus == VerificationStatus.Approved)
+                .Where(x => x.Verification != null && x.Verification.Status == VerificationStatus.Approved)
                 .AnyAsync(x => x.Id == specialistId, ct);
 
             if (!specialistExists)
@@ -1143,7 +1121,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         {
             var specialist = await context.Specialists
                 .FirstOrDefaultAsync(
-                    x => x.UserId == currentUser.Id.Value,
+                    x => x.UserId == currentUser.Id!.Value,
                     cancellationToken);
 
             if (specialist is null)
@@ -1482,5 +1460,224 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
             return tools;
         }
+
+        #region Submission
+
+        public async Task<Result> SubmitForReviewAsync(CancellationToken ct)
+        {
+            if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
+                return Error.Unauthorized(description: "User is not authenticated.");
+
+            var specialist = await context.Specialists
+                .Include(s => s.User)
+                .Include(s => s.Verification)
+                .Include(s => s.Experiences)
+                .Include(s => s.SpecialistSkills)
+                .Include(s => s.SpecialistTools)
+                .Include(s => s.Availabilities)
+                .Include(s => s.Documents)
+                .FirstOrDefaultAsync(s => s.UserId == currentUser.Id.Value, ct);
+
+            if (specialist is null)
+                return Error.NotFound("Specialist.NotFound", "Specialist profile not found.");
+
+            var verification = specialist.Verification;
+            if (verification is null)
+                return Error.NotFound("Verification.NotFound", "Verification record not found.");
+
+            if (verification.Status == VerificationStatus.Pending)
+                return Error.Conflict("Submission.AlreadyPending", "Your profile is already under review.");
+
+            if (verification.Status == VerificationStatus.Approved)
+                return Error.Conflict("Submission.AlreadyApproved", "Your profile has already been approved.");
+
+            var validationResult = await submissionValidator.ValidateAsync(specialist);
+            if (validationResult.IsError)
+                return validationResult;
+
+            verification.Submit();
+
+            await context.SaveChangesAsync(ct);
+
+            return Result.Success();
+        }
+
+        #endregion
+
+        #region Documents
+
+        public async Task<Result<Guid>> UploadDocumentAsync(Guid specialistId, UploadDocumentRequest request, CancellationToken ct)
+        {
+            var specialist = await context.Specialists
+                .Include(x => x.Documents)
+                .FirstOrDefaultAsync(x => x.Id == specialistId, ct);
+
+            if (specialist is null)
+                return Error.NotFound("Specialist.NotFound", "Specialist not found.");
+
+            if (request.Type == SpecialistDocumentType.Certificate)
+            {
+                var certificateCount = specialist.Documents
+                    .Count(d => d.Type == SpecialistDocumentType.Certificate);
+                if (certificateCount >= 10)
+                    return Error.Validation("Certificate.LimitExceeded", "Maximum 10 certificates allowed.");
+            }
+
+            if (request.Type == SpecialistDocumentType.Identity)
+            {
+                var existingIdentity = specialist.Documents
+                    .FirstOrDefault(d => d.Type == SpecialistDocumentType.Identity);
+
+                if (existingIdentity is not null)
+                {
+                    context.SpecialistDocuments.Remove(existingIdentity);
+
+                    try
+                    {
+                        var oldUrl = new Uri(existingIdentity.Url);
+                        var oldPath = Path.Combine(
+                            Directory.GetCurrentDirectory(),
+                            "wwwroot",
+                            oldUrl.AbsolutePath.TrimStart('/'));
+                        if (System.IO.File.Exists(oldPath))
+                            System.IO.File.Delete(oldPath);
+                    }
+                    catch
+                    {
+                        // Ignore file deletion errors
+                    }
+                }
+            }
+
+            var document = new SpecialistDocument
+            {
+                SpecialistId = specialist.Id,
+                Type = request.Type,
+                Url = request.Url,
+                OriginalFileName = request.OriginalFileName
+            };
+
+            context.SpecialistDocuments.Add(document);
+            await context.SaveChangesAsync(ct);
+
+            return document.Id;
+        }
+
+        public async Task<Result<IReadOnlyList<SpecialistDocumentResponse>>> GetDocumentsAsync(Guid specialistId, CancellationToken ct)
+        {
+            var documents = await context.SpecialistDocuments
+                .AsNoTracking()
+                .Where(d => d.SpecialistId == specialistId)
+                .OrderByDescending(d => d.CreatedAtUtc)
+                .Select(d => new SpecialistDocumentResponse(
+                    d.Id,
+                    d.Type,
+                    d.Url,
+                    d.OriginalFileName))
+                .ToListAsync(ct);
+
+            return documents;
+        }
+
+        public async Task<Result> DeleteDocumentAsync(Guid specialistId, Guid documentId, CancellationToken ct)
+        {
+            var document = await context.SpecialistDocuments
+                .FirstOrDefaultAsync(d => d.Id == documentId, ct);
+
+            if (document is null)
+                return Error.NotFound("Document.NotFound", "Document not found.");
+
+            if (document.SpecialistId != specialistId)
+                return Error.Forbidden("Document.Forbidden", "You do not have permission to delete this document.");
+
+            var docUrl = document.Url;
+            context.SpecialistDocuments.Remove(document);
+            await context.SaveChangesAsync(ct);
+
+            try
+            {
+                var uri = new Uri(docUrl);
+                var filePath = Path.Combine(
+                    Directory.GetCurrentDirectory(),
+                    "wwwroot",
+                    uri.AbsolutePath.TrimStart('/'));
+                if (System.IO.File.Exists(filePath))
+                    System.IO.File.Delete(filePath);
+            }
+            catch
+            {
+                // Ignore file deletion errors
+            }
+
+            return Result.Success();
+        }
+
+        #endregion
+
+        #region Verification
+
+        public async Task<Result<VerificationDetailsResponse>> GetVerificationAsync(Guid specialistId, CancellationToken ct)
+        {
+            var specialist = await context.Specialists
+                .Include(x => x.Verification)
+                .FirstOrDefaultAsync(x => x.Id == specialistId, ct);
+
+            if (specialist is null)
+                return Error.NotFound("Specialist.NotFound", "Specialist not found.");
+
+            if (specialist.Verification is null)
+                return Error.NotFound("Verification.NotFound", "Verification record not found.");
+
+            var v = specialist.Verification;
+            return new VerificationDetailsResponse(
+                v.Status,
+                v.SubmittedAt,
+                v.ReviewedAt,
+                v.AdminNotes
+            );
+        }
+
+        //public async Task<Result<VerificationStatusResponse>> GetVerificationStatusAsync(Guid specialistId, CancellationToken ct)
+        //{
+        //    var status = await context.SpecialistVerifications
+        //        .AsNoTracking()
+        //        .Where(x => x.SpecialistId == specialistId)
+        //        .Select(x => new VerificationStatusResponse(
+        //            x.Status,
+        //            x.SubmittedAt,
+        //            x.ReviewedAt,
+        //            x.AdminNotes
+        //        ))
+        //        .FirstOrDefaultAsync(ct);
+
+        //    if (status is null)
+        //        return Error.NotFound("Verification.NotFound", "Verification record not found.");
+
+        //    return status;
+        //}
+
+        public async Task<Result> SubmitVerificationAsync(Guid specialistId, CancellationToken ct)
+        {
+            var specialist = await context.Specialists
+                .Include(x => x.Verification)
+                .FirstOrDefaultAsync(x => x.Id == specialistId, ct);
+
+            if (specialist is null)
+                return Error.NotFound("Specialist.NotFound", "Specialist not found.");
+
+            if (specialist.Verification is null)
+            {
+                specialist.Verification = new SpecialistVerification
+                {
+                    SpecialistId = specialist.Id
+                };
+            }
+
+            await context.SaveChangesAsync(ct);
+
+            return Result.Success();
+        }
+
+        #endregion
     }
 }
