@@ -1,4 +1,5 @@
 ﻿using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Domain.Entities.Payouts;
 using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Communication;
@@ -54,6 +55,7 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
         DbSet<VideoSessionParticipant> VideoSessionParticipants { get; }
         DbSet<SpecialistTool> SpecialistTools { get; }
         DbSet<Reminder> Reminders { get; }
+        DbSet<Withdrawal> Withdrawals { get; }
 
         DbSet<TEntity> Set<TEntity>()
             where TEntity : class;

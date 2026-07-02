@@ -28,7 +28,12 @@ public class GeminiChatService : IChatService
             var payload = new GeminiInteractionsRequest(_settings.ChatModel, prompt);
             // Use Interactions API (preferred) which accepts { model, input } and is compatible with GeminiInteractionsRequest
             var resp = await _logger.TrackRequestAsync("Gemini.Chat", () => _client.PostJsonAsync(_settings.InteractionsEndpoint, payload, cancellationToken));
-            resp.EnsureSuccessStatusCode();
+            if (!resp.IsSuccessStatusCode)
+            {
+                var errorBody = await resp.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogError("Gemini API Error {StatusCode}: {ErrorBody}", resp.StatusCode, errorBody);
+                throw new HttpRequestException($"Gemini API failed with {(int)resp.StatusCode} {resp.StatusCode}: {errorBody}");
+            }
 
             using var stream = await resp.Content.ReadAsStreamAsync(cancellationToken);
             var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);

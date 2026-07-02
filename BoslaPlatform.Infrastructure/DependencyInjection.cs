@@ -8,6 +8,7 @@ using BoslaPlatform.Application.Features.Notifications.Services;
 using BoslaPlatform.Application.Interfaces.AI;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Communication;
+using BoslaPlatform.Application.Interfaces;
 using BoslaPlatform.Application.Features.Admin.Repositories;
 using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Application.Interfaces.Specialists;
@@ -15,6 +16,7 @@ using BoslaPlatform.Application.Interfaces.Video;
 using BoslaPlatform.Application.Features.Specialists.Services;
 using BoslaPlatform.Application.Features.VideoSessions.Interfaces;
 using BoslaPlatform.Application.Features.VideoSessions.Services;
+using BoslaPlatform.Application.Features.Withdrawals.Services;
 using BoslaPlatform.Application.Services;
 using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
@@ -171,8 +173,7 @@ public static class DependencyInjection
 
         services.AddHttpClient<BoslaPlatform.Infrastructure.AI.Gemini.GeminiChatService>();
         services.AddScoped<IChatService, BoslaPlatform.Infrastructure.AI.Gemini.GeminiChatService>();
-        //services.AddSingleton<BoslaPlatform.Infrastructure.AI.Tokenizers.ITokenizer, BoslaPlatform.Infrastructure.AI.Tokenizers.SimpleTokenizer>();
-
+        services.AddScoped<IChatBotService, BoslaPlatform.Infrastructure.AI.ChatBotService>();
 
         // Register Qdrant settings early
         services.Configure<QdrantSettings>(configuration.GetSection("QdrantSettings"));
@@ -197,6 +198,7 @@ public static class DependencyInjection
             services.AddScoped<IVectorStore, BoslaPlatform.Infrastructure.AI.Qdrant.QdrantVectorStore>();
 
             services.AddScoped<IAiSearchService, BoslaPlatform.Infrastructure.AI.AiSearchService>();
+            services.AddScoped<IAiRecommendationService, BoslaPlatform.Infrastructure.AI.AiRecommendationService>();
             services.AddScoped<BoslaPlatform.Application.Interfaces.AI.IEmbeddingAdminService, BoslaPlatform.Infrastructure.AI.EmbeddingAdminService>();
 
         // Tokenizer implementation used by AiSearchService
@@ -204,6 +206,12 @@ public static class DependencyInjection
 
         // Summary service
         services.AddScoped<BoslaPlatform.Application.Interfaces.AI.ISummaryService, BoslaPlatform.Infrastructure.AI.SummaryService>();
+
+        // Specialist AI services
+        services.AddScoped<BoslaPlatform.Application.Interfaces.AI.ISpecialistAiService, BoslaPlatform.Infrastructure.AI.SpecialistAiService>();
+
+        // Withdrawals / Payouts
+        services.AddScoped<BoslaPlatform.Application.Interfaces.IWithdrawalService, BoslaPlatform.Application.Features.Withdrawals.Services.WithdrawalService>();
 
             services.AddAuthorization();
 

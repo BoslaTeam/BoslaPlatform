@@ -49,7 +49,21 @@ public class SummaryService : ISummaryService
         if (string.IsNullOrWhiteSpace(combined))
             return Result<bool>.Failure(Error.Validation("Summary.EmptySource", "No messages to summarize."));
 
-        var prompt = $"Summarize the following session and extract key takeaways and action items:\n\n{combined}";
+        var prompt = $@"قم بتلخيص جلسة الاستشارة التالية باللغة العربية. استخرج:
+1. **النقاط الرئيسية** (ما تمت مناقشته)
+2. **الإجراءات المطلوبة من العميل** (خطوات يجب على العميل تنفيذها)
+3. **الإجراءات المطلوبة من الخبير** (أي متابعة أو خطوات من الخبير)
+
+يجب أن يكون الرد بالتنسيق التالي:
+===النقاط الرئيسية===
+(النص هنا)
+===إجراءات العميل===
+(النص هنا)
+===إجراءات الخبير===
+(النص هنا)
+
+نص الجلسة:
+{combined}";
         string reply;
         try
         {
@@ -67,11 +81,22 @@ public class SummaryService : ISummaryService
             _db.Set<SessionSummary>().Add(summary);
         }
 
-        summary.KeyTakeaways = reply;
+        ParseSummaryReply(reply, summary);
         summary.LlmProvider = "Configured";
         summary.Status = BoslaPlatform.Domain.Enums.SummaryStatus.Ready;
 
         await _db.SaveChangesAsync(cancellationToken);
         return Result<bool>.Success(true);
+    }
+
+    private static void ParseSummaryReply(string reply, SessionSummary summary)
+    {
+        var takeawaysMatch = System.Text.RegularExpressions.Regex.Match(reply, @"===النقاط الرئيسية===\s*([\s\S]*?)(?===إجراءات العميل===|$)");
+        var userActionsMatch = System.Text.RegularExpressions.Regex.Match(reply, @"===إجراءات العميل===\s*([\s\S]*?)(?===إجراءات الخبير===|$)");
+        var specActionsMatch = System.Text.RegularExpressions.Regex.Match(reply, @"===إجراءات الخبير===\s*([\s\S]*?)(?=$)");
+
+        summary.KeyTakeaways = takeawaysMatch.Success ? takeawaysMatch.Groups[1].Value.Trim() : reply;
+        summary.ActionItemsForUser = userActionsMatch.Success ? userActionsMatch.Groups[1].Value.Trim() : string.Empty;
+        summary.ActionItemsForSpec = specActionsMatch.Success ? specActionsMatch.Groups[1].Value.Trim() : string.Empty;
     }
 }

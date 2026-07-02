@@ -14,7 +14,7 @@ namespace BoslaPlatform.Domain.Models.Booking
 
         public Specialist Specialist { get; set; } = null!;
 
-        public bool IsBooked { get; private set; }
+        public bool IsBooked { get; private set; } = false;
 
         public static Availability Create(
             Guid specialistId,
@@ -25,7 +25,8 @@ namespace BoslaPlatform.Domain.Models.Booking
             {
                 SpecialistId = specialistId,
                 Start = start,
-                End = end
+                End = end,
+                IsBooked = false
             };
         }
     }

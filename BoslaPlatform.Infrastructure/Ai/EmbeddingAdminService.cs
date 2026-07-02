@@ -37,17 +37,68 @@ namespace BoslaPlatform.Infrastructure.AI;
 
     public async Task<Result<bool>> RebuildAllAsync(CancellationToken cancellationToken = default)
     {
-        // Iterate specialists and rebuild embeddings (simple approach)
-        var specs = await _db.Set<Domain.Entities.Profile.Specialist>().Include(s => s.User).ToListAsync(cancellationToken);
+        var specs = await _db.Set<Domain.Entities.Profile.Specialist>()
+            .Include(s => s.User)
+            .Include(s => s.SpecialistExpertise)!.ThenInclude(se => se.Expertise)
+            .Include(s => s.SpecialistIndustries)!.ThenInclude(si => si.Industry)
+            .Include(s => s.SpecialistSkills)!.ThenInclude(ss => ss.Skill)
+            .Include(s => s.SpecialistTools)!.ThenInclude(st => st.Tool)
+            .Include(s => s.Experiences)
+            .ToListAsync(cancellationToken);
+
         foreach (var s in specs)
         {
-            var content = string.Join("\n", new[] { s.User?.Bio ?? string.Empty, s.User?.Title ?? string.Empty });
+            var contentParts = new List<string>();
+
+            if (!string.IsNullOrWhiteSpace(s.User?.Bio))
+                contentParts.Add(s.User.Bio);
+            if (!string.IsNullOrWhiteSpace(s.User?.Title))
+                contentParts.Add(s.User.Title);
+            contentParts.Add($"Experience Level: {s.ExperienceLevel}");
+            contentParts.Add($"Years of Experience: {s.ExperienceYears}");
+
+            if (s.SpecialistExpertise?.Any() == true)
+            {
+                var names = s.SpecialistExpertise
+                    .Where(se => se.Expertise != null && !string.IsNullOrWhiteSpace(se.Expertise.Name))
+                    .Select(se => se.Expertise!.Name).ToList();
+                if (names.Any()) contentParts.Add($"Expertise: {string.Join(", ", names)}");
+            }
+            if (s.SpecialistIndustries?.Any() == true)
+            {
+                var names = s.SpecialistIndustries
+                    .Where(si => si.Industry != null && !string.IsNullOrWhiteSpace(si.Industry.Name))
+                    .Select(si => si.Industry!.Name).ToList();
+                if (names.Any()) contentParts.Add($"Industries: {string.Join(", ", names)}");
+            }
+            if (s.SpecialistSkills?.Any() == true)
+            {
+                var names = s.SpecialistSkills
+                    .Where(ss => ss.Skill != null && !string.IsNullOrWhiteSpace(ss.Skill.Name))
+                    .Select(ss => ss.Skill!.Name).ToList();
+                if (names.Any()) contentParts.Add($"Skills: {string.Join(", ", names)}");
+            }
+            if (s.SpecialistTools?.Any() == true)
+            {
+                var names = s.SpecialistTools
+                    .Where(st => st.Tool != null && !string.IsNullOrWhiteSpace(st.Tool.Name))
+                    .Select(st => st.Tool!.Name).ToList();
+                if (names.Any()) contentParts.Add($"Tools: {string.Join(", ", names)}");
+            }
+            if (s.Experiences?.Any() == true)
+            {
+                var descs = s.Experiences
+                    .Where(e => !string.IsNullOrWhiteSpace(e.Description))
+                    .Select(e => e.Description).ToList();
+                if (descs.Any()) contentParts.Add($"Work Experience: {string.Join("; ", descs)}");
+            }
+
+            var content = string.Join("\n", contentParts.Where(cp => !string.IsNullOrWhiteSpace(cp)));
             if (string.IsNullOrWhiteSpace(content)) continue;
 
             var emb = await _emb.CreateEmbeddingAsync(content, cancellationToken);
             var hash = Guid.NewGuid().ToString();
-            var embeddingJson = System.Text.Json.JsonSerializer.Serialize(emb);
-            await _vectors.StoreEmbeddingAsync(s.Id, embeddingJson, _geminiSettings?.EmbeddingModel ?? string.Empty, hash, cancellationToken);
+            await _vectors.StoreEmbeddingAsync(s.Id, emb, _geminiSettings?.EmbeddingModel ?? string.Empty, hash, cancellationToken);
         }
 
         return Result<bool>.Success(true);

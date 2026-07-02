@@ -1,5 +1,6 @@
 ﻿using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Domain.Entities.Payouts;
 using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Models;
 using BoslaPlatform.Domain.Models.Booking;
@@ -62,6 +63,9 @@ namespace BoslaPlatform.Infrastructure.Data
         public DbSet<SpecialistTool> SpecialistTools => Set<SpecialistTool>();
         public DbSet<UserExpertise> UserExpertise => Set<UserExpertise>();
         public DbSet<UserIndustry> UserIndustries => Set<UserIndustry>();
+
+        // Payouts
+        public DbSet<Withdrawal> Withdrawals => Set<Withdrawal>();
 
         // AI
         public DbSet<SessionTranscript> SessionTranscripts => Set<SessionTranscript>();

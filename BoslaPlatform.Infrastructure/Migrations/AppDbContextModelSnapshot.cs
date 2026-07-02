@@ -22,6 +22,65 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("BoslaPlatform.Domain.Entities.Payouts.Withdrawal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<string>("AdminNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("LastModifiedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("LastModifiedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("PaymentDetails")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("SpecialistId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SpecialistId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("Withdrawals");
+                });
+
             modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.Specialist", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1393,6 +1452,9 @@ namespace BoslaPlatform.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTimeOffset?>("LastEmbeddedAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<Guid?>("LastModifiedBy")
                         .HasColumnType("uniqueidentifier");
 
@@ -1743,6 +1805,17 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("BoslaPlatform.Domain.Entities.Payouts.Withdrawal", b =>
+                {
+                    b.HasOne("BoslaPlatform.Domain.Entities.Profile.Specialist", "Specialist")
+                        .WithMany()
+                        .HasForeignKey("SpecialistId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Specialist");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.Specialist", b =>

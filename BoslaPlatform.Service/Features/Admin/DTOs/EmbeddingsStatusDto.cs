@@ -7,6 +7,7 @@ namespace BoslaPlatform.Application.Features.Admin.DTOs
         public int TotalSpecialists { get; set; }
         public int EmbeddedCount { get; set; }
         public int PendingCount { get; set; }
+        public int OutdatedCount { get; set; }
         public DateTime? LastRebuildAt { get; set; }
         public string Status { get; set; } = string.Empty;
     }
