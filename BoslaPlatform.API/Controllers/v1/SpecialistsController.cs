@@ -160,6 +160,19 @@ namespace BoslaPlatform.API.Controllers.v1
             return result.Errors.ToProblem();
         }
 
+        [HttpGet("me/expertise")]
+        [Authorize]
+        public async Task<IResult> GetMyExpertise(CancellationToken ct)
+        {
+            var result = await specialistService.GetMyExpertiseAsync(ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<ExpertiseResponse>>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
         #endregion
 
         #region earnings

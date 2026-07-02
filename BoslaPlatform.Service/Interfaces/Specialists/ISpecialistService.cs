@@ -37,6 +37,8 @@ namespace BoslaPlatform.Application.Interfaces.Specialists
 
         Task<Result> DeleteExpertiseAsync(Guid expertiseId, CancellationToken ct = default);
 
+        Task<Result<IReadOnlyList<ExpertiseResponse>>> GetMyExpertiseAsync(CancellationToken ct = default);
+
         Task<Result<bool>> UpdateCancellationPolicyAsync(UpdateCancellationPolicyRequest request, CancellationToken ct = default);
         Task<Result<bool>> UpdateBookingPolicyAsync(UpdateBookingPolicyRequest request, CancellationToken ct);
 
