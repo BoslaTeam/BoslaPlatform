@@ -6,29 +6,22 @@ namespace BoslaPlatform.Application.Interfaces.Video
     {
         string Name { get; }
 
-        Task<Result<AcquireRecordingResponse>> AcquireAsync(
+        Task<Result<StartRecordingResult>> StartRecordingAsync(
             string channelName,
             CancellationToken ct = default);
 
-        Task<Result<ProviderStartRecordingResponse>> StartAsync(
+        Task<Result<StopRecordingResult>> StopRecordingAsync(
             string channelName,
-            string resourceId,
+            string providerRecordingId,
+            string? providerMetadata = null,
             CancellationToken ct = default);
 
-        Task<Result<ProviderStopRecordingResponse>> StopAsync(
-            string channelName,
-            string resourceId,
-            string sid,
-            CancellationToken ct = default);
-
-        Task<Result<QueryRecordingResponse>> QueryAsync(
-            string resourceId,
-            string sid,
+        Task<Result<RecordingStatusResult>> GetStatusAsync(
+            string providerRecordingId,
             CancellationToken ct = default);
     }
 
-    public sealed record AcquireRecordingResponse(string ResourceId);
-    public sealed record ProviderStartRecordingResponse(string Sid);
-    public sealed record ProviderStopRecordingResponse(string FileUrl, int Duration, long FileSize);
-    public sealed record QueryRecordingResponse(string Status, string? FileUrl);
+    public sealed record StartRecordingResult(string ProviderRecordingId, string? ProviderMetadata = null);
+    public sealed record StopRecordingResult(string FileUrl, int DurationSeconds, long FileSizeBytes);
+    public sealed record RecordingStatusResult(string Status, string? FileUrl);
 }

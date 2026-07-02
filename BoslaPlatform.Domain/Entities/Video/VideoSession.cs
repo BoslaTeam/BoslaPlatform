@@ -439,6 +439,16 @@ namespace BoslaPlatform.Domain.Models.Video
             Status = VideoSessionStatus.Ended;
             EndedAt = occurredAtUtc.UtcDateTime;
 
+            // Fail any active recording when channel is destroyed.
+            // The recording cannot continue without the Agora channel.
+            if (IsRecording && CurrentRecording is not null)
+            {
+                CurrentRecording.Fail();
+                RecordingStatus = Domain.Enums.RecordingStatus.Failed;
+                CurrentRecording = null;
+                CurrentRecordingId = null;
+            }
+
             AddDomainEvent(new VideoSessionEndedEvent(Id, AppointmentId, EndedAt.Value));
             AddDomainEvent(
                 new ChannelDestroyedEvent(Id, AppointmentId, channelName, occurredAtUtc));
@@ -482,7 +492,8 @@ namespace BoslaPlatform.Domain.Models.Video
             int? durationSeconds,
             long? fileSizeBytes)
         {
-            if (RecordingCompletedAt is not null)
+            if (RecordingCompletedAt is not null
+                || RecordingStatus == Domain.Enums.RecordingStatus.Failed)
             {
                 return Result.Success();
             }

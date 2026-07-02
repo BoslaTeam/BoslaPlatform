@@ -7,44 +7,33 @@ namespace BoslaPlatform.Infrastructure.Realtime
     {
         public string Name => "NoOp";
 
-        public Task<Result<AcquireRecordingResponse>> AcquireAsync(
+        public Task<Result<StartRecordingResult>> StartRecordingAsync(
             string channelName,
             CancellationToken ct = default)
         {
             return Task.FromResult(
-                Result<AcquireRecordingResponse>.Success(
-                    new AcquireRecordingResponse("noop-resource-id")));
+                Result<StartRecordingResult>.Success(
+                    new StartRecordingResult("noop-sid")));
         }
 
-        public Task<Result<ProviderStartRecordingResponse>> StartAsync(
+        public Task<Result<StopRecordingResult>> StopRecordingAsync(
             string channelName,
-            string resourceId,
+            string providerRecordingId,
+            string? providerMetadata = null,
             CancellationToken ct = default)
         {
             return Task.FromResult(
-                Result<ProviderStartRecordingResponse>.Success(
-                    new ProviderStartRecordingResponse("noop-sid")));
+                Result<StopRecordingResult>.Success(
+                    new StopRecordingResult(string.Empty, 0, 0)));
         }
 
-        public Task<Result<ProviderStopRecordingResponse>> StopAsync(
-            string channelName,
-            string resourceId,
-            string sid,
+        public Task<Result<RecordingStatusResult>> GetStatusAsync(
+            string providerRecordingId,
             CancellationToken ct = default)
         {
             return Task.FromResult(
-                Result<ProviderStopRecordingResponse>.Success(
-                    new ProviderStopRecordingResponse(string.Empty, 0, 0)));
-        }
-
-        public Task<Result<QueryRecordingResponse>> QueryAsync(
-            string resourceId,
-            string sid,
-            CancellationToken ct = default)
-        {
-            return Task.FromResult(
-                Result<QueryRecordingResponse>.Success(
-                    new QueryRecordingResponse("completed", null)));
+                Result<RecordingStatusResult>.Success(
+                    new RecordingStatusResult("completed", null)));
         }
     }
 }

@@ -10,6 +10,7 @@ using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Video;
 using BoslaPlatform.Shared;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Error = BoslaPlatform.Shared.Error;
 
 namespace BoslaPlatform.Application.Features.VideoSessions.Services
@@ -21,19 +22,22 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
         private readonly IAgoraTokenService _agoraTokenService;
         private readonly IRecordingProvider _recordingProvider;
         private readonly IMapper _mapper;
+        private readonly ILogger<VideoSessionService> _logger;
 
         public VideoSessionService(
             IAppDbContext context,
             IUser currentUser,
             IAgoraTokenService agoraTokenService,
             IRecordingProvider recordingProvider,
-            IMapper mapper)
+            IMapper mapper,
+            ILogger<VideoSessionService> logger)
         {
             _context = context;
             _currentUser = currentUser;
             _agoraTokenService = agoraTokenService;
             _recordingProvider = recordingProvider;
             _mapper = mapper;
+            _logger = logger;
         }
 
         /// <summary>
@@ -321,62 +325,126 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
                     "User is not authenticated.");
             }
 
-            await using var transaction = await _context.BeginTransactionAsync(ct);
+            _logger.LogInformation("Recording requested for session {SessionId}", videoSessionId);
 
-            var session = await _context.VideoSessions
-                .Include(x => x.Appointment)
-                .Include(x => x.CurrentRecording)
-                .Include(x => x.Recordings)
-                .FirstOrDefaultAsync(x => x.Id == videoSessionId, ct);
+            // --------------------------------------------------------------
+            // Phase 1: Domain + persistence (short SQL transaction)
+            // --------------------------------------------------------------
+            ScreenRecording recording = null!;
+            VideoSession session = null!;
 
-            if (session is null)
+            await using (var tx1 = await _context.BeginTransactionAsync(ct))
             {
-                return Error.NotFound(
-                    "VideoSession.NotFound",
-                    "Video session was not found.");
+                session = (await _context.VideoSessions
+                    .Include(x => x.Appointment)
+                    .Include(x => x.CurrentRecording)
+                    .Include(x => x.Recordings)
+                    .FirstOrDefaultAsync(x => x.Id == videoSessionId, ct))!;
+
+                if (session is null)
+                {
+                    return Error.NotFound(
+                        "VideoSession.NotFound",
+                        "Video session was not found.");
+                }
+
+                var specialist = await _context.Specialists
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.UserId == _currentUser.Id, ct);
+
+                var isAssignedSpecialist = specialist is not null
+                    && session.Appointment!.SpecialistId == specialist.Id;
+
+                if (!isAssignedSpecialist)
+                {
+                    return Error.Forbidden(
+                        "VideoSession.AccessDenied",
+                        "Only the assigned specialist can start recording.");
+                }
+
+                var recordingResult = ScreenRecording.Create(
+                    session.Id,
+                    RecordingAccessControl.Both,
+                    RecordingStorageProvider.Agora);
+
+                if (recordingResult.IsError)
+                    return recordingResult.Errors;
+
+                recording = recordingResult.Value;
+
+                var startResult = session.StartRecording(recording);
+
+                if (startResult.IsError)
+                    return startResult.Errors;
+
+                _context.ScreenRecordings.Add(recording);
+
+                await _context.SaveChangesAsync(ct);
+
+                var setCurrentResult = session.SetCurrentRecording(recording);
+
+                if (setCurrentResult.IsError)
+                    return setCurrentResult.Errors;
+
+                await _context.SaveChangesAsync(ct);
+
+                await tx1.CommitAsync(ct);
             }
 
-            var specialist = await _context.Specialists
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.UserId == _currentUser.Id, ct);
+            // --------------------------------------------------------------
+            // Phase 2: External provider call (NO transaction)
+            // --------------------------------------------------------------
+            _logger.LogInformation("Provider recording start requested for session {SessionId}, channel {Channel}",
+                videoSessionId, session.AgoraChannelName);
 
-            var isAssignedSpecialist = specialist is not null
-                && session.Appointment!.SpecialistId == specialist.Id;
+            var providerResult = await _recordingProvider.StartRecordingAsync(
+                session.AgoraChannelName, ct);
 
-            if (!isAssignedSpecialist)
+            if (providerResult.IsError)
             {
-                return Error.Forbidden(
-                    "VideoSession.AccessDenied",
-                    "Only the assigned specialist can start recording.");
+                _logger.LogWarning("Provider recording start failed for session {SessionId}, channel {Channel}",
+                    videoSessionId, session.AgoraChannelName);
+
+                // ----------------------------------------------------------
+                // Compensation: short TX to restore aggregate consistency
+                // ----------------------------------------------------------
+                await using (var compensateTx = await _context.BeginTransactionAsync(ct))
+                {
+                    recording.Fail();
+                    session.StopRecording();
+
+                    await _context.SaveChangesAsync(ct);
+                    await compensateTx.CommitAsync(ct);
+                }
+
+                return providerResult.Errors;
             }
 
-            var recordingResult = ScreenRecording.Create(
-                        session.Id,
-                        RecordingAccessControl.Both,
-                        RecordingStorageProvider.Agora);
+            // --------------------------------------------------------------
+            // Phase 3: Persist provider identifiers (short SQL transaction)
+            // --------------------------------------------------------------
+            var providerData = providerResult.Value;
 
-            if (recordingResult.IsError)
-                return recordingResult.Errors;
+            _logger.LogInformation("Provider recording started successfully for session {SessionId}",
+                videoSessionId);
 
-            var recording = recordingResult.Value;
+            await using (var tx2 = await _context.BeginTransactionAsync(ct))
+            {
+                recording.AttachAgoraRecording(
+                    providerData.ProviderRecordingId,
+                    providerData.ProviderMetadata ?? string.Empty);
 
-            var result = session.StartRecording(recording);
+                session.SetRecording(
+                    providerData.ProviderRecordingId,
+                    providerData.ProviderMetadata ?? string.Empty,
+                    string.Empty);
 
-            if (result.IsError)
-                return result.Errors;
+                await _context.SaveChangesAsync(ct);
+                await tx2.CommitAsync(ct);
+            }
 
-            _context.ScreenRecordings.Add(recording);
-
-            await _context.SaveChangesAsync(ct);
-
-            var setCurrentResult = session.SetCurrentRecording(recording);
-
-            if (setCurrentResult.IsError)
-                return setCurrentResult.Errors;
-
-            await _context.SaveChangesAsync(ct);
-
-            await transaction.CommitAsync(ct);
+            _logger.LogInformation("Recording persistence completed for session {SessionId}",
+                videoSessionId);
 
             return Result<StartRecordingResponse>.Success(
                 new StartRecordingResponse(
@@ -396,57 +464,136 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
                     "User is not authenticated.");
             }
 
-            var session = await _context.VideoSessions
-                .Include(x => x.Appointment)
-                .Include(x => x.CurrentRecording)
-                .Include(x => x.Recordings)
-                .FirstOrDefaultAsync(x => x.Id == videoSessionId, ct);
+            _logger.LogInformation("Recording stop requested for session {SessionId}", videoSessionId);
 
-            if (session is null)
+            // --------------------------------------------------------------
+            // Phase 1: Domain validation + capture recording reference (short TX)
+            // --------------------------------------------------------------
+            ScreenRecording stoppedRecording;
+
+            await using (var tx1 = await _context.BeginTransactionAsync(ct))
             {
-                return Error.NotFound(
-                    "VideoSession.NotFound",
-                    "Video session was not found.");
+                var session = await _context.VideoSessions
+                    .Include(x => x.Appointment)
+                    .Include(x => x.CurrentRecording)
+                    .Include(x => x.Recordings)
+                    .FirstOrDefaultAsync(x => x.Id == videoSessionId, ct);
+
+                if (session is null)
+                {
+                    return Error.NotFound(
+                        "VideoSession.NotFound",
+                        "Video session was not found.");
+                }
+
+                var specialist = await _context.Specialists
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.UserId == _currentUser.Id, ct);
+
+                var isAssignedSpecialist = specialist is not null
+                    && session.Appointment!.SpecialistId == specialist.Id;
+
+                if (!isAssignedSpecialist)
+                {
+                    return Error.Forbidden(
+                        "VideoSession.AccessDenied",
+                        "Only the assigned specialist can stop recording.");
+                }
+
+                if (!session.IsRecording)
+                {
+                    return Error.Validation(
+                        "VideoSession.NotRecording",
+                        "No active recording to stop.");
+                }
+
+                stoppedRecording = session.CurrentRecording
+                    ?? session.Recordings.LastOrDefault()
+                    ?? throw new InvalidOperationException("Session has no recording to stop.");
+
+                // Capture the recording reference and commit TX1 so the provider
+                // call happens outside any SQL transaction.
+                await _context.SaveChangesAsync(ct);
+                await tx1.CommitAsync(ct);
             }
 
-            var specialist = await _context.Specialists
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.UserId == _currentUser.Id, ct);
+            // --------------------------------------------------------------
+            // Phase 2: External provider call (NO transaction)
+            // --------------------------------------------------------------
+            _logger.LogInformation(
+                "Provider recording stop requested for session {SessionId}, resourceId={ResourceId}",
+                videoSessionId, stoppedRecording.AgoraRecordingId);
 
-            var isAssignedSpecialist = specialist is not null
-                && session.Appointment!.SpecialistId == specialist.Id;
+            var providerResult = await _recordingProvider.StopRecordingAsync(
+                stoppedRecording.VideoSession!.AgoraChannelName,
+                stoppedRecording.AgoraRecordingId ?? string.Empty,
+                stoppedRecording.AgoraRecordingSid,
+                ct);
 
-            if (!isAssignedSpecialist)
+            if (providerResult.IsError)
             {
-                return Error.Forbidden(
-                    "VideoSession.AccessDenied",
-                    "Only the assigned specialist can stop recording.");
+                _logger.LogWarning(
+                    "Provider recording stop failed for session {SessionId}. " +
+                    "Recording NOT marked as completed — state preserved for retry.",
+                    videoSessionId);
+                return providerResult.Errors;
             }
 
-            var stoppedRecording = session.CurrentRecording
-                ?? session.Recordings.LastOrDefault();
+            // --------------------------------------------------------------
+            // Phase 3: Persist final recording state (short TX)
+            // --------------------------------------------------------------
+            var stopData = providerResult.Value;
 
-            var result = session.StopRecording();
+            _logger.LogInformation(
+                "Provider recording stop succeeded for session {SessionId}",
+                videoSessionId);
 
-            if (result.IsError)
+            await using (var tx2 = await _context.BeginTransactionAsync(ct))
             {
-                return result.Errors;
+                // Reload session within the new transaction
+                var session = await _context.VideoSessions
+                    .Include(x => x.CurrentRecording)
+                    .FirstOrDefaultAsync(x => x.Id == videoSessionId, ct);
+
+                if (session is null)
+                {
+                    return Error.NotFound(
+                        "VideoSession.NotFound",
+                        "Video session was not found after stop.");
+                }
+
+                // Reload the recording entity within the new transaction
+                var recording = await _context.ScreenRecordings
+                    .FirstOrDefaultAsync(x => x.Id == stoppedRecording.Id, ct);
+
+                if (recording is null)
+                {
+                    return Error.NotFound(
+                        "ScreenRecording.NotFound",
+                        "Recording entity not found after stop.");
+                }
+
+                recording.Complete(stopData.FileUrl, stopData.FileSizeBytes, stopData.DurationSeconds);
+
+                var stopResult = session.StopRecording();
+
+                if (stopResult.IsError)
+                    return stopResult.Errors;
+
+                await _context.SaveChangesAsync(ct);
+                await tx2.CommitAsync(ct);
             }
-
-            await _context.SaveChangesAsync(ct);
-
-            var recordingDto = _mapper.Map<RecordingInfoDto>(stoppedRecording)
-                ?? new RecordingInfoDto();
-
-            recordingDto.Status = session.RecordingStatus?.ToString();
-            recordingDto.StartedAtUtc = session.RecordingStartedAtUtc;
-            recordingDto.CompletedAtUtc = session.RecordingCompletedAt;
-            recordingDto.IsRecording = false;
-            recordingDto.CanStartRecording = false;
-            recordingDto.CanStopRecording = false;
 
             return Result<StopRecordingResponse>.Success(
-                new StopRecordingResponse(session.Id, recordingDto));
+                new StopRecordingResponse(
+                    videoSessionId,
+                    new RecordingInfoDto
+                    {
+                        Status = RecordingStatus.Completed.ToString(),
+                        IsRecording = false,
+                        CanStartRecording = false,
+                        CanStopRecording = false
+                    }));
         }
 
         public async Task<Result<RecordingInfoDto>> GetRecordingAsync(

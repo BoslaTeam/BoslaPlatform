@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Polly;
 using BoslaPlatform.Application;
 using BoslaPlatform.Application.Common.Interfaces;
 using BoslaPlatform.Application.Features.Admin.Services;
@@ -38,6 +39,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using BoslaPlatform.Infrastructure.Recording.Providers.Agora.Authentication;
+using BoslaPlatform.Infrastructure.Recording.Providers.Agora.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
@@ -67,8 +70,20 @@ public static class DependencyInjection
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IChatNotifier, SignalRChatNotifier>();
             services.AddScoped<IVideoNotifier, SignalRVideoNotifier>();
-            services.AddScoped<IRecordingProvider, NoOpRecordingProvider>();
+            services.AddScoped<IRecordingProvider, AgoraRecordingProvider>();
             services.AddScoped<IAgoraTokenService, AgoraTokenService>();
+
+            // Agora Cloud Recording — Typed HttpClient with authentication handler and retry policy
+            services.AddTransient<AgoraAuthenticationHandler>();
+            services.AddHttpClient<AgoraCloudRecordingApiClient>(client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+            })
+            .AddHttpMessageHandler<AgoraAuthenticationHandler>()
+            .AddTransientHttpErrorPolicy(builder =>
+                builder.WaitAndRetryAsync(
+                    2,
+                    retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
 
             // Agora Webhook — Phase 1
             // IAgoraWebhookSignatureVerifier: Infrastructure concern (HMAC-SHA256 + replay window).

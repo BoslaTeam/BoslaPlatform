@@ -56,5 +56,24 @@ namespace BoslaPlatform.Infrastructure.Settings
         public int WebhookReplayWindowSeconds { get; set; } = 300;
 
         public bool SkipSignatureValidation { get; set; } = true;
+
+        // Cloud Recording REST API
+        public string CustomerId { get; set; } = string.Empty;
+        public string CustomerSecret { get; set; } = string.Empty;
+        public string CloudRecordingBaseUrl { get; set; } = "https://api.agora.io";
+        public int TimeoutSeconds { get; set; } = 30;
+        public int RetryCount { get; set; } = 3;
+
+        // Cloud Recording defaults
+        public int RecordingMaxIdleTime { get; set; } = 30;
+        public int RecordingStreamTypes { get; set; } = 2;
+
+        // Cloud Recording Storage
+        public int StorageVendor { get; set; }
+        public int StorageRegion { get; set; }
+        public string StorageBucket { get; set; } = string.Empty;
+        public string StorageAccessKey { get; set; } = string.Empty;
+        public string StorageSecretKey { get; set; } = string.Empty;
+        public string StorageFileNamePrefix { get; set; } = string.Empty;
     }
 }

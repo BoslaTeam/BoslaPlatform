@@ -277,9 +277,10 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             await _context.SaveChangesAsync(ct);
 
             _logger.LogInformation(
-                "[AgoraWebhook] ChannelDestroyed | Processed | Channel={Channel} | SessionId={SessionId} | DomainEventsRaised=VideoSessionEndedEvent,ChannelDestroyedEvent",
+                "[AgoraWebhook] ChannelDestroyed | Processed | Channel={Channel} | SessionId={SessionId} | RecordingStatus={RecordingStatus} | DomainEventsRaised=VideoSessionEndedEvent,ChannelDestroyedEvent",
                 request.Payload.ChannelName,
-                session.Id);
+                session.Id,
+                session.RecordingStatus);
 
             return Result.Success();
         }
@@ -367,7 +368,9 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
                     .OrderByDescending(recording => recording.CreatedAtUtc)
                     .FirstOrDefault();
 
-            if (recording is not null && fileUrl is not null)
+            if (recording is not null
+                && fileUrl is not null
+                && recording.Status != BoslaPlatform.Domain.Enums.RecordingStatus.Failed)
             {
                 recording.Complete(
                     fileUrl,
