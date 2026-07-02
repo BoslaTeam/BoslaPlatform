@@ -119,7 +119,8 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                     .Select(x => new AvailabilityResponse(
                         x.Id,
                         x.Start,
-                        x.End
+                        x.End,
+                        x.IsBooked
                     ))
                     .ToListAsync(ct);
 
@@ -1073,7 +1074,8 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 {
                     Id = x.Id,
                     Start = x.Start,
-                    End = x.End
+                    End = x.End,
+                    IsBooked = x.IsBooked
                 })
                 .ToListAsync(ct);
 

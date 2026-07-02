@@ -3,5 +3,7 @@
     public sealed record AvailabilityResponse(
         Guid Id,
    DateTimeOffset Start,
-    DateTimeOffset End);  
+    DateTimeOffset End,
+    bool IsBooked
+        );
 }
