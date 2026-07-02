@@ -18,5 +18,6 @@ namespace BoslaPlatform.Application.Features.Appointments.DTOs
         public decimal SessionPrice { get; set; }
 
         public bool IsPaid { get; set; }
+        public Guid? ConversationId { get; set; }
     }
 }

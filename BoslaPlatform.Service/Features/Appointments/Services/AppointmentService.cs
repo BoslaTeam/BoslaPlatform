@@ -117,7 +117,8 @@ namespace BoslaPlatform.Application.Services
                     SessionPrice = a.SessionPrice,
 
                     IsPaid = a.Payment != null
-                        && a.Payment.Status == PaymentStatus.Completed
+                        && a.Payment.Status == PaymentStatus.Completed,
+                    ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null
                 })
                 .FirstOrDefaultAsync(ct);
 
@@ -173,7 +174,8 @@ namespace BoslaPlatform.Application.Services
                     SessionTopic = a.SessionTopic,
                     Notes = a.Notes,
                     SessionPrice = a.SessionPrice,
-                    IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed
+                    IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed,
+                    ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null
                 })
                 .ToListAsync(ct);
 
@@ -206,7 +208,8 @@ namespace BoslaPlatform.Application.Services
                     SessionTopic = a.SessionTopic,
                     Notes = a.Notes,
                     SessionPrice = a.SessionPrice,
-                    IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed
+                    IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed,
+                    ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null
                 })
                 .ToListAsync(ct);
 
@@ -254,7 +257,8 @@ namespace BoslaPlatform.Application.Services
                     SessionTopic = a.SessionTopic,
                     Notes = a.Notes,
                     SessionPrice = a.SessionPrice,
-                    IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed
+                    IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed,
+                    ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null
                 })
                 .ToListAsync(ct);
 
@@ -297,7 +301,8 @@ namespace BoslaPlatform.Application.Services
                     SessionTopic = a.SessionTopic,
                     Notes = a.Notes,
                     SessionPrice = a.SessionPrice,
-                    IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed
+                    IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed,
+                    ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null
                 })
                 .ToListAsync(ct);
 
