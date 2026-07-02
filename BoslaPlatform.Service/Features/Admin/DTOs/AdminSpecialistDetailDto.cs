@@ -30,6 +30,16 @@ public sealed class AdminSpecialistDetailDto
     public List<SpecialistToolItemDto> Tools { get; set; } = [];
     public List<SpecialistExperienceItemDto> Experiences { get; set; } = [];
     public List<SpecialistReviewItemDto> Reviews { get; set; } = [];
+    public List<SpecialistDocumentItemDto> Documents { get; set; } = [];
+    public string? AdminNotes { get; set; }
+}
+
+public sealed class SpecialistDocumentItemDto
+{
+    public Guid Id { get; set; }
+    public string Type { get; set; } = string.Empty;
+    public string Url { get; set; } = string.Empty;
+    public string OriginalFileName { get; set; } = string.Empty;
 }
 
 public sealed class SpecialistSkillItemDto
