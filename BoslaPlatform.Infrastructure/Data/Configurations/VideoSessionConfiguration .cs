@@ -19,6 +19,22 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
             builder.Property(v => v.RecordingUrl)
                 .HasMaxLength(2000);
 
+            builder.Property(v => v.RecordingStatus)
+                .HasConversion<string>()
+                .HasMaxLength(30)
+                .IsRequired(false);
+
+            builder.Property(v => v.RecordingStartedAtUtc)
+                .IsRequired(false);
+
+            builder.Property(v => v.CurrentRecordingId)
+                .IsRequired(false);
+
+            builder.HasOne(v => v.CurrentRecording)
+                .WithMany()
+                .HasForeignKey(v => v.CurrentRecordingId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             builder.HasOne(v => v.Appointment)
                 .WithOne(a => a.VideoSession)
                 .HasForeignKey<VideoSession>(v => v.AppointmentId)
@@ -33,6 +49,10 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
 
             builder.Metadata
                 .FindNavigation(nameof(VideoSession.Participants))!
+                .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+            builder.Metadata
+                .FindNavigation(nameof(VideoSession.Recordings))!
                 .SetPropertyAccessMode(PropertyAccessMode.Field);
 
             builder.HasIndex(v => v.AgoraChannelName).IsUnique();

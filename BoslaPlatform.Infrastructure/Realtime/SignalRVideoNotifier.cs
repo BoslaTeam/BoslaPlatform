@@ -50,12 +50,12 @@ namespace BoslaPlatform.Infrastructure.Realtime
                 .SendAsync(VideoSignalREvents.ParticipantLeft, new { sessionId, participantId }, ct);
         }
 
-        public async Task RecordingStartedAsync(Guid sessionId, CancellationToken ct = default)
+        public async Task RecordingStartedAsync(Guid sessionId, DateTime startedAtUtc, CancellationToken ct = default)
         {
-            _logger.LogInformation("Notifying recording started for session {SessionId}", sessionId);
+            _logger.LogInformation("Notifying recording started for session {SessionId} at {StartedAt}", sessionId, startedAtUtc);
             await _hubContext.Clients
                 .Group(sessionId.ToString())
-                .SendAsync(VideoSignalREvents.RecordingStarted, new { sessionId }, ct);
+                .SendAsync(VideoSignalREvents.RecordingStarted, new { sessionId, startedAtUtc }, ct);
         }
 
         public async Task RecordingCompletedAsync(Guid sessionId, string recordingUrl, CancellationToken ct = default)

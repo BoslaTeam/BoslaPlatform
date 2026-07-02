@@ -8,6 +8,7 @@ using BoslaPlatform.Domain.Models.Lookup;
 using BoslaPlatform.Domain.Models.Profile;
 using BoslaPlatform.Domain.Models.Video;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace BoslaPlatform.Application.Interfaces.Persistence
 {
@@ -48,6 +49,7 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
 
         DbSet<SpecialistSkill> SpecialistSkills { get; }
         DbSet<Review> Reviews { get; }
+        DbSet<ScreenRecording> ScreenRecordings { get; }
         DbSet<VideoSession> VideoSessions { get; }
         DbSet<VideoSessionParticipant> VideoSessionParticipants { get; }
         DbSet<SpecialistTool> SpecialistTools { get; }
@@ -57,6 +59,9 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
             where TEntity : class;
 
         Task<int> SaveChangesAsync(
+            CancellationToken cancellationToken = default);
+
+        Task<IDbContextTransaction> BeginTransactionAsync(
             CancellationToken cancellationToken = default);
     }
 }

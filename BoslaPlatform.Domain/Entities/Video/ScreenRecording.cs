@@ -11,7 +11,6 @@ namespace BoslaPlatform.Domain.Models.Video
         {
         }
 
-        public Guid AppointmentId { get; private set; }
         public string Url { get; private set; } = string.Empty;
         public RecordingStatus Status { get; private set; }
         public long? FileSizeBytes { get; private set; }
@@ -20,16 +19,17 @@ namespace BoslaPlatform.Domain.Models.Video
         public RecordingStorageProvider StorageProvider { get; private set; }
         public string? AgoraRecordingId { get; private set; }
         public string? AgoraRecordingSid { get; private set; }
-        public Appointment Appointment { get; private set; } = null!;
+        public Guid VideoSessionId { get; private set; }
+        public VideoSession? VideoSession { get; private set; }
 
         public static Result<ScreenRecording> Create(
-            Guid appointmentId,
+            Guid videoSessionId,
             RecordingAccessControl accessControl,
             RecordingStorageProvider storageProvider)
         {
             return new ScreenRecording
             {
-                AppointmentId = appointmentId,
+                VideoSessionId = videoSessionId,
                 Status = RecordingStatus.Pending,
                 AccessControl = accessControl,
                 StorageProvider = storageProvider

@@ -1,8 +1,15 @@
 ﻿namespace BoslaPlatform.Domain.Enums
 {
-    public enum RecordingStatus { Processing, Ready, Failed, Deleted,
+    public enum RecordingStatus
+    {
+        Processing,
+        Ready,
+        Failed,
+        Deleted,
         Pending,
-        Completed
+        Completed,
+        Recording,
+        Starting,
+        Stopping
     }
-
 }

@@ -12,6 +12,7 @@ using BoslaPlatform.Domain.Models.Video;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace BoslaPlatform.Infrastructure.Data
 {
@@ -87,6 +88,12 @@ namespace BoslaPlatform.Infrastructure.Data
         }
 
         public IServiceProvider? GetInfrastructureServiceProvider() => _serviceProvider;
+
+        public Task<IDbContextTransaction> BeginTransactionAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return Database.BeginTransactionAsync(cancellationToken);
+        }
     }
 
 }
