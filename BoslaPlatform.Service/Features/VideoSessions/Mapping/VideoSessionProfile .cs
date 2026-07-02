@@ -4,14 +4,8 @@ using BoslaPlatform.Domain.Models.Video;
 
 namespace BoslaPlatform.Application.Features.VideoSessions.Mapping
 {
-    /// <summary>
-    /// AutoMapper profile for mapping video session domain entities to DTOs.
-    /// </summary>
     public sealed class VideoSessionProfile : Profile
     {
-        /// <summary>
-        /// Initializes mapping configurations for VideoSession and VideoSessionParticipant.
-        /// </summary>
         public VideoSessionProfile()
         {
             CreateMap<VideoSessionParticipant, VideoSessionParticipantDto>()
@@ -22,6 +16,17 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Mapping
                     d => d.Role,
                     o => o.MapFrom(s => s.Role.ToString()));
 
+            CreateMap<ScreenRecording, RecordingInfoDto>()
+                .ForMember(
+                    d => d.Status,
+                    o => o.MapFrom(s => s.Status.ToString()))
+                .ForMember(
+                    d => d.Url,
+                    o => o.MapFrom(s => s.Url))
+                .ForMember(
+                    d => d.CurrentRecordingId,
+                    o => o.MapFrom(s => s.Id));
+
             CreateMap<VideoSession, VideoSessionDto>()
                 .ForMember(
                     d => d.ChannelName,
@@ -31,7 +36,35 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Mapping
                     o => o.MapFrom(s => s.Status.ToString()))
                 .ForMember(
                     d => d.Participants,
-                    o => o.MapFrom(s => s.Participants));
+                    o => o.MapFrom(s => s.Participants))
+                .ForMember(
+                    d => d.Recording,
+                    o => o.MapFrom(s => BuildRecordingInfo(s)));
+        }
+
+        private static RecordingInfoDto? BuildRecordingInfo(VideoSession session)
+        {
+            if (session.RecordingStatus is null && session.CurrentRecordingId is null)
+            {
+                return null;
+            }
+
+            var dto = new RecordingInfoDto
+            {
+                Status = session.RecordingStatus?.ToString(),
+                StartedAtUtc = session.RecordingStartedAtUtc,
+                CompletedAtUtc = session.RecordingCompletedAt,
+                IsRecording = session.IsRecording,
+                CurrentRecordingId = session.CurrentRecordingId,
+                Url = session.RecordingUrl
+            };
+
+            if (session.CurrentRecording is not null)
+            {
+                dto.Url ??= session.CurrentRecording.Url;
+            }
+
+            return dto;
         }
     }
 }

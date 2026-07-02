@@ -18,7 +18,7 @@ namespace BoslaPlatform.Application.EventHandlers.Videos
             VideoSessionStartedEvent notification,
             CancellationToken cancellationToken)
         {
-            await _notifier.SessionStartedAsync(notification.SessionId, cancellationToken);
+            await _notifier.SessionStartedAsync(notification.SessionId, notification.StartedAtUtc, cancellationToken);
         }
     }
 }

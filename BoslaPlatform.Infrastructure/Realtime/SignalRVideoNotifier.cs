@@ -18,20 +18,20 @@ namespace BoslaPlatform.Infrastructure.Realtime
             _logger = logger;
         }
 
-        public async Task SessionStartedAsync(Guid sessionId, CancellationToken ct = default)
+        public async Task SessionStartedAsync(Guid sessionId, DateTime startedAtUtc, CancellationToken ct = default)
         {
-            _logger.LogInformation("Notifying session started for {SessionId}", sessionId);
+            _logger.LogInformation("Notifying session started for {SessionId} at {StartedAt}", sessionId, startedAtUtc);
             await _hubContext.Clients
                 .Group(sessionId.ToString())
-                .SendAsync(VideoSignalREvents.SessionStarted, new { sessionId }, ct);
+                .SendAsync(VideoSignalREvents.SessionStarted, new { sessionId, startedAtUtc }, ct);
         }
 
-        public async Task SessionEndedAsync(Guid sessionId, CancellationToken ct = default)
+        public async Task SessionEndedAsync(Guid sessionId, DateTime endedAtUtc, CancellationToken ct = default)
         {
-            _logger.LogInformation("Notifying session ended for {SessionId}", sessionId);
+            _logger.LogInformation("Notifying session ended for {SessionId} at {EndedAt}", sessionId, endedAtUtc);
             await _hubContext.Clients
                 .Group(sessionId.ToString())
-                .SendAsync(VideoSignalREvents.SessionEnded, new { sessionId }, ct);
+                .SendAsync(VideoSignalREvents.SessionEnded, new { sessionId, endedAtUtc }, ct);
         }
 
         public async Task ParticipantJoinedAsync(Guid sessionId, Guid participantId, CancellationToken ct = default)
@@ -50,12 +50,12 @@ namespace BoslaPlatform.Infrastructure.Realtime
                 .SendAsync(VideoSignalREvents.ParticipantLeft, new { sessionId, participantId }, ct);
         }
 
-        public async Task RecordingStartedAsync(Guid sessionId, CancellationToken ct = default)
+        public async Task RecordingStartedAsync(Guid sessionId, DateTime startedAtUtc, CancellationToken ct = default)
         {
-            _logger.LogInformation("Notifying recording started for session {SessionId}", sessionId);
+            _logger.LogInformation("Notifying recording started for session {SessionId} at {StartedAt}", sessionId, startedAtUtc);
             await _hubContext.Clients
                 .Group(sessionId.ToString())
-                .SendAsync(VideoSignalREvents.RecordingStarted, new { sessionId }, ct);
+                .SendAsync(VideoSignalREvents.RecordingStarted, new { sessionId, startedAtUtc }, ct);
         }
 
         public async Task RecordingCompletedAsync(Guid sessionId, string recordingUrl, CancellationToken ct = default)

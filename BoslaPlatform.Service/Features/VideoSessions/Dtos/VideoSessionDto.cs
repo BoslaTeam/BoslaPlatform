@@ -43,5 +43,10 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Dtos
         /// </summary>
         public IReadOnlyList<VideoSessionParticipantDto> Participants { get; set; }
             = Array.Empty<VideoSessionParticipantDto>();
+
+        /// <summary>
+        /// Recording state information for the current session.
+        /// </summary>
+        public RecordingInfoDto? Recording { get; set; }
     }
 }

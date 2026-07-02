@@ -6,7 +6,7 @@ using BoslaPlatform.Shared;
 
 namespace BoslaPlatform.Domain.Models.Video
 {
-    public class VideoSession:AuditableEntity
+    public class VideoSession : AuditableEntity
     {
         public Guid AppointmentId { get; private set; }
         public VideoSessionType Type { get; private set; }
@@ -15,14 +15,28 @@ namespace BoslaPlatform.Domain.Models.Video
         public VideoSessionStatus Status { get; private set; }
         public DateTime? StartedAt { get; private set; }
         public DateTime? EndedAt { get; private set; }
+
+        // Recording state (aggregate root owns current recording lifecycle)
+        public RecordingStatus? RecordingStatus { get; private set; }
+        public DateTime? RecordingStartedAtUtc { get; private set; }
+        public Guid? CurrentRecordingId { get; private set; }
+        public ScreenRecording? CurrentRecording { get; private set; }
+
+        // Provider-level recording details (kept for backward compat)
         public string? AgoraRecordingId { get; private set; }
         public string? AgoraRecordingSid { get; private set; }
         public string? RecordingUrl { get; private set; }
         public DateTime? RecordingCompletedAt { get; private set; }
-        public Appointment? Appointment { get; private set; }
 
+        public Appointment? Appointment { get; private set; }
+        private readonly List<ScreenRecording> _recordings = [];
+
+        public IReadOnlyCollection<ScreenRecording> Recordings
+            => _recordings.AsReadOnly();
         public IReadOnlyCollection<VideoSessionParticipant> Participants
             => _participants.AsReadOnly();
+
+        public bool IsRecording => RecordingStatus is Domain.Enums.RecordingStatus.Recording;
 
         // Navigation
         private readonly List<VideoSessionParticipant> _participants = [];
@@ -67,10 +81,10 @@ namespace BoslaPlatform.Domain.Models.Video
                     "Session already ended.");
             }
 
-            // Start() is a preparation/validation step only.
-            // The session transitions to Active exclusively via ChannelCreated()
-            // when Agora confirms the first participant has joined the channel.
-            // No status change, no StartedAt, no VideoSessionStartedEvent raised here.
+            Status = VideoSessionStatus.Active;
+            StartedAt = DateTime.UtcNow;
+
+            AddDomainEvent(new VideoSessionStartedEvent(Id, StartedAt.Value));
 
             return Result.Success();
         }
@@ -86,7 +100,7 @@ namespace BoslaPlatform.Domain.Models.Video
             Status = VideoSessionStatus.Ended;
             EndedAt = DateTime.UtcNow;
 
-            AddDomainEvent(new VideoSessionEndedEvent(Id, AppointmentId));
+            AddDomainEvent(new VideoSessionEndedEvent(Id, AppointmentId, EndedAt.Value));
 
             return Result.Success();
         }
@@ -161,15 +175,114 @@ namespace BoslaPlatform.Domain.Models.Video
         }
 
         // ----------------------------------------------------------------
-        // Webhook-facing aggregate methods
-        // These are called exclusively by VideoSessionWebhookService.
-        // They are the ONLY way Agora participant/recording/channel state
-        // enters the domain — the frontend never calls these directly.
-        //
-        // ChannelCreated() is the SOLE activator for this aggregate.
-        // Start() only validates and prepares — it does NOT set Status=Active.
-        // ChannelDestroyed() handles Agora-triggered end.
-        // End() handles specialist-triggered manual end.
+        // Command-facing recording methods
+        // Called by VideoSessionService (Application layer) on user action.
+        // Commands initiate state transitions.
+        // ----------------------------------------------------------------
+
+
+        public Result StartRecording(ScreenRecording recording)
+        {
+            if (recording.VideoSessionId != Id)
+            {
+                return Error.Validation(
+                    "Recording.InvalidSession",
+                    "Recording does not belong to this session.");
+            }
+
+            if (Status != VideoSessionStatus.Active)
+            {
+                return Error.Validation(
+                    "VideoSession.NotActive",
+                    "Session must be active.");
+            }
+
+            if (_recordings.Contains(recording))
+            {
+                return Error.Conflict(
+                    "Recording.Exists",
+                    "Recording already attached.");
+            }
+
+            if (IsRecording)
+            {
+                return Error.Conflict(
+                    "VideoSession.AlreadyRecording",
+                    "Recording already running.");
+            }
+
+            _recordings.Add(recording);
+
+            CurrentRecording = recording;
+
+            RecordingStatus = Enums.RecordingStatus.Recording;
+            RecordingStartedAtUtc = DateTime.UtcNow;
+
+            return Result.Success();
+        }
+
+        public Result SetCurrentRecording(ScreenRecording recording)
+        {
+            if (recording.VideoSessionId != Id)
+            {
+                return Error.Validation(
+                    "Recording.InvalidSession",
+                    "Recording does not belong to this session.");
+            }
+
+            if (recording.Id == Guid.Empty)
+            {
+                return Error.Validation(
+                    "Recording.IdNotAssigned",
+                    "Recording must be saved before it can become the current recording.");
+            }
+
+            if (!_recordings.Contains(recording))
+            {
+                return Error.Validation(
+                    "Recording.NotAttached",
+                    "Recording must be attached to this session before it can become current.");
+            }
+
+            CurrentRecording = recording;
+            CurrentRecordingId = recording.Id;
+
+            AddDomainEvent(
+                new RecordingStartedEvent(
+                    Id,
+                    recording.Id,
+                    RecordingStartedAtUtc ?? DateTime.UtcNow));
+
+            return Result.Success();
+        }
+
+        public Result StopRecording()
+        {
+            if (!IsRecording)
+            {
+                return Error.Validation(
+                    "VideoSession.NotRecording",
+                    "No active recording.");
+            }
+
+            CurrentRecording = null;
+            CurrentRecordingId = null;
+            RecordingStatus = Enums.RecordingStatus.Completed;
+            RecordingCompletedAt = DateTime.UtcNow;
+
+            AddDomainEvent(
+                new RecordingCompletedEvent(
+                    Id,
+                    RecordingUrl ?? string.Empty,
+                    null,
+                    null));
+
+            return Result.Success();
+        }
+        // ----------------------------------------------------------------
+        // Webhook-facing recording methods
+        // Called exclusively by VideoSessionWebhookService.
+        // Webhooks confirm provider state — they never initiate business logic.
         // ----------------------------------------------------------------
 
         /// <summary>
@@ -295,7 +408,7 @@ namespace BoslaPlatform.Domain.Models.Video
             Status = VideoSessionStatus.Active;
             StartedAt = occurredAtUtc.UtcDateTime;
 
-            AddDomainEvent(new VideoSessionStartedEvent(Id));
+            AddDomainEvent(new VideoSessionStartedEvent(Id, StartedAt.Value));
             AddDomainEvent(
                 new ChannelCreatedEvent(Id, channelName, occurredAtUtc));
 
@@ -326,7 +439,7 @@ namespace BoslaPlatform.Domain.Models.Video
             Status = VideoSessionStatus.Ended;
             EndedAt = occurredAtUtc.UtcDateTime;
 
-            AddDomainEvent(new VideoSessionEndedEvent(Id, AppointmentId));
+            AddDomainEvent(new VideoSessionEndedEvent(Id, AppointmentId, EndedAt.Value));
             AddDomainEvent(
                 new ChannelDestroyedEvent(Id, AppointmentId, channelName, occurredAtUtc));
 
@@ -335,30 +448,23 @@ namespace BoslaPlatform.Domain.Models.Video
 
         /// <summary>
         /// Called when Agora fires eventType 1001 (cloud_recording_started).
-        /// Records the Agora recording identifiers on the session aggregate.
-        /// Raises <see cref="RecordingStartedEvent"/>.
+        /// Confirms provider recording state. Idempotent — never initiates
+        /// business logic if the command already transitioned the aggregate.
         /// </summary>
-        /// <param name="resourceId">The Agora recording resource identifier.</param>
-        /// <param name="sid">The Agora recording session identifier (SID).</param>
-        public Result RecordingStarted(
+        public Result ConfirmRecordingStarted(
             string resourceId,
             string sid)
         {
-            if (string.IsNullOrWhiteSpace(resourceId))
-            {
-                return Error.Validation(
-                    "VideoSession.Recording.ResourceIdRequired",
-                    "Agora recording resourceId is required.");
-            }
+            AgoraRecordingId = resourceId;
+            AgoraRecordingSid = sid;
 
-            // Idempotent: recording already started for this session.
-            if (AgoraRecordingId is not null)
+            if (RecordingStatus is not null)
             {
                 return Result.Success();
             }
 
-            AgoraRecordingId = resourceId;
-            AgoraRecordingSid = sid;
+            RecordingStatus = Domain.Enums.RecordingStatus.Recording;
+            RecordingStartedAtUtc = DateTime.UtcNow;
 
             AddDomainEvent(
                 new RecordingStartedEvent(Id, resourceId, sid));
@@ -368,22 +474,21 @@ namespace BoslaPlatform.Domain.Models.Video
 
         /// <summary>
         /// Called when Agora fires eventType 1003 (cloud_recording_stopped).
-        /// Updates the recording URL on the session and raises
-        /// <see cref="RecordingCompletedEvent"/>.
+        /// Confirms provider recording finalization. Idempotent — never
+        /// re-raises events if the command already completed the lifecycle.
         /// </summary>
-        /// <param name="fileUrl">The URL of the completed recording file (may be null if not yet uploaded).</param>
-        /// <param name="durationSeconds">Recording duration in seconds.</param>
-        /// <param name="fileSizeBytes">Recording file size in bytes.</param>
-        public Result RecordingStopped(
+        public Result ConfirmRecordingStopped(
             string? fileUrl,
             int? durationSeconds,
             long? fileSizeBytes)
         {
-            // Idempotent: recording completion already processed.
             if (RecordingCompletedAt is not null)
             {
                 return Result.Success();
             }
+
+            var wasCommanded = RecordingStatus is not null
+                && RecordingStatus != Domain.Enums.RecordingStatus.Completed;
 
             if (fileUrl is not null)
             {
@@ -391,6 +496,12 @@ namespace BoslaPlatform.Domain.Models.Video
             }
 
             RecordingCompletedAt = DateTime.UtcNow;
+            RecordingStatus = Domain.Enums.RecordingStatus.Completed;
+
+            if (wasCommanded)
+            {
+                return Result.Success();
+            }
 
             AddDomainEvent(
                 new RecordingCompletedEvent(

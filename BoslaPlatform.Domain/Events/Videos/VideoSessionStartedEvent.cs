@@ -6,9 +6,12 @@ namespace BoslaPlatform.Domain.Events.Videos
     {
         public Guid SessionId { get; }
 
-        public VideoSessionStartedEvent(Guid sessionId)
+        public DateTime StartedAtUtc { get; }
+
+        public VideoSessionStartedEvent(Guid sessionId, DateTime startedAtUtc)
         {
             SessionId = sessionId;
+            StartedAtUtc = startedAtUtc;
         }
     }
 }

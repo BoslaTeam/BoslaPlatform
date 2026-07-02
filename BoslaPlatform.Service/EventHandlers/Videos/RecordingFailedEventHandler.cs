@@ -4,21 +4,24 @@ using MediatR;
 
 namespace BoslaPlatform.Application.EventHandlers.Videos
 {
-    public sealed class VideoSessionEndedRealtimeHandler
-    : INotificationHandler<VideoSessionEndedEvent>
+    public sealed class RecordingFailedEventHandler
+    : INotificationHandler<RecordingFailedEvent>
     {
         private readonly IVideoNotifier _notifier;
 
-        public VideoSessionEndedRealtimeHandler(IVideoNotifier notifier)
+        public RecordingFailedEventHandler(IVideoNotifier notifier)
         {
             _notifier = notifier;
         }
 
         public async Task Handle(
-            VideoSessionEndedEvent notification,
+            RecordingFailedEvent notification,
             CancellationToken cancellationToken)
         {
-            await _notifier.SessionEndedAsync(notification.SessionId, notification.EndedAtUtc, cancellationToken);
+            await _notifier.RecordingCompletedAsync(
+                notification.SessionId,
+                string.Empty,
+                cancellationToken);
         }
     }
 }

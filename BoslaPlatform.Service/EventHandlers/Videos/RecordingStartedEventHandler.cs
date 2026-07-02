@@ -18,7 +18,14 @@ namespace BoslaPlatform.Application.EventHandlers.Videos
             RecordingStartedEvent notification,
             CancellationToken cancellationToken)
         {
-            await _notifier.RecordingStartedAsync(notification.SessionId, cancellationToken);
+            var startedAtUtc = notification.StartedAtUtc != DateTime.MinValue
+                ? notification.StartedAtUtc
+                : DateTime.UtcNow;
+
+            await _notifier.RecordingStartedAsync(
+                notification.SessionId,
+                startedAtUtc,
+                cancellationToken);
         }
     }
 }

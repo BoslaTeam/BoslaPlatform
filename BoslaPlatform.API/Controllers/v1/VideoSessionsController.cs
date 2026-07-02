@@ -11,10 +11,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BoslaPlatform.API.Controllers.v1
 {
-    /// <summary>
-    /// Controller for managing video sessions and generating Agora tokens.
-    /// Provides endpoints for video session operations within the Bosla Platform.
-    /// </summary>
     [ApiVersion("1")]
     [Route("api/v{version:apiVersion}/video-sessions")]
     [ApiController]
@@ -23,11 +19,6 @@ namespace BoslaPlatform.API.Controllers.v1
     {
         private readonly IVideoSessionService _videoSessionService;
 
-        /// <summary>
-        /// Initializes a new instance of the VideoSessionsController.
-        /// </summary>
-        /// <param name="videoSessionService">The video session service.</param>
-        /// <exception cref="ArgumentNullException">Thrown when videoSessionService is null.</exception>
         public VideoSessionsController(IVideoSessionService videoSessionService)
         {
             _videoSessionService = videoSessionService;
@@ -192,9 +183,6 @@ namespace BoslaPlatform.API.Controllers.v1
         /// <summary>
         /// Ends a video session.
         /// </summary>
-        /// <remarks>
-        /// Ends the active video session and publishes a VideoSessionEndedEvent.
-        /// </remarks>
         [HttpPost("{id:guid}/end")]
         [ProducesResponseType(typeof(ApiResponse<EndVideoSessionResponse>), StatusCodes.Status200OK)]
         [ProducesResponseType( typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -223,6 +211,86 @@ namespace BoslaPlatform.API.Controllers.v1
                },
 
                errors => errors.ToProblem());
+        }
+
+        [HttpPost("{id:guid}/recording/start")]
+        [ProducesResponseType(typeof(ApiResponse<StartRecordingResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [EndpointName("StartRecording")]
+        [EndpointSummary("Starts recording the video session.")]
+        [EndpointDescription("Allows the assigned specialist to start cloud recording for an active video session.")]
+        [Tags("Communication")]
+        public async Task<IResult> StartRecording(
+            Guid id,
+            CancellationToken ct)
+        {
+            var result = await _videoSessionService
+                .StartRecordingAsync(id, ct);
+
+            return result.Match(
+                value =>
+                {
+                    var response = ApiResponse<StartRecordingResponse>
+                        .SuccessResponse(value, "Recording started successfully.");
+                    return Results.Ok(response);
+                },
+                errors => errors.ToProblem());
+        }
+
+        [HttpPost("{id:guid}/recording/stop")]
+        [ProducesResponseType(typeof(ApiResponse<StopRecordingResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [EndpointName("StopRecording")]
+        [EndpointSummary("Stops recording the video session.")]
+        [EndpointDescription("Allows the assigned specialist to stop cloud recording.")]
+        [Tags("Communication")]
+        public async Task<IResult> StopRecording(
+            Guid id,
+            CancellationToken ct)
+        {
+            var result = await _videoSessionService
+                .StopRecordingAsync(id, ct);
+
+            return result.Match(
+                value =>
+                {
+                    var response = ApiResponse<StopRecordingResponse>
+                        .SuccessResponse(value, "Recording stopped successfully.");
+                    return Results.Ok(response);
+                },
+                errors => errors.ToProblem());
+        }
+
+        [HttpGet("{id:guid}/recording")]
+        [ProducesResponseType(typeof(ApiResponse<RecordingInfoDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [EndpointName("GetRecording")]
+        [EndpointSummary("Gets recording information for the session.")]
+        [EndpointDescription("Returns current recording state and metadata for both participants and specialists.")]
+        [Tags("Communication")]
+        public async Task<IResult> GetRecording(
+            Guid id,
+            CancellationToken ct)
+        {
+            var result = await _videoSessionService
+                .GetRecordingAsync(id, ct);
+
+            return result.Match(
+                value =>
+                {
+                    var response = ApiResponse<RecordingInfoDto>
+                        .SuccessResponse(value, "Recording info retrieved successfully.");
+                    return Results.Ok(response);
+                },
+                errors => errors.ToProblem());
         }
     }
 }

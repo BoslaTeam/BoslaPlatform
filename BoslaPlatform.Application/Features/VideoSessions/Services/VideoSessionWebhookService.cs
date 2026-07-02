@@ -301,7 +301,7 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             var resourceId = details?.ResourceId ?? string.Empty;
             var sid = details?.Sid ?? request.Payload.Sid ?? string.Empty;
 
-            var result = session.RecordingStarted(resourceId, sid);
+            var result = session.ConfirmRecordingStarted(resourceId, sid);
 
             if (result.IsError)
             {
@@ -312,13 +312,19 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
                 return result;
             }
 
+            if (session.CurrentRecording is not null)
+            {
+                session.CurrentRecording.AttachAgoraRecording(resourceId, sid);
+            }
+
             await _context.SaveChangesAsync(ct);
 
             _logger.LogInformation(
-                "[AgoraWebhook] RecordingStarted | Processed | Channel={Channel} | ResourceId={ResourceId} | Sid={Sid} | DomainEventRaised=RecordingStartedEvent",
+                "[AgoraWebhook] RecordingStarted | Confirmed | Channel={Channel} | ResourceId={ResourceId} | Sid={Sid} | RecordingStatus={Status}",
                 request.Payload.ChannelName,
                 resourceId,
-                sid);
+                sid,
+                session.RecordingStatus);
 
             return Result.Success();
         }
@@ -343,7 +349,7 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             var duration = details?.Duration;
             var fileSize = details?.FileSize;
 
-            var result = session.RecordingStopped(fileUrl, duration, fileSize);
+            var result = session.ConfirmRecordingStopped(fileUrl, duration, fileSize);
 
             if (result.IsError)
             {
@@ -354,13 +360,27 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
                 return result;
             }
 
+            var recording = session.CurrentRecording
+                ?? session.Recordings
+                    .OrderByDescending(recording => recording.CreatedAtUtc)
+                    .FirstOrDefault();
+
+            if (recording is not null && fileUrl is not null)
+            {
+                recording.Complete(
+                    fileUrl,
+                    fileSize,
+                    duration);
+            }
+
             await _context.SaveChangesAsync(ct);
 
             _logger.LogInformation(
-                "[AgoraWebhook] RecordingStopped | Processed | Channel={Channel} | FileUrl={FileUrl} | Duration={Duration}s | DomainEventRaised=RecordingCompletedEvent",
+                "[AgoraWebhook] RecordingStopped | Confirmed | Channel={Channel} | FileUrl={FileUrl} | Duration={Duration}s | RecordingStatus={Status}",
                 request.Payload.ChannelName,
                 fileUrl ?? "(none)",
-                duration);
+                duration,
+                session.RecordingStatus);
 
             return Result.Success();
         }
@@ -384,8 +404,8 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
 
         /// <summary>
         /// Loads the VideoSession aggregate from the database by Agora channel name.
-        /// Eagerly loads Participants so aggregate methods can inspect them.
-        /// Returns null if not found (caller decides how to handle).
+        /// Eagerly loads Participants, CurrentRecording, and Recordings so aggregate methods
+        /// can inspect them. Returns null if not found (caller decides how to handle).
         /// </summary>
         private async Task<Domain.Models.Video.VideoSession?> ResolveSessionAsync(
             string channelName,
@@ -393,6 +413,8 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
         {
             return await _context.VideoSessions
                 .Include(vs => vs.Participants)
+                .Include(vs => vs.CurrentRecording)
+                .Include(vs => vs.Recordings)
                 .FirstOrDefaultAsync(
                     vs => vs.AgoraChannelName == channelName,
                     ct);
