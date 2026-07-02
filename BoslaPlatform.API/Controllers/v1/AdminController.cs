@@ -130,7 +130,7 @@ public class AdminController(
         if (currentUserId == null)
             return Results.Unauthorized();
 
-        var result = await adminService.VerifySpecialistAsync(id, request.IsVerified, currentUserId.Value, ct);
+        var result = await adminService.VerifySpecialistAsync(id, request.IsVerified, currentUserId.Value, request.AdminNotes, ct);
         if (result.IsSuccess)
             return Results.Ok(ApiResponse.SuccessResponse("Specialist verification updated."));
         return result.Errors.ToProblem();

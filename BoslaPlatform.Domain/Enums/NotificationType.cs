@@ -1,5 +1,5 @@
 ﻿namespace BoslaPlatform.Domain.Enums
 {
-    public enum NotificationType { Message, Booking, Reminder, SpecialistVerification }
+    public enum NotificationType { Message, Booking, Reminder, SpecialistVerification, Withdrawal }
 
 }

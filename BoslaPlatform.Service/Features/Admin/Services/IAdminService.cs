@@ -31,7 +31,7 @@ namespace BoslaPlatform.Application.Features.Admin.Services
 
         Task<Result<AdminSpecialistDetailDto>> GetSpecialistDetailAsync(Guid specialistId, CancellationToken cancellationToken = default);
 
-        Task<Result> VerifySpecialistAsync(Guid specialistId, bool isVerified, Guid verifiedByUserId, CancellationToken cancellationToken = default);
+        Task<Result> VerifySpecialistAsync(Guid specialistId, bool isVerified, Guid verifiedByUserId, string? adminNotes = null, CancellationToken cancellationToken = default);
 
         Task<Result> UpdateSpecialistStatusAsync(Guid specialistId, string status, Guid? verifiedByUserId, CancellationToken cancellationToken = default);
 

@@ -8,6 +8,7 @@ using BoslaPlatform.Application.Features.Notifications.Services;
 using BoslaPlatform.Application.Interfaces.AI;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Communication;
+using BoslaPlatform.Application.Interfaces;
 using BoslaPlatform.Application.Features.Admin.Repositories;
 using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Application.Interfaces.Specialists;
@@ -15,6 +16,7 @@ using BoslaPlatform.Application.Interfaces.Video;
 using BoslaPlatform.Application.Features.Specialists.Services;
 using BoslaPlatform.Application.Features.VideoSessions.Interfaces;
 using BoslaPlatform.Application.Features.VideoSessions.Services;
+using BoslaPlatform.Application.Features.Withdrawals.Services;
 using BoslaPlatform.Application.Services;
 using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
@@ -206,6 +208,9 @@ public static class DependencyInjection
 
         // Specialist AI services
         services.AddScoped<BoslaPlatform.Application.Interfaces.AI.ISpecialistAiService, BoslaPlatform.Infrastructure.AI.SpecialistAiService>();
+
+        // Withdrawals / Payouts
+        services.AddScoped<BoslaPlatform.Application.Interfaces.IWithdrawalService, BoslaPlatform.Application.Features.Withdrawals.Services.WithdrawalService>();
 
             services.AddAuthorization();
 
