@@ -144,6 +144,7 @@ namespace BoslaPlatform.Domain.Models.Booking
                     "Only confirmed or paid appointments can be marked as completed."));
 
             UpdateStatus(AppointmentStatus.Completed, specialistId, "Session completed successfully.");
+            AddDomainEvent(new AppointmentCompletedEvent(Id, SpecialistId, UserId));
             return Result.Success();
         }
 
