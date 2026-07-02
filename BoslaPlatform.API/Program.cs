@@ -59,6 +59,9 @@ if (app.Environment.IsDevelopment())
 app.UseCoreMiddlewares(builder.Configuration);
 app.MapControllers();
 
+// Health check endpoint for monitoring infrastructure
+app.MapHealthChecks("/health");
+
 app.MapHub<BoslaPlatform.Infrastructure.RealTime.NotificationHub>("/hubs/notifications");
 app.MapHub<ChatHub>("/hubs/chat");
 app.MapHub<VideoHub>("/hubs/video");

@@ -41,7 +41,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using BoslaPlatform.Infrastructure.Recording.Providers.Agora.Authentication;
 using BoslaPlatform.Infrastructure.Recording.Providers.Agora.Services;
+using BoslaPlatform.Infrastructure.Recording.HealthChecks;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Microsoft.Extensions.DependencyInjection;
@@ -74,16 +76,24 @@ public static class DependencyInjection
             services.AddScoped<IAgoraTokenService, AgoraTokenService>();
 
             // Agora Cloud Recording — Typed HttpClient with authentication handler and retry policy
+            var agoraSettings = configuration.GetSection(AgoraSettings.SectionName);
+            var timeoutSeconds = agoraSettings.GetValue<int>(nameof(AgoraSettings.TimeoutSeconds));
+            var retryCount = agoraSettings.GetValue<int>(nameof(AgoraSettings.RetryCount));
+
             services.AddTransient<AgoraAuthenticationHandler>();
             services.AddHttpClient<AgoraCloudRecordingApiClient>(client =>
             {
-                client.Timeout = TimeSpan.FromSeconds(30);
+                client.Timeout = TimeSpan.FromSeconds(timeoutSeconds > 0 ? timeoutSeconds : 30);
             })
             .AddHttpMessageHandler<AgoraAuthenticationHandler>()
             .AddTransientHttpErrorPolicy(builder =>
                 builder.WaitAndRetryAsync(
-                    2,
+                    retryCount > 0 ? retryCount : 2,
                     retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
+
+            // Agora Cloud Recording — health check (validates configuration without calling Agora APIs)
+            services.AddHealthChecks()
+                .AddCheck<AgoraRecordingHealthCheck>("agora-recording");
 
             // Agora Webhook — Phase 1
             // IAgoraWebhookSignatureVerifier: Infrastructure concern (HMAC-SHA256 + replay window).

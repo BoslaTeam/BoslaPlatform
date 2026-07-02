@@ -410,8 +410,7 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
                 // ----------------------------------------------------------
                 await using (var compensateTx = await _context.BeginTransactionAsync(ct))
                 {
-                    recording.Fail();
-                    session.StopRecording();
+                    session.FailActiveRecording("Provider recording start failed after Acquire.");
 
                     await _context.SaveChangesAsync(ct);
                     await compensateTx.CommitAsync(ct);
@@ -508,7 +507,7 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
                 }
 
                 stoppedRecording = session.CurrentRecording
-                    ?? session.Recordings.LastOrDefault()
+                    ?? session.Recordings.OrderByDescending(r => r.CreatedAtUtc).FirstOrDefault()
                     ?? throw new InvalidOperationException("Session has no recording to stop.");
 
                 // Capture the recording reference and commit TX1 so the provider

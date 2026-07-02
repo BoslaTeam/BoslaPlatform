@@ -279,6 +279,28 @@ namespace BoslaPlatform.Domain.Models.Video
 
             return Result.Success();
         }
+
+        public Result FailActiveRecording(string? reason = null)
+        {
+            if (!IsRecording)
+            {
+                return Error.Validation(
+                    "VideoSession.NotRecording",
+                    "No active recording to fail.");
+            }
+
+            CurrentRecording?.Fail();
+            CurrentRecording = null;
+            CurrentRecordingId = null;
+            RecordingStatus = Enums.RecordingStatus.Failed;
+
+            AddDomainEvent(
+                new RecordingFailedEvent(
+                    Id,
+                    reason ?? "Recording failed."));
+
+            return Result.Success();
+        }
         // ----------------------------------------------------------------
         // Webhook-facing recording methods
         // Called exclusively by VideoSessionWebhookService.
@@ -441,12 +463,9 @@ namespace BoslaPlatform.Domain.Models.Video
 
             // Fail any active recording when channel is destroyed.
             // The recording cannot continue without the Agora channel.
-            if (IsRecording && CurrentRecording is not null)
+            if (IsRecording)
             {
-                CurrentRecording.Fail();
-                RecordingStatus = Domain.Enums.RecordingStatus.Failed;
-                CurrentRecording = null;
-                CurrentRecordingId = null;
+                FailActiveRecording("Channel destroyed while recording was active.");
             }
 
             AddDomainEvent(new VideoSessionEndedEvent(Id, AppointmentId, EndedAt.Value));

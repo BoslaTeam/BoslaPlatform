@@ -55,9 +55,12 @@ namespace BoslaPlatform.Infrastructure.Settings
         /// </summary>
         public int WebhookReplayWindowSeconds { get; set; } = 300;
 
-        public bool SkipSignatureValidation { get; set; } = true;
+        public bool SkipSignatureValidation { get; set; } = false;
 
         // Cloud Recording REST API
+        // TODO: Store CustomerId and CustomerSecret in Azure Key Vault or user secrets in production.
+        //       These values are currently bound from IConfiguration and can be overridden
+        //       via environment variables (e.g., AgoraSettings__CustomerId, AgoraSettings__CustomerSecret).
         public string CustomerId { get; set; } = string.Empty;
         public string CustomerSecret { get; set; } = string.Empty;
         public string CloudRecordingBaseUrl { get; set; } = "https://api.agora.io";
