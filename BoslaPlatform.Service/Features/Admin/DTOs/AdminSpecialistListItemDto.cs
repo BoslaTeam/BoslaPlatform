@@ -16,4 +16,5 @@ public sealed class AdminSpecialistListItemDto
     public List<string> ExpertiseAreas { get; set; } = [];
     public int TotalSessions { get; set; }
     public decimal TotalEarnings { get; set; }
+    public bool IsEmbedded { get; set; }
 }

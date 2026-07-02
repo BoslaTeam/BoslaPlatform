@@ -21,6 +21,9 @@ public sealed class AdminAppointmentDetailDto
     public string? PaymentStatus { get; set; }
     public DateTime CreatedAt { get; set; }
     public List<AdminAppointmentStatusHistoryDto> StatusHistory { get; set; } = [];
+    public string? KeyTakeaways { get; set; }
+    public string? ActionItemsForUser { get; set; }
+    public string? ActionItemsForSpec { get; set; }
 }
 
 public sealed class AdminAppointmentStatusHistoryDto

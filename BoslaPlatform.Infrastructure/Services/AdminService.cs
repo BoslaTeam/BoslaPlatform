@@ -616,6 +616,7 @@ namespace BoslaPlatform.Infrastructure.Services
                 .Include(s => s.Appointments)
                     .ThenInclude(a => a.Payment)
                 .Include(s => s.Verification)
+                .Include(s => s.Embedding)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(search))
@@ -658,7 +659,8 @@ namespace BoslaPlatform.Infrastructure.Services
                 TotalSessions = s.Appointments.Count,
                 TotalEarnings = s.Appointments
                     .Where(a => a.Payment != null && a.Payment.Status == PaymentStatus.Completed)
-                    .Sum(a => a.Payment!.SpecialistAmount)
+                    .Sum(a => a.Payment!.SpecialistAmount),
+                IsEmbedded = s.Embedding != null && s.Embedding.LastEmbeddedAt != null
             }).ToList();
 
             var metadata = new PaginationMetadata(page, pageSize, totalCount);
@@ -882,7 +884,13 @@ namespace BoslaPlatform.Infrastructure.Services
                 return Error.NotFound(description: "Specialist not found.");
 
             if (specialist.Verification == null)
-                return Error.NotFound(description: "Specialist verification not found.");
+            {
+                specialist.Verification = new SpecialistVerification
+                {
+                    SpecialistId = specialist.Id
+                };
+                specialist.Verification.Submit();
+            }
 
             if (isVerified)
                 specialist.Verification.Approve(verifiedByUserId);
@@ -959,6 +967,7 @@ namespace BoslaPlatform.Infrastructure.Services
                 .Include(a => a.Specialist).ThenInclude(s => s.User)
                 .Include(a => a.Payment)
                 .Include(a => a.StatusHistory)
+                .Include(a => a.SessionSummary)
                 .FirstOrDefaultAsync(a => a.Id == appointmentId, cancellationToken);
 
             if (appointment == null)
@@ -990,7 +999,10 @@ namespace BoslaPlatform.Infrastructure.Services
                     NewStatus = h.NewStatus.ToString(),
                     Reason = h.Reason,
                     CreatedAt = h.CreatedAtUtc.UtcDateTime
-                }).ToList()
+                }).ToList(),
+                KeyTakeaways = appointment.SessionSummary?.KeyTakeaways,
+                ActionItemsForUser = appointment.SessionSummary?.ActionItemsForUser,
+                ActionItemsForSpec = appointment.SessionSummary?.ActionItemsForSpec,
             };
 
             return Result<AdminAppointmentDetailDto>.Success(dto);
@@ -1062,7 +1074,13 @@ namespace BoslaPlatform.Infrastructure.Services
                 return Error.NotFound(description: "Specialist not found.");
 
             if (specialist.Verification == null)
-                return Error.NotFound(description: "Specialist verification not found.");
+            {
+                specialist.Verification = new SpecialistVerification
+                {
+                    SpecialistId = specialist.Id
+                };
+                specialist.Verification.Submit();
+            }
 
             if (!Enum.TryParse<VerificationStatus>(status, true, out var parsedStatus))
                 return Error.Validation(description: $"Invalid verification status: {status}");
@@ -1077,9 +1095,9 @@ namespace BoslaPlatform.Infrastructure.Services
             {
                 specialist.Verification.Reject(verifiedByUserId ?? Guid.Empty, null);
             }
-            else
+            else if (parsedStatus == VerificationStatus.Pending)
             {
-                return Error.Validation(description: $"Cannot set status to {status} via this endpoint.");
+                specialist.Verification.Submit();
             }
 
             await _context.SaveChangesAsync(cancellationToken);
@@ -1700,17 +1718,20 @@ namespace BoslaPlatform.Infrastructure.Services
             var totalSpecialists = await _context.Set<Specialist>().CountAsync(cancellationToken);
             var embeddedCount = await _context.Set<SpecialistEmbedding>().CountAsync(cancellationToken);
             var pendingCount = totalSpecialists - embeddedCount;
+            var outdatedCount = await _context.Set<SpecialistEmbedding>()
+                .CountAsync(e => e.LastEmbeddedAt == null, cancellationToken);
 
             var lastRebuild = await _context.Set<SpecialistEmbedding>()
-                .MaxAsync(e => (DateTimeOffset?)e.CreatedAtUtc, cancellationToken);
+                .MaxAsync(e => (DateTimeOffset?)e.LastEmbeddedAt, cancellationToken);
 
-            var status = pendingCount > 0 ? "outdated" : "up_to_date";
+            var status = pendingCount > 0 || outdatedCount > 0 ? "outdated" : "up_to_date";
 
             var dto = new EmbeddingsStatusDto
             {
                 TotalSpecialists = totalSpecialists,
                 EmbeddedCount = embeddedCount,
                 PendingCount = pendingCount,
+                OutdatedCount = outdatedCount,
                 LastRebuildAt = lastRebuild?.UtcDateTime,
                 Status = status
             };

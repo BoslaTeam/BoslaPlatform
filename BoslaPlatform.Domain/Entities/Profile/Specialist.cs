@@ -77,6 +77,7 @@ namespace BoslaPlatform.Domain.Entities.Profile
             BookingPolicy = bookingPolicy;
 
             AddDomainEvent(new SpecialistProfileUpdatedEvent(Id));
+            AddDomainEvent(new SpecialistProfileEmbeddingNeededEvent(Id));
         }
     }
 }
