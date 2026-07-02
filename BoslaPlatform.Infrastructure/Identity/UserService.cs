@@ -292,5 +292,22 @@ namespace BoslaPlatform.Infrastructure.Identity
 
             return Result<UserProfileDto>.Success(dto);
         }
+
+        public async Task<Result> AddToRoleAsync(Guid userId, string role, CancellationToken ct = default)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user is null)
+                return Error.NotFound("User.NotFound", "User not found.");
+
+            var alreadyInRole = await _userManager.IsInRoleAsync(user, role);
+            if (alreadyInRole)
+                return Result.Success();
+
+            var result = await _userManager.AddToRoleAsync(user, role);
+            if (!result.Succeeded)
+                return Error.Unexpected("Role.AssignmentFailed", "Failed to assign role.");
+
+            return Result.Success();
+        }
     }
 }
