@@ -64,7 +64,13 @@ namespace BoslaPlatform.Application.Features.Payments.Services
                     return Error.Conflict("Payment.AlreadyPaid", "This appointment has already been paid for.");
                 }
 
-                return MapToDto(existingPayment, null);
+                string? clientSecret = null;
+                if (!string.IsNullOrEmpty(existingPayment.ExternalPaymentId))
+                {
+                    clientSecret = await _paymentGateway.GetPaymentIntentClientSecretAsync(existingPayment.ExternalPaymentId);
+                }
+
+                return MapToDto(existingPayment, clientSecret);
             }
 
             var payment = Payment.Initiate(appointment.Id, appointment.SessionPrice, request.Currency);
