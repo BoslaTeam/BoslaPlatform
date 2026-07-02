@@ -28,15 +28,15 @@ builder.Services.AddApplication()
 builder.Services.AddGeminiAI();
 
 // Rate limiting (disabled for now) — policy code previously added removed per request
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.ListenAnyIP(7275, listen =>
-    {
-        listen.UseHttps("Certificates/bosla.pfx", "changeit");
-    });
+//builder.WebHost.ConfigureKestrel(options =>
+//{
+//    options.ListenAnyIP(7275, listen =>
+//    {
+//        listen.UseHttps("Certificates/bosla.pfx", "changeit");
+//    });
 
-    options.ListenAnyIP(5250);
-});
+//    options.ListenAnyIP(5250);
+//});
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

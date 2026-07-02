@@ -29,6 +29,13 @@ namespace BoslaPlatform.Application.Features.Payments.Services
 
             return (intent.ClientSecret, intent.Id);
         }
+
+        public async Task<string?> GetPaymentIntentClientSecretAsync(string paymentIntentId)
+        {
+            var service = new PaymentIntentService();
+            var intent = await service.GetAsync(paymentIntentId);
+            return intent?.ClientSecret;
+        }
     }
 
     internal static class StringExtensions
