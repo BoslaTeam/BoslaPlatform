@@ -629,7 +629,11 @@ namespace BoslaPlatform.Infrastructure.Services
             if (!string.IsNullOrWhiteSpace(verificationStatus)
                 && Enum.TryParse<VerificationStatus>(verificationStatus, true, out var status))
             {
-                query = query.Where(s => s.Verification != null && s.Verification.Status == status);
+                query = status switch
+                {
+                    VerificationStatus.Pending => query.Where(s => s.Verification == null || s.Verification.Status == VerificationStatus.Pending),
+                    _ => query.Where(s => s.Verification != null && s.Verification.Status == status)
+                };
             }
 
             var totalCount = await query.CountAsync(cancellationToken);
@@ -649,7 +653,7 @@ namespace BoslaPlatform.Infrastructure.Services
                 ProfileImageUrl = s.User.ProfileImageUrl,
                 HourlyRate = s.HourlyRate,
                 ExperienceLevel = s.ExperienceLevel.ToString(),
-                VerificationStatus = s.Verification?.Status.ToString() ?? nameof(VerificationStatus.Pending),
+                VerificationStatus = s.Verification?.Status.ToString() ?? nameof(VerificationStatus.Draft),
                 Rating = s.Reviews.Any() ? Math.Round(s.Reviews.Average(r => (double)r.Rating), 1) : 0,
                 IsOnline = false,
                 CreatedAt = s.CreatedAtUtc.UtcDateTime,
