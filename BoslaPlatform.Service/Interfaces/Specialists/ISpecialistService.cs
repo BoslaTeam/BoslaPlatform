@@ -78,8 +78,7 @@ namespace BoslaPlatform.Application.Interfaces.Specialists
 
         Task<Result<IReadOnlyList<ToolResponse>>> GetToolsAsync(CancellationToken ct = default);
 
-
-
+        Task<Result<IReadOnlyList<SpecialistDocumentResponse>>> GetCertificatesAsync(Guid specialistId, CancellationToken ct = default);
 
     }
 }

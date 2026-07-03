@@ -421,6 +421,19 @@ namespace BoslaPlatform.API.Controllers.v1
         }
 
 
+        [AllowAnonymous]
+        [HttpGet("{id:guid}/certificates")]
+        [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<SpecialistDocumentResponse>>), StatusCodes.Status200OK)]
+        public async Task<IResult> GetCertificates(Guid id, CancellationToken ct)
+        {
+            var result = await specialistService.GetCertificatesAsync(id, ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<SpecialistDocumentResponse>>.SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
         [HttpGet("{id:guid}/reviews")]
         public async Task<IResult> GetReviews(
             Guid id,
