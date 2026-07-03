@@ -30,8 +30,9 @@
 
   <ItemGroup>
     <Folder Include="Common\Filters\" />
-    <Folder Include="wwwroot\" />
     <Folder Include="Services\" />
+    <Folder Include="wwwroot\images\" />
+    <Folder Include="wwwroot\uploads\specialists\" />
   </ItemGroup>
 
   <!-- Exclude user-uploaded images from static web assets tracking -->
