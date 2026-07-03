@@ -1469,6 +1469,29 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             return skills;
         }
 
+        public async Task<Result<IReadOnlyList<SpecialistDocumentResponse>>> GetCertificatesAsync(Guid specialistId, CancellationToken ct)
+        {
+            var specialistExists = await context.Specialists
+                .Where(x => x.Verification != null && x.Verification.Status == VerificationStatus.Approved)
+                .AnyAsync(x => x.Id == specialistId, ct);
+
+            if (!specialistExists)
+                return Error.NotFound("Specialist.NotFound", "Specialist not found.");
+
+            var certificates = await context.SpecialistDocuments
+                .AsNoTracking()
+                .Where(d => d.SpecialistId == specialistId && d.Type == SpecialistDocumentType.Certificate)
+                .OrderByDescending(d => d.CreatedAtUtc)
+                .Select(d => new SpecialistDocumentResponse(
+                    d.Id,
+                    d.Type,
+                    d.Url,
+                    d.OriginalFileName))
+                .ToListAsync(ct);
+
+            return certificates;
+        }
+
         public async Task<Result<IReadOnlyList<ToolResponse>>> GetToolsAsync(CancellationToken ct)
         {
             var specialist = await GetCurrentSpecialistAsync(ct);
