@@ -168,7 +168,8 @@ namespace BoslaPlatform.Infrastructure.Agora.Services
                     ChannelName = videoSession.AgoraChannelName,
                     Token = token,
                     Uid = uid,
-                    ExpiresAt = expiresAt
+                    ExpiresAt = expiresAt,
+                    SessionId = videoSession.Id
                 });
 
             
