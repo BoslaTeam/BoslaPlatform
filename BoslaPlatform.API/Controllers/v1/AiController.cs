@@ -81,4 +81,14 @@ public class AiController : ControllerBase
         var reply = await _chatBot.ChatAsync(req, ct);
         return Ok(ApiResponse<ChatResponse>.SuccessResponse(reply));
     }
+
+    [HttpPost("smart-replies")]
+    [Authorize]
+    [Produces("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<SmartRepliesResponse>), 200)]
+    public async Task<IActionResult> GetSmartReplies([FromBody] SmartRepliesRequest req, CancellationToken ct)
+    {
+        var replies = await _chatBot.GetSmartRepliesAsync(req.ConversationId, ct);
+        return Ok(ApiResponse<SmartRepliesResponse>.SuccessResponse(replies));
+    }
 }
