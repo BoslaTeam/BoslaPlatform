@@ -21,7 +21,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Response
         public string? IntroVideoUrl { get; init; }
         public VerificationStatus VerificationStatus { get; init; }
 
-        public List<string> Tools { get; init; } = new();
+        public List<ToolResponse> Tools { get; init; } = new();
         public List<string> Skills { get; init; } = new();
         public List<string> Expertise { get; init; } = new();
         public List<string> Industries { get; init; } = new();

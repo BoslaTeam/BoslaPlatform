@@ -1,4 +1,5 @@
-﻿using BoslaPlatform.Application.Features.Specialists.DTOs;
+﻿using BoslaPlatform.Application.Features.Lookup.Response;
+using BoslaPlatform.Application.Features.Specialists.DTOs;
 using BoslaPlatform.Application.Features.Specialists.Request;
 using BoslaPlatform.Application.Features.Specialists.Response;
 using BoslaPlatform.Application.Interfaces.Authentication;
@@ -9,6 +10,7 @@ using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Events.Specialists;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Junctions;
+using BoslaPlatform.Domain.Models.Lookup;
 using BoslaPlatform.Domain.Models.Profile;
 using BoslaPlatform.Shared;
 using BoslaPlatform.Shared.Constants;
@@ -138,11 +140,10 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             var specialist = await GetCurrentSpecialistAsync(ct);
 
             if (specialist is null)
-            {
-                return Error.NotFound(
-                    "Specialist.NotFound",
-                    "Specialist profile not found.");
-            }
+                return Error.NotFound( "Specialist.NotFound","Specialist profile not found.");
+                   
+                    
+            
 
             if (!request.Availabilities.Any())
             {
@@ -368,7 +369,25 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 specialist.MaxSessionsPerDay,
                 specialist.MaxSessionsPerWeek,
                 specialist.CancellationDeadlineHours,
-                specialist.CancellationFeePercent
+                specialist.CancellationFeePercent,
+
+                specialist.SpecialistTools
+            .Select(x => new LookupItemResponse(
+                x.ToolId,
+                x.Tool.Name))
+            .ToList(),
+
+            specialist.SpecialistSkills
+                .Select(x => new LookupItemResponse(
+                    x.SkillId,
+                    x.Skill.Name))
+                .ToList(),
+
+            specialist.SpecialistIndustries
+                .Select(x => new LookupItemResponse(
+                    x.IndustryId,
+                    x.Industry.Name))
+                .ToList()
             );
         }
 
@@ -1068,8 +1087,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                     specialist.UserId),
 
                 Tools = specialist.SpecialistTools
-                    .Select(st => st.Tool.Name)
-                    .ToList(),
+                    .Select(x => new ToolResponse(x.ToolId,x.Tool.Name)).ToList(),
 
                 Skills = specialist.SpecialistSkills
                     .Select(ss => ss.Skill.Name)
@@ -1375,7 +1393,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1) pageSize = 10;
-            if (pageSize > 50) pageSize = 50;
+            if (pageSize > 50)pageSize = 50;
 
             var reviewsQuery = context.Reviews
                 .AsNoTracking()
@@ -1385,7 +1403,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             var totalReviews = await reviewsQuery.CountAsync(ct);
 
             var averageRating = totalReviews == 0
-            ? 0 : await reviewsQuery.AverageAsync(x => (double)x.Rating, ct);
+            ? 0: await reviewsQuery.AverageAsync(x => (double)x.Rating, ct);
 
 
 
@@ -1395,10 +1413,12 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 .Take(pageSize)
                 .Select(x => new ReviewDto
                 {
+                    Id = x.Id,
+                    UserId = x.ReviewerId,
                     ReviewerName = x.Reviewer.Name,
                     Rating = x.Rating,
                     Comment = x.Comment,
-                    CreatedAtUtc = x.CreatedAtUtc
+                    CreatedOnUtc = x.CreatedAtUtc
                 })
                 .ToListAsync(ct);
 
@@ -1507,7 +1527,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 .AsNoTracking()
                 .Where(x => x.SpecialistId == specialist.Id)
                 .OrderBy(x => x.Tool.Name)
-                .Select(x => new ToolResponse(
+               .Select(x => new ToolResponse(
                     x.ToolId,
                     x.Tool.Name))
                 .ToListAsync(ct);

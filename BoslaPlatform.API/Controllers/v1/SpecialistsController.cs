@@ -110,11 +110,14 @@ namespace BoslaPlatform.API.Controllers.v1
         [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
         public async Task<IResult> AddAvailabilities(AddAvailabilitiesRequest request, CancellationToken ct)
         {
-            var result = await specialistService.AddAvailabilitiesAsync(request, ct);
+            var result = await specialistService
+                   .AddAvailabilitiesAsync(request, ct);
 
             return result.Match(
                 value => Results.Ok(
-                    ApiResponse<IReadOnlyList<Guid>>.SuccessResponse(value, "Availabilities created successfully.")),
+                   ApiResponse<IReadOnlyList<Guid>>.SuccessResponse(value,"Availability created successfully.")),
+                            
+    
                 errors => errors.ToProblem());
         }
 

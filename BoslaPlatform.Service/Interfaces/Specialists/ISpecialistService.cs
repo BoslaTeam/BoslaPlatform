@@ -45,7 +45,8 @@ namespace BoslaPlatform.Application.Interfaces.Specialists
         Task<Result<IReadOnlyList<ExperienceDto>>> GetExperienceAsync(CancellationToken ct);
 
 
-        Task<Result<IReadOnlyList<Guid>>> AddExperiencesAsync(AddExperiencesRequest request, CancellationToken ct); Task<Result<bool>> UpdateExperienceAsync(Guid experienceId, UpdateExperienceRequest request, CancellationToken ct);
+        Task<Result<IReadOnlyList<Guid>>> AddExperiencesAsync(AddExperiencesRequest request, CancellationToken ct);
+        Task<Result<bool>> UpdateExperienceAsync(Guid experienceId, UpdateExperienceRequest request, CancellationToken ct);
 
         Task<Result> DeleteExperienceAsync(Guid experienceId, CancellationToken ct);
 

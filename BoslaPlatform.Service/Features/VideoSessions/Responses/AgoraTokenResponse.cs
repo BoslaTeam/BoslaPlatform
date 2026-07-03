@@ -26,5 +26,7 @@
         public DateTimeOffset ExpiresAt { get; set; }
 
         public uint Uid { get; set; }
+
+        public Guid SessionId { get; set; }
     }
 }
