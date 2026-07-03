@@ -69,7 +69,8 @@ namespace BoslaPlatform.Application.EventHandlers.Communications
                     ? notification.MessageText[..100] + "..."
                     : notification.MessageText,
                 NotificationType.Message,
-                ct);
+                ct,
+                appointmentId: notification.ConversationId);
         }
     }
 }
