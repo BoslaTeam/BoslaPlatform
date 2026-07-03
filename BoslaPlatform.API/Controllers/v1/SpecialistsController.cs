@@ -110,11 +110,14 @@ namespace BoslaPlatform.API.Controllers.v1
         [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
         public async Task<IResult> AddAvailabilities(AddAvailabilitiesRequest request, CancellationToken ct)
         {
-            var result = await specialistService.AddAvailabilitiesAsync(request, ct);
+            var result = await specialistService
+                   .AddAvailabilitiesAsync(request, ct);
 
             return result.Match(
                 value => Results.Ok(
-                    ApiResponse<IReadOnlyList<Guid>>.SuccessResponse(value, "Availabilities created successfully.")),
+                   ApiResponse<IReadOnlyList<Guid>>.SuccessResponse(value,"Availability created successfully.")),
+                            
+    
                 errors => errors.ToProblem());
         }
 
@@ -158,6 +161,19 @@ namespace BoslaPlatform.API.Controllers.v1
                 return Results.Ok(ApiResponse.SuccessResponse("Expertise deleted successfully."));
 
             return result.Errors.ToProblem();
+        }
+
+        [HttpGet("me/expertise")]
+        [Authorize]
+        public async Task<IResult> GetMyExpertise(CancellationToken ct)
+        {
+            var result = await specialistService.GetMyExpertiseAsync(ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<ExpertiseResponse>>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
         }
 
         #endregion
@@ -407,6 +423,19 @@ namespace BoslaPlatform.API.Controllers.v1
                 errors => errors.ToProblem());
         }
 
+
+        [AllowAnonymous]
+        [HttpGet("{id:guid}/certificates")]
+        [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<SpecialistDocumentResponse>>), StatusCodes.Status200OK)]
+        public async Task<IResult> GetCertificates(Guid id, CancellationToken ct)
+        {
+            var result = await specialistService.GetCertificatesAsync(id, ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<IReadOnlyList<SpecialistDocumentResponse>>.SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
 
         [HttpGet("{id:guid}/reviews")]
         public async Task<IResult> GetReviews(

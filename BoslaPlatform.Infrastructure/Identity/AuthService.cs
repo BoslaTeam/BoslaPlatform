@@ -166,8 +166,7 @@ namespace BoslaPlatform.Infrastructure.Identity
                     description: "Email is already confirmed.");
             }
 
-            var decodedToken = Uri.UnescapeDataString(request.Token);
-            var result = await _userManager.ConfirmEmailAsync(user, decodedToken);
+            var result = await _userManager.ConfirmEmailAsync(user, request.Token);
 
             if (!result.Succeeded)
             {

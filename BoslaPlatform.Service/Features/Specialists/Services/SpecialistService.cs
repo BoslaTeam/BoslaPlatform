@@ -1,4 +1,5 @@
-﻿using BoslaPlatform.Application.Features.Specialists.DTOs;
+﻿using BoslaPlatform.Application.Features.Lookup.Response;
+using BoslaPlatform.Application.Features.Specialists.DTOs;
 using BoslaPlatform.Application.Features.Specialists.Request;
 using BoslaPlatform.Application.Features.Specialists.Response;
 using BoslaPlatform.Application.Interfaces.Authentication;
@@ -9,6 +10,7 @@ using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Events.Specialists;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Junctions;
+using BoslaPlatform.Domain.Models.Lookup;
 using BoslaPlatform.Domain.Models.Profile;
 using BoslaPlatform.Shared;
 using BoslaPlatform.Shared.Constants;
@@ -138,11 +140,10 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             var specialist = await GetCurrentSpecialistAsync(ct);
 
             if (specialist is null)
-            {
-                return Error.NotFound(
-                    "Specialist.NotFound",
-                    "Specialist profile not found.");
-            }
+                return Error.NotFound( "Specialist.NotFound","Specialist profile not found.");
+                   
+                    
+            
 
             if (!request.Availabilities.Any())
             {
@@ -368,7 +369,25 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 specialist.MaxSessionsPerDay,
                 specialist.MaxSessionsPerWeek,
                 specialist.CancellationDeadlineHours,
-                specialist.CancellationFeePercent
+                specialist.CancellationFeePercent,
+
+                specialist.SpecialistTools
+            .Select(x => new LookupItemResponse(
+                x.ToolId,
+                x.Tool.Name))
+            .ToList(),
+
+            specialist.SpecialistSkills
+                .Select(x => new LookupItemResponse(
+                    x.SkillId,
+                    x.Skill.Name))
+                .ToList(),
+
+            specialist.SpecialistIndustries
+                .Select(x => new LookupItemResponse(
+                    x.IndustryId,
+                    x.Industry.Name))
+                .ToList()
             );
         }
 
@@ -999,6 +1018,9 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                     .ThenInclude(st => st.Tool)
                 .Include(x => x.SpecialistSkills)
                     .ThenInclude(ss => ss.Skill)
+                .Include(x => x.SpecialistExpertise)
+                    .ThenInclude(se => se.Expertise)
+                .Include(x => x.Experiences)
                 .Include(x => x.Verification)
                 .FirstOrDefaultAsync(
                     x => x.Id == specialistId &&
@@ -1030,6 +1052,29 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 IntroVideoUrl = specialist.IntroVideoUrl,
                 VerificationStatus = specialist.Verification!.Status,
 
+                BookingPolicy = specialist.BookingPolicy,
+                MinBookingNoticeHours = specialist.MinBookingNoticeHours,
+                MaxSessionsPerDay = specialist.MaxSessionsPerDay,
+                MaxSessionsPerWeek = specialist.MaxSessionsPerWeek,
+
+                CancellationDeadlineHours = specialist.CancellationDeadlineHours,
+                CancellationFeePercent = specialist.CancellationFeePercent,
+                AllowCancellation = specialist.AllowCancellation,
+                CancellationPolicy = specialist.CancellationPolicy,
+
+                Experiences = specialist.Experiences
+                    .OrderByDescending(e => e.FromDate)
+                    .Select(e => new ExperienceDto
+                    {
+                        Id = e.Id,
+                        CompanyName = e.CompanyName,
+                        JobTitle = e.JobTitle,
+                        Description = e.Description,
+                        FromDate = e.FromDate,
+                        ToDate = e.ToDate,
+                    })
+                    .ToList(),
+
                 Rating = specialist.Reviews.Count == 0
                     ? 0m
                     : Math.Round(
@@ -1042,11 +1087,13 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                     specialist.UserId),
 
                 Tools = specialist.SpecialistTools
-                    .Select(st => st.Tool.Name)
-                    .ToList(),
+                    .Select(x => new ToolResponse(x.ToolId,x.Tool.Name)).ToList(),
 
                 Skills = specialist.SpecialistSkills
                     .Select(ss => ss.Skill.Name)
+                    .ToList(),
+                Expertise = specialist.SpecialistExpertise
+                    .Select(se => se.Expertise.Name)
                     .ToList()
             };
         }
@@ -1346,7 +1393,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
 
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1) pageSize = 10;
-            if (pageSize > 50) pageSize = 50;
+            if (pageSize > 50)pageSize = 50;
 
             var reviewsQuery = context.Reviews
                 .AsNoTracking()
@@ -1356,7 +1403,7 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             var totalReviews = await reviewsQuery.CountAsync(ct);
 
             var averageRating = totalReviews == 0
-            ? 0 : await reviewsQuery.AverageAsync(x => (double)x.Rating, ct);
+            ? 0: await reviewsQuery.AverageAsync(x => (double)x.Rating, ct);
 
 
 
@@ -1366,10 +1413,12 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 .Take(pageSize)
                 .Select(x => new ReviewDto
                 {
+                    Id = x.Id,
+                    UserId = x.ReviewerId,
                     ReviewerName = x.Reviewer.Name,
                     Rating = x.Rating,
                     Comment = x.Comment,
-                    CreatedAtUtc = x.CreatedAtUtc
+                    CreatedOnUtc = x.CreatedAtUtc
                 })
                 .ToListAsync(ct);
 
@@ -1440,6 +1489,29 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
             return skills;
         }
 
+        public async Task<Result<IReadOnlyList<SpecialistDocumentResponse>>> GetCertificatesAsync(Guid specialistId, CancellationToken ct)
+        {
+            var specialistExists = await context.Specialists
+                .Where(x => x.Verification != null && x.Verification.Status == VerificationStatus.Approved)
+                .AnyAsync(x => x.Id == specialistId, ct);
+
+            if (!specialistExists)
+                return Error.NotFound("Specialist.NotFound", "Specialist not found.");
+
+            var certificates = await context.SpecialistDocuments
+                .AsNoTracking()
+                .Where(d => d.SpecialistId == specialistId && d.Type == SpecialistDocumentType.Certificate)
+                .OrderByDescending(d => d.CreatedAtUtc)
+                .Select(d => new SpecialistDocumentResponse(
+                    d.Id,
+                    d.Type,
+                    d.Url,
+                    d.OriginalFileName))
+                .ToListAsync(ct);
+
+            return certificates;
+        }
+
         public async Task<Result<IReadOnlyList<ToolResponse>>> GetToolsAsync(CancellationToken ct)
         {
             var specialist = await GetCurrentSpecialistAsync(ct);
@@ -1455,12 +1527,35 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 .AsNoTracking()
                 .Where(x => x.SpecialistId == specialist.Id)
                 .OrderBy(x => x.Tool.Name)
-                .Select(x => new ToolResponse(
+               .Select(x => new ToolResponse(
                     x.ToolId,
                     x.Tool.Name))
                 .ToListAsync(ct);
 
             return tools;
+        }
+
+        public async Task<Result<IReadOnlyList<ExpertiseResponse>>> GetMyExpertiseAsync(CancellationToken ct)
+        {
+            var specialist = await GetCurrentSpecialistAsync(ct);
+
+            if (specialist is null)
+            {
+                return Error.NotFound(
+                    "Specialist.NotFound",
+                    "Specialist not found.");
+            }
+
+            var expertise = await context.SpecialistExpertise
+                .AsNoTracking()
+                .Where(x => x.SpecialistId == specialist.Id)
+                .OrderBy(x => x.Expertise.Name)
+                .Select(x => new ExpertiseResponse(
+                    x.ExpertiseId,
+                    x.Expertise.Name))
+                .ToListAsync(ct);
+
+            return expertise;
         }
 
         #region Submission

@@ -3,6 +3,8 @@ using BoslaPlatform.Application.Interfaces.AI;
 using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Domain.Entities.Profile;
+using BoslaPlatform.Domain.Enums;
+using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Service.Features.AI.Requests;
 using BoslaPlatform.Service.Features.AI.Responses;
 using Microsoft.EntityFrameworkCore;
@@ -19,12 +21,20 @@ public class ChatBotService : IChatBotService
     private readonly ILogger<ChatBotService> _logger;
     private readonly IUser _currentUser;
 
-    private static string GetSystemPrompt(IUser user)
+    private static string GetSystemPrompt(IUser user, List<AppointmentDto> appointments)
     {
         if (user.Role == "Specialist")
         {
-            return @"أنت مساعد ذكي للمتخصصين في منصة بوصلة للاستشارات. اسمك بوصلة.
+            var apptBlock = appointments.Count > 0
+                ? string.Join("\n", appointments.Select(a =>
+                    $"- موعد {a.Status} مع {a.ClientName} في {a.Start:yyyy-MM-dd HH:mm} لمدة {(a.End - a.Start).TotalMinutes} دقيقة{(a.Topic != null ? $"، الموضوع: {a.Topic}" : "")}"))
+                : "- لا توجد مواعيد قادمة حالياً.";
+
+            return $@"أنت مساعد ذكي للمتخصصين في منصة بوصلة للاستشارات. اسمك بوصلة.
 مهمتك الأساسية: مساعدة المتخصص في إدارة مواعيده، استشاراته، وملفه الشخصي.
+
+المواعيد القادمة للمتخصص:
+{apptBlock}
 
 تعليمات مهمة للتنسيق:
 - استخدم النص فقط بدون أي تنسيق markdown أو HTML
@@ -32,7 +42,8 @@ public class ChatBotService : IChatBotService
 - استخدم سطر جديد بين كل فقرة
 
 تعليمات مهمة للسلوك:
-- أجب عن استفسارات المتخصص بخصوص المواعيد، الإشعارات، والعملاء، يمكنك إعلامه بأنه يمكنه مراجعة لوحة التحكم الخاصة به لمعرفة المواعيد.
+- أجب عن استفسارات المتخصص بخصوص مواعيده باستخدام قائمة المواعيد أعلاه.
+- إذا سأل عن مواعيده، اذكر المواعيد القادمة بالتفصيل.
 - لا تقترح متخصصين آخرين عليه لأنه هو المتخصص!
 - كن مهنياً ومختصراً، وأجب باللغة العربية.";
         }
@@ -73,6 +84,60 @@ public class ChatBotService : IChatBotService
         _currentUser = currentUser;
     }
 
+    public async Task<SmartRepliesResponse> GetSmartRepliesAsync(Guid conversationId, CancellationToken cancellationToken = default)
+    {
+        var conv = await _db.Set<BoslaPlatform.Domain.Models.Communication.Conversation>()
+            .Include(c => c.Messages.OrderByDescending(m => m.CreatedAtUtc).Take(10))
+                .ThenInclude(m => m.Sender)
+            .Include(c => c.Participants).ThenInclude(p => p.User)
+            .FirstOrDefaultAsync(c => c.Id == conversationId, cancellationToken);
+
+        if (conv == null || !conv.Participants.Any(p => p.UserId == _currentUser.Id))
+            return new SmartRepliesResponse { Replies = [] };
+
+        var messages = conv.Messages
+            .OrderBy(m => m.CreatedAtUtc)
+            .Select(m => $"{m.Sender.Name}: {m.MessageText}")
+            .ToList();
+
+        var history = string.Join("\n", messages);
+        if (string.IsNullOrWhiteSpace(history))
+            return new SmartRepliesResponse { Replies = ["كيف أقدر أساعدك اليوم؟"] };
+
+        var participantNames = string.Join(" و ", conv.Participants.Select(p => p.User?.Name ?? "مستخدم"));
+        var prompt = $@"أنت مساعد في منصة بوصلة للاستشارات. هذه محادثة بين {participantNames}.
+اقترح 3 ردود قصيرة ومناسبة يمكن إرسالها الآن.
+اكتب الردود فقط، كل رد في سطر منفصل، بدون ترقيم أو تنسيق.
+
+المحادثة:
+{history}
+
+الردود المقترحة:";
+
+        try
+        {
+            var reply = await _chat.ChatAsync(prompt, cancellationToken);
+            var replies = reply.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(l => l.Trim().TrimStart("1234567890-.* ".ToCharArray()))
+                .Where(l => l.Length > 0)
+                .Take(3)
+                .ToList();
+
+            while (replies.Count < 3)
+                replies.Add("شكراً لك، سأتواصل معك قريباً.");
+
+            return new SmartRepliesResponse { Replies = replies };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Smart reply generation failed for conversation {ConvId}", conversationId);
+            return new SmartRepliesResponse
+            {
+                Replies = ["شكراً لتواصلك، سأراجع طلبك.", "حسناً، تم.", "سأتواصل معك قريباً."]
+            };
+        }
+    }
+
     public async Task<ChatResponse> ChatAsync(ChatRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -85,13 +150,41 @@ public class ChatBotService : IChatBotService
             var isSpecialist = _currentUser.Role == "Specialist";
 
             List<SpecialistListItemResponse> specialists;
-            if (isGreeting || isSpecialist)
-            {
-                if (isGreeting)
-                    _logger.LogInformation("Greeting detected, skipping search: {Msg}", msg);
-                else
-                    _logger.LogInformation("User is specialist, skipping specialist search: {Msg}", msg);
+            List<AppointmentDto> appointments = [];
 
+            if (isSpecialist)
+            {
+                var specialist = await _db.Set<Specialist>()
+                    .FirstOrDefaultAsync(s => s.UserId == _currentUser.Id, cancellationToken);
+                if (specialist != null)
+                {
+                    var now = DateTimeOffset.UtcNow;
+                    var upcoming = await _db.Set<Appointment>()
+                        .Where(a => a.SpecialistId == specialist.Id
+                                    && a.Start >= now
+                                    && (a.Status == AppointmentStatus.Confirmed
+                                        || a.Status == AppointmentStatus.Pending
+                                        || a.Status == AppointmentStatus.Paid))
+                        .OrderBy(a => a.Start)
+                        .Take(10)
+                        .Include(a => a.User)
+                        .ToListAsync(cancellationToken);
+
+                    appointments = upcoming.Select(a => new AppointmentDto
+                    {
+                        Id = a.Id,
+                        Start = a.Start,
+                        End = a.End,
+                        Status = a.Status.ToString(),
+                        ClientName = a.User?.Name ?? "عميل",
+                        Topic = a.SessionTopic
+                    }).ToList();
+                }
+                specialists = [];
+            }
+            else if (isGreeting)
+            {
+                _logger.LogInformation("Greeting detected, skipping search: {Msg}", msg);
                 specialists = [];
             }
             else
@@ -103,7 +196,7 @@ public class ChatBotService : IChatBotService
             request.Message = msg;
             request.History = history;
 
-            var prompt = BuildPrompt(request, specialists, _currentUser);
+            var prompt = BuildPrompt(request, specialists, _currentUser, appointments);
             var reply = await _chat.ChatAsync(prompt, cancellationToken);
             return new ChatResponse { Reply = reply, Specialists = specialists };
         }
@@ -222,9 +315,9 @@ public class ChatBotService : IChatBotService
         IsOnline = false
     };
 
-    private static string BuildPrompt(ChatRequest request, List<SpecialistListItemResponse> specialists, IUser user)
+    private static string BuildPrompt(ChatRequest request, List<SpecialistListItemResponse> specialists, IUser user, List<AppointmentDto> appointments)
     {
-        var parts = new List<string> { GetSystemPrompt(user), "---" };
+        var parts = new List<string> { GetSystemPrompt(user, appointments), "---" };
         foreach (var msg in request.History)
         {
             parts.Add($"{msg.Role}: {msg.Content}");
@@ -244,4 +337,14 @@ public class ChatBotService : IChatBotService
         parts.Add("assistant:");
         return string.Join("\n", parts);
     }
+}
+
+public record AppointmentDto
+{
+    public Guid Id { get; init; }
+    public DateTimeOffset Start { get; init; }
+    public DateTimeOffset End { get; init; }
+    public string Status { get; init; } = string.Empty;
+    public string ClientName { get; init; } = string.Empty;
+    public string? Topic { get; init; }
 }
