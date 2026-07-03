@@ -84,6 +84,60 @@ public class ChatBotService : IChatBotService
         _currentUser = currentUser;
     }
 
+    public async Task<SmartRepliesResponse> GetSmartRepliesAsync(Guid conversationId, CancellationToken cancellationToken = default)
+    {
+        var conv = await _db.Set<BoslaPlatform.Domain.Models.Communication.Conversation>()
+            .Include(c => c.Messages.OrderByDescending(m => m.CreatedAtUtc).Take(10))
+                .ThenInclude(m => m.Sender)
+            .Include(c => c.Participants).ThenInclude(p => p.User)
+            .FirstOrDefaultAsync(c => c.Id == conversationId, cancellationToken);
+
+        if (conv == null || !conv.Participants.Any(p => p.UserId == _currentUser.Id))
+            return new SmartRepliesResponse { Replies = [] };
+
+        var messages = conv.Messages
+            .OrderBy(m => m.CreatedAtUtc)
+            .Select(m => $"{m.Sender.Name}: {m.MessageText}")
+            .ToList();
+
+        var history = string.Join("\n", messages);
+        if (string.IsNullOrWhiteSpace(history))
+            return new SmartRepliesResponse { Replies = ["كيف أقدر أساعدك اليوم؟"] };
+
+        var participantNames = string.Join(" و ", conv.Participants.Select(p => p.User?.Name ?? "مستخدم"));
+        var prompt = $@"أنت مساعد في منصة بوصلة للاستشارات. هذه محادثة بين {participantNames}.
+اقترح 3 ردود قصيرة ومناسبة يمكن إرسالها الآن.
+اكتب الردود فقط، كل رد في سطر منفصل، بدون ترقيم أو تنسيق.
+
+المحادثة:
+{history}
+
+الردود المقترحة:";
+
+        try
+        {
+            var reply = await _chat.ChatAsync(prompt, cancellationToken);
+            var replies = reply.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(l => l.Trim().TrimStart("1234567890-.* ".ToCharArray()))
+                .Where(l => l.Length > 0)
+                .Take(3)
+                .ToList();
+
+            while (replies.Count < 3)
+                replies.Add("شكراً لك، سأتواصل معك قريباً.");
+
+            return new SmartRepliesResponse { Replies = replies };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Smart reply generation failed for conversation {ConvId}", conversationId);
+            return new SmartRepliesResponse
+            {
+                Replies = ["شكراً لتواصلك، سأراجع طلبك.", "حسناً، تم.", "سأتواصل معك قريباً."]
+            };
+        }
+    }
+
     public async Task<ChatResponse> ChatAsync(ChatRequest request, CancellationToken cancellationToken = default)
     {
         try
