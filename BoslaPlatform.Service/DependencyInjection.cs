@@ -22,6 +22,7 @@ public static class DependencyInjection
         services.AddScoped<IMessageService, MessageService>();
         services.AddScoped<IVideoSessionService, VideoSessionService>();
         services.AddScoped<ITranscriptBroadcastService, TranscriptBroadcastService>();
+        services.AddScoped<ITranscriptPersistenceService, TranscriptPersistenceService>();
 
         services.AddAutoMapper(cfg =>{}, typeof(ConversationMappingProfile).Assembly);
         //services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());

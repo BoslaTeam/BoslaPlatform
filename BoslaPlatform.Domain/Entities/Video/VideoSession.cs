@@ -30,9 +30,12 @@ namespace BoslaPlatform.Domain.Models.Video
 
         public Appointment? Appointment { get; private set; }
         private readonly List<ScreenRecording> _recordings = [];
+        private readonly List<TranscriptSegment> _transcriptSegments = [];
 
         public IReadOnlyCollection<ScreenRecording> Recordings
             => _recordings.AsReadOnly();
+        public IReadOnlyCollection<TranscriptSegment> TranscriptSegments
+            => _transcriptSegments.AsReadOnly();
         public IReadOnlyCollection<VideoSessionParticipant> Participants
             => _participants.AsReadOnly();
 
@@ -40,6 +43,27 @@ namespace BoslaPlatform.Domain.Models.Video
 
         // Navigation
         private readonly List<VideoSessionParticipant> _participants = [];
+
+        public Result AddTranscriptSegment(TranscriptSegment segment)
+        {
+            if (segment.VideoSessionId != Id)
+            {
+                return Error.Validation(
+                    "TranscriptSegment.InvalidSession",
+                    "Transcript segment does not belong to this session.");
+            }
+
+            if (_transcriptSegments.Any(x => x.SequenceNumber == segment.SequenceNumber))
+            {
+                return Error.Conflict(
+                    "TranscriptSegment.DuplicateSequenceNumber",
+                    "A transcript segment with this sequence number already exists.");
+            }
+
+            _transcriptSegments.Add(segment);
+            return Result.Success();
+        }
+
         public static Result<VideoSession> Create(
         Guid appointmentId,
         string agoraChannelName,

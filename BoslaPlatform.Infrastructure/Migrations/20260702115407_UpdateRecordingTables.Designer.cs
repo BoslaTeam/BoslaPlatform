@@ -1396,6 +1396,9 @@ namespace BoslaPlatform.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTimeOffset?>("LastEmbeddedAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<Guid?>("LastModifiedBy")
                         .HasColumnType("uniqueidentifier");
 

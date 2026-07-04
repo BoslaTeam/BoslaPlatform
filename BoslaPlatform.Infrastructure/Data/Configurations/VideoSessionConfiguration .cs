@@ -55,6 +55,10 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
                 .FindNavigation(nameof(VideoSession.Recordings))!
                 .SetPropertyAccessMode(PropertyAccessMode.Field);
 
+            builder.Metadata
+                .FindNavigation(nameof(VideoSession.TranscriptSegments))!
+                .SetPropertyAccessMode(PropertyAccessMode.Field);
+
             builder.HasIndex(v => v.AgoraChannelName).IsUnique();
             builder.HasIndex(v => v.AppointmentId)
                 .IsUnique();

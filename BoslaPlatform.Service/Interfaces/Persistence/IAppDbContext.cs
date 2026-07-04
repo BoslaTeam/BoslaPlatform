@@ -53,6 +53,7 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
         DbSet<ScreenRecording> ScreenRecordings { get; }
         DbSet<VideoSession> VideoSessions { get; }
         DbSet<VideoSessionParticipant> VideoSessionParticipants { get; }
+        DbSet<TranscriptSegment> TranscriptSegments { get; }
         DbSet<SpecialistTool> SpecialistTools { get; }
         DbSet<Reminder> Reminders { get; }
         DbSet<Withdrawal> Withdrawals { get; }

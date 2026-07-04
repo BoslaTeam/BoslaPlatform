@@ -41,6 +41,7 @@ namespace BoslaPlatform.Infrastructure.Data
         // Video
         public DbSet<VideoSession> VideoSessions => Set<VideoSession>();
         public DbSet<VideoSessionParticipant> VideoSessionParticipants => Set<VideoSessionParticipant>();
+        public DbSet<TranscriptSegment> TranscriptSegments => Set<TranscriptSegment>();
 
         // Profile
         public DbSet<Specialist> Specialists => Set<Specialist>();
