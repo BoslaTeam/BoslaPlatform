@@ -5,7 +5,7 @@ namespace BoslaPlatform.Infrastructure.STT.Providers.Agora.Models.Requests;
 internal sealed record StartTaskRequest
 {
     [JsonPropertyName("languages")]
-    public string[] Languages { get; init; } = [];
+    public string[] Languages { get; init; } = ["ar-EG","en-US"];
 
     [JsonPropertyName("name")]
     public string Name { get; init; } = string.Empty;
@@ -30,4 +30,7 @@ internal sealed record RtcConfig
 
     [JsonPropertyName("subscribeAudioUids")]
     public string[] SubscribeAudioUids { get; init; } = ["all"];
+
+    [JsonPropertyName("enableJsonProtocol")]
+    public bool EnableJsonProtocol { get; init; } = true;
 }

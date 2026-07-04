@@ -79,5 +79,6 @@ namespace BoslaPlatform.Infrastructure.Settings
         public string StorageAccessKey { get; set; } = string.Empty;
         public string StorageSecretKey { get; set; } = string.Empty;
         public string StorageFileNamePrefix { get; set; } = string.Empty;
+        public List<string> DefaultLanguages { get; set; } = [];
     }
 }

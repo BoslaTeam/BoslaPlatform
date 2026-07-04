@@ -13,5 +13,7 @@ namespace BoslaPlatform.Application.Interfaces.Video
         Task RecordingStartedAsync(Guid sessionId, DateTime startedAtUtc, CancellationToken ct = default);
 
         Task RecordingCompletedAsync(Guid sessionId, string recordingUrl, CancellationToken ct = default);
+
+        Task TranscriptReceivedAsync(Guid sessionId, TranscriptSegment segment, CancellationToken ct = default);
     }
 }

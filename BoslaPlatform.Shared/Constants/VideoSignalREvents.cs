@@ -13,5 +13,13 @@ namespace BoslaPlatform.Shared.Constants
         public const string RecordingStarted = nameof(RecordingStarted);
 
         public const string RecordingStopped = nameof(RecordingStopped);
+
+        /// <summary>
+        /// Fired when a live transcript segment is updated.
+        /// The same segment (identified by SequenceNumber) may fire multiple times:
+        /// Partial → Partial → Final.
+        /// Clients should replace the caption for that SequenceNumber rather than append.
+        /// </summary>
+        public const string TranscriptUpdated = nameof(TranscriptUpdated);
     }
 }

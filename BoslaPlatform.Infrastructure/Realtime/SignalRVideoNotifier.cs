@@ -65,5 +65,16 @@ namespace BoslaPlatform.Infrastructure.Realtime
                 .Group(sessionId.ToString())
                 .SendAsync(VideoSignalREvents.RecordingStopped, new { sessionId, recordingUrl }, ct);
         }
+
+        public async Task TranscriptReceivedAsync(Guid sessionId, TranscriptSegment segment, CancellationToken ct = default)
+        {
+            var targetGroup = sessionId.ToString();
+            _logger.LogInformation(
+                "Broadcasting transcript for session {SessionId}, TargetGroup={TargetGroup}: SequenceNumber={Seq}, IsFinal={IsFinal}",
+                sessionId, targetGroup, segment.SequenceNumber, segment.IsFinal);
+            await _hubContext.Clients
+                .Group(targetGroup)
+                .SendAsync(VideoSignalREvents.TranscriptUpdated, new { sessionId, segment }, ct);
+        }
     }
 }
