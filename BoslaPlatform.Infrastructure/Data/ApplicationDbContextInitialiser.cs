@@ -177,14 +177,27 @@ namespace BoslaPlatform.Infrastructure.Data
             {
                 await _context.Expertises.AddRangeAsync(new[]
                 {
-                    new Expertise { Name = "Backend Development" },
-                    new Expertise { Name = "Frontend Development" },
-                    new Expertise { Name = "Mobile Development" },
+                    new Expertise { Name = "تطوير Backend" },
+                    new Expertise { Name = "تطوير Frontend" },
+                    new Expertise { Name = "تطوير تطبيقات الجوال" },
                     new Expertise { Name = "DevOps" },
-                    new Expertise { Name = "Cloud Computing" },
-                    new Expertise { Name = "Data Science" },
-                    new Expertise { Name = "Machine Learning" },
-                    new Expertise { Name = "Cybersecurity" }
+                    new Expertise { Name = "الحوسبة السحابية" },
+                    new Expertise { Name = "علم البيانات" },
+                    new Expertise { Name = "تعلم الآلة" },
+                    new Expertise { Name = "الأمن السيبراني" },
+                    new Expertise { Name = "طب عام" },
+                    new Expertise { Name = "طب أسنان" },
+                    new Expertise { Name = "صيدلة" },
+                    new Expertise { Name = "هندسة مدنية" },
+                    new Expertise { Name = "هندسة ميكانيكا" },
+                    new Expertise { Name = "هندسة كهرباء" },
+                    new Expertise { Name = "قانون" },
+                    new Expertise { Name = "محاسبة" },
+                    new Expertise { Name = "تسويق" },
+                    new Expertise { Name = "تدريس" },
+                    new Expertise { Name = "فنون" },
+                    new Expertise { Name = "إدارة أعمال" },
+                    new Expertise { Name = "تغذية ولياقة" }
                 });
                 hasChanges = true;
             }
