@@ -42,6 +42,8 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using BoslaPlatform.Infrastructure.Recording.Providers.Agora.Authentication;
 using BoslaPlatform.Infrastructure.Recording.Providers.Agora.Services;
 using BoslaPlatform.Infrastructure.Recording.HealthChecks;
+using BoslaPlatform.Infrastructure.STT;
+using BoslaPlatform.Infrastructure.STT.Providers.Agora.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
@@ -75,7 +77,7 @@ public static class DependencyInjection
             services.AddScoped<IRecordingProvider, AgoraRecordingProvider>();
             services.AddScoped<IAgoraTokenService, AgoraTokenService>();
 
-            // Agora Cloud Recording — Typed HttpClient with authentication handler and retry policy
+            // Agora REST API — Typed HttpClient configuration for Recording and STT
             var agoraSettings = configuration.GetSection(AgoraSettings.SectionName);
             var timeoutSeconds = agoraSettings.GetValue<int>(nameof(AgoraSettings.TimeoutSeconds));
             var retryCount = agoraSettings.GetValue<int>(nameof(AgoraSettings.RetryCount));
@@ -90,6 +92,18 @@ public static class DependencyInjection
                 builder.WaitAndRetryAsync(
                     retryCount > 0 ? retryCount : 2,
                     retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
+
+            services.AddHttpClient<AgoraCloudSTTApiClient>(client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(timeoutSeconds > 0 ? timeoutSeconds : 30);
+            })
+            .AddHttpMessageHandler<AgoraAuthenticationHandler>()
+            .AddTransientHttpErrorPolicy(builder =>
+                builder.WaitAndRetryAsync(
+                    retryCount > 0 ? retryCount : 2,
+                    retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
+
+            services.AddScoped<ISTTProvider, AgoraSTTProvider>();
 
             // Agora Cloud Recording — health check (validates configuration without calling Agora APIs)
             services.AddHealthChecks()

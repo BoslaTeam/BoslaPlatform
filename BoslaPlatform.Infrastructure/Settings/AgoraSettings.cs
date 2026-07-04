@@ -64,6 +64,7 @@ namespace BoslaPlatform.Infrastructure.Settings
         public string CustomerId { get; set; } = string.Empty;
         public string CustomerSecret { get; set; } = string.Empty;
         public string CloudRecordingBaseUrl { get; set; } = "https://api.agora.io";
+        public string STTBaseUrl { get; set; } = "https://api.agora.io";
         public int TimeoutSeconds { get; set; } = 30;
         public int RetryCount { get; set; } = 3;
 
