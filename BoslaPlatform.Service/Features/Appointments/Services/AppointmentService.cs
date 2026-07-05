@@ -115,6 +115,7 @@ namespace BoslaPlatform.Application.Services
                     SessionTopic = a.SessionTopic,
                     Notes = a.Notes,
                     SessionPrice = a.SessionPrice,
+                    ConfirmedAt = a.ConfirmedAt,
 
                     IsPaid = a.Payment != null
                         && a.Payment.Status == PaymentStatus.Completed,
@@ -175,7 +176,8 @@ namespace BoslaPlatform.Application.Services
                     Notes = a.Notes,
                     SessionPrice = a.SessionPrice,
                     IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed,
-                    ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null
+                    ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null,
+                    ConfirmedAt = a.ConfirmedAt
                 })
                 .ToListAsync(ct);
 
@@ -209,7 +211,8 @@ namespace BoslaPlatform.Application.Services
                     Notes = a.Notes,
                     SessionPrice = a.SessionPrice,
                     IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed,
-                    ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null
+                    ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null,
+                    ConfirmedAt = a.ConfirmedAt
                 })
                 .ToListAsync(ct);
 
@@ -258,7 +261,8 @@ namespace BoslaPlatform.Application.Services
                     Notes = a.Notes,
                     SessionPrice = a.SessionPrice,
                     IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed,
-                    ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null
+                    ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null,
+                    ConfirmedAt = a.ConfirmedAt
                 })
                 .ToListAsync(ct);
 
@@ -302,7 +306,8 @@ namespace BoslaPlatform.Application.Services
                     Notes = a.Notes,
                     SessionPrice = a.SessionPrice,
                     IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed,
-                    ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null
+                    ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null,
+                    ConfirmedAt = a.ConfirmedAt
                 })
                 .ToListAsync(ct);
 
@@ -347,6 +352,9 @@ namespace BoslaPlatform.Application.Services
 
             if (!_currentUser.Id.HasValue || appointment.UserId != _currentUser.Id.Value)
                 return Error.Forbidden("Payment.Forbidden", "You are not authorized to confirm payment for this appointment.");
+
+            if (appointment.ConfirmedAt.HasValue && appointment.ConfirmedAt.Value.AddHours(1) < DateTimeOffset.UtcNow)
+                return Error.Validation("Payment.DeadlineExpired", "The payment deadline has passed. The appointment has been cancelled.");
 
             var payment = await _context.Payments
                 .FirstOrDefaultAsync(p => p.AppointmentId == id, ct);

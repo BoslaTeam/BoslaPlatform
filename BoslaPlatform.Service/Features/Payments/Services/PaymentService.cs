@@ -64,13 +64,23 @@ namespace BoslaPlatform.Application.Features.Payments.Services
                     return Error.Conflict("Payment.AlreadyPaid", "This appointment has already been paid for.");
                 }
 
-                string? clientSecret = null;
                 if (!string.IsNullOrEmpty(existingPayment.ExternalPaymentId))
                 {
-                    clientSecret = await _paymentGateway.GetPaymentIntentClientSecretAsync(existingPayment.ExternalPaymentId);
+                    var clientSecret = await _paymentGateway.GetPaymentIntentClientSecretAsync(existingPayment.ExternalPaymentId);
+                    return MapToDto(existingPayment, clientSecret);
                 }
 
-                return MapToDto(existingPayment, clientSecret);
+                try
+                {
+                    var (clientSecret, paymentIntentId) = await _paymentGateway.CreatePaymentIntentAsync(existingPayment.Amount, existingPayment.Currency);
+                    existingPayment.AssignExternalId(paymentIntentId);
+                    await _context.SaveChangesAsync(ct);
+                    return MapToDto(existingPayment, clientSecret);
+                }
+                catch (Exception ex)
+                {
+                    return Error.Unexpected("Payment.GatewayError", $"An error occurred with the payment provider: {ex.Message}");
+                }
             }
 
             var payment = Payment.Initiate(appointment.Id, appointment.SessionPrice, request.Currency);

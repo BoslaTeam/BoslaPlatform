@@ -17,6 +17,7 @@ namespace BoslaPlatform.Domain.Models.Booking
         public Guid UserId { get; private set; }
         public DateTimeOffset Start { get; private set; }
         public DateTimeOffset End { get; private set; }
+        public DateTimeOffset? ConfirmedAt { get; private set; }
         public AppointmentStatus Status { get; private set; }
         public string? SessionTopic { get; private set; }
         public string? Notes { get; private set; }
@@ -101,6 +102,7 @@ namespace BoslaPlatform.Domain.Models.Booking
                     "Appointment.InvalidStatusTransition",
                     "Only pending appointments can be confirmed."));
 
+            ConfirmedAt = DateTimeOffset.UtcNow;
             UpdateStatus(AppointmentStatus.Confirmed, specialistId, "Appointment confirmed by specialist.");
             return Result.Success();
         }
