@@ -22,6 +22,7 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
         private readonly IUser _currentUser;
         private readonly IAgoraTokenService _agoraTokenService;
         private readonly IRecordingProvider _recordingProvider;
+        private readonly IVideoSessionLifecycleService _lifecycleService;
         private readonly IMapper _mapper;
         private readonly ILogger<VideoSessionService> _logger;
 
@@ -30,6 +31,7 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             IUser currentUser,
             IAgoraTokenService agoraTokenService,
             IRecordingProvider recordingProvider,
+            IVideoSessionLifecycleService lifecycleService,
             IMapper mapper,
             ILogger<VideoSessionService> logger)
         {
@@ -37,6 +39,7 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             _currentUser = currentUser;
             _agoraTokenService = agoraTokenService;
             _recordingProvider = recordingProvider;
+            _lifecycleService = lifecycleService;
             _mapper = mapper;
             _logger = logger;
         }
@@ -240,22 +243,20 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             if (auth.IsError) return auth.Errors;
 
             var sessionResult = await LoadSessionAsync(videoSessionId, ct,
-                q => q.Include(x => x.Appointment),
-                q => q.Include(x => x.CurrentRecording),
-                q => q.Include(x => x.Recordings));
+                q => q.Include(x => x.Appointment));
 
             if (sessionResult.IsError) return sessionResult.Errors;
 
             var specialistCheck = await ValidateAssignedSpecialistAsync(sessionResult.Value, ct, "finish this consultation");
             if (specialistCheck.IsError) return specialistCheck.Errors;
 
-            var completeResult = sessionResult.Value.Complete();
-            if (completeResult.IsError) return completeResult.Errors;
+            var lifecycleResult = await _lifecycleService.CompleteSessionAsync(
+                videoSessionId, VideoSessionCompletionReason.SpecialistEnded, ct);
 
-            await _context.SaveChangesAsync(ct);
+            if (lifecycleResult.IsError) return lifecycleResult.Errors;
 
             return Result<FinishConsultationResponse>.Success(
-                new FinishConsultationResponse(sessionResult.Value.Id, sessionResult.Value.EndedAt!.Value));
+                new FinishConsultationResponse(videoSessionId, sessionResult.Value.EndedAt!.Value));
         }
 
         public async Task<Result<StartVideoSessionResponse>> StartAsync(

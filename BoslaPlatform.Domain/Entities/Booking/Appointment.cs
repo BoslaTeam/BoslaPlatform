@@ -188,6 +188,8 @@ namespace BoslaPlatform.Domain.Models.Booking
             return Result.Success();
         }
 
+        public DateTimeOffset VideoSessionExpirationTime => End;
+
         public Result CanJoinVideoSession(DateTimeOffset currentTime)
         {
             var allowedStart = Start.AddMinutes(-10);

@@ -73,7 +73,13 @@ public static class DependencyInjection
             services.AddScoped<IChatNotifier, SignalRChatNotifier>();
             services.AddScoped<IVideoNotifier, SignalRVideoNotifier>();
             services.AddScoped<IRecordingProvider, AgoraRecordingProvider>();
+            services.AddScoped<ISTTProvider, NoOpSTTProvider>();
             services.AddScoped<IAgoraTokenService, AgoraTokenService>();
+
+            services.AddHostedService<VideoSessionExpirationService>();
+
+            services.Configure<VideoSessionExpirationOptions>(
+                configuration.GetSection("VideoSessionExpiration"));
 
             // Agora Cloud Recording — Typed HttpClient with authentication handler and retry policy
             var agoraSettings = configuration.GetSection(AgoraSettings.SectionName);

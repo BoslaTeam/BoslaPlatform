@@ -6,6 +6,7 @@ using BoslaPlatform.Application.Features.Payments.Services;
 using BoslaPlatform.Application.Features.Specialists.Services;
 using BoslaPlatform.Application.Features.VideoSessions.Interfaces;
 using BoslaPlatform.Application.Features.VideoSessions.Services;
+using BoslaPlatform.Application.Interfaces.Video;
 using BoslaPlatform.Application.Interfaces.Conversation;
 using BoslaPlatform.Application.Interfaces.Lookup;
 using BoslaPlatform.Application.Interfaces.Payments;
@@ -21,6 +22,7 @@ public static class DependencyInjection
         services.AddScoped<IConversationService, ConversationService>();
         services.AddScoped<IMessageService, MessageService>();
         services.AddScoped<IVideoSessionService, VideoSessionService>();
+        services.AddScoped<IVideoSessionLifecycleService, VideoSessionLifecycleService>();
 
         services.AddAutoMapper(cfg =>{}, typeof(ConversationMappingProfile).Assembly);
         //services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
