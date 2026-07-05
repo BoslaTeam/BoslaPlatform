@@ -1,3 +1,4 @@
+using BoslaPlatform.Application.Features.Notifications.Services;
 using BoslaPlatform.Application.Interfaces.Communication;
 using BoslaPlatform.Application;
 using BoslaPlatform.Application.Interfaces.Authentication;
@@ -26,6 +27,7 @@ namespace BoslaPlatform.Infrastructure.Identity
         private readonly IPublisher _publisher;
         private readonly GoogleSettings _googleSettings;
         private readonly ILogger<AuthService> _logger;
+        private readonly INotificationPreferenceService _preferenceService;
 
         public AuthService(
             ITokenService tokenService,
@@ -36,7 +38,8 @@ namespace BoslaPlatform.Infrastructure.Identity
             IEmailService emailService,
             IPublisher publisher,
             IOptions<GoogleSettings> googleSettings,
-            ILogger<AuthService> logger)
+            ILogger<AuthService> logger,
+            INotificationPreferenceService preferenceService)
         {
             _tokenService = tokenService;
             _userManager = userManager;
@@ -47,6 +50,7 @@ namespace BoslaPlatform.Infrastructure.Identity
             _publisher = publisher;
             _googleSettings = googleSettings.Value;
             _logger = logger;
+            _preferenceService = preferenceService;
         }
 
         public async Task<Result<TokenResponse>> LoginAsync(LoginRequest request, CancellationToken ct = default)
@@ -140,6 +144,9 @@ namespace BoslaPlatform.Infrastructure.Identity
                 await _userManager.DeleteAsync(user);
                 return roleResult.Errors.Select(e => Error.Create(ErrorKind.Validation, e.Code, e.Description)).ToList();
             }
+
+            // Seed default notification preferences
+            await _preferenceService.SeedDefaultsAsync(user.Id, request.Role, ct);
 
             // Generate email confirmation token and send confirmation email
             await SendConfirmationEmailAsync(user);
@@ -290,6 +297,9 @@ namespace BoslaPlatform.Infrastructure.Identity
             // Link Google login
             await _userManager.AddLoginAsync(newUser,
                 new UserLoginInfo("Google", payload.Subject, "Google"));
+
+            // Seed default notification preferences
+            await _preferenceService.SeedDefaultsAsync(newUser.Id, "User", ct);
 
             _logger.LogInformation(
                 "New user created via Google login: {UserId} ({Email})",

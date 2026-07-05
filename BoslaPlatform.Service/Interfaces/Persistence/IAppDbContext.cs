@@ -8,6 +8,7 @@ using BoslaPlatform.Domain.Models.Junctions;
 using BoslaPlatform.Domain.Models.Lookup;
 using BoslaPlatform.Domain.Models.Profile;
 using BoslaPlatform.Domain.Models.Video;
+using BoslaPlatform.Domain.Models.Communication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -22,6 +23,7 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
         DbSet<SpecialistExperience> SpecialistExperiences { get; }
         DbSet<SpecialistVerification> SpecialistVerifications { get; }
         DbSet<SpecialistDocument> SpecialistDocuments { get; }
+        DbSet<SpecialistPortfolioItem> SpecialistPortfolioItems { get; }
 
         DbSet<Education> Educations { get; }
 
@@ -47,6 +49,7 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
         DbSet<Message> Messages { get; }
 
         DbSet<Notification> Notifications { get; }
+        DbSet<UserNotificationPreference> UserNotificationPreferences { get; }
 
         DbSet<SpecialistSkill> SpecialistSkills { get; }
         DbSet<Review> Reviews { get; }

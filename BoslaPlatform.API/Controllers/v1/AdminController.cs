@@ -4,6 +4,9 @@ using BoslaPlatform.API.Common.Extensions;
 using BoslaPlatform.Application.Features.Admin.DTOs;
 using BoslaPlatform.Application.Features.Admin.Requests;
 using BoslaPlatform.Application.Features.Admin.Services;
+using BoslaPlatform.Application.Features.Portfolio.DTOs;
+using BoslaPlatform.Application.Features.Portfolio.Requests;
+using BoslaPlatform.Application.Features.Portfolio.Services;
 using BoslaPlatform.Application.Interfaces.AI;
 using BoslaPlatform.Application.Features.Lookup.Response;
 using BoslaPlatform.Application.Interfaces.Authentication;
@@ -21,7 +24,7 @@ namespace BoslaPlatform.API.Controllers.v1;
 [Route("api/v{version:apiVersion}/admin")]
 [Authorize(Roles = nameof(UserRole.Admin))]
 public class AdminController(
-    IAdminService adminService, IEmbeddingAdminService embeddingAdmin, IUser currentUser) : ControllerBase
+    IAdminService adminService, IEmbeddingAdminService embeddingAdmin, IUser currentUser, IPortfolioService portfolioService) : ControllerBase
 {
     [HttpGet("users")]
     [ProducesResponseType(typeof(ApiResponse<BoslaPlatform.Shared.PaginatedList<UserDto>>), StatusCodes.Status200OK)]
@@ -553,6 +556,40 @@ public class AdminController(
     //        return Results.Ok(ApiResponse.SuccessResponse("Refund processed."));
     //    return result.Errors.ToProblem();
     //}
+
+    #region Portfolio
+
+    [HttpGet("specialists/{specialistId:guid}/portfolio")]
+    [ProducesResponseType(typeof(ApiResponse<List<PortfolioItemDto>>), StatusCodes.Status200OK)]
+    public async Task<IResult> GetSpecialistPortfolio(Guid specialistId, CancellationToken ct)
+    {
+        var result = await portfolioService.GetAllBySpecialistAsync(specialistId, ct);
+        return result.Match(
+            value => Results.Ok(ApiResponse<List<PortfolioItemDto>>.SuccessResponse(value)),
+            errors => errors.ToProblem());
+    }
+
+    [HttpPut("specialists/{specialistId:guid}/portfolio/{itemId:guid}/approve")]
+    [ProducesResponseType(typeof(ApiResponse<PortfolioItemDto>), StatusCodes.Status200OK)]
+    public async Task<IResult> ApprovePortfolioItem(Guid specialistId, Guid itemId, [FromBody] AdminReviewPortfolioRequest request, CancellationToken ct)
+    {
+        var result = await portfolioService.ApproveAsync(specialistId, itemId, request, ct);
+        return result.Match(
+            value => Results.Ok(ApiResponse<PortfolioItemDto>.SuccessResponse(value, "Portfolio item approved.")),
+            errors => errors.ToProblem());
+    }
+
+    [HttpPut("specialists/{specialistId:guid}/portfolio/{itemId:guid}/reject")]
+    [ProducesResponseType(typeof(ApiResponse<PortfolioItemDto>), StatusCodes.Status200OK)]
+    public async Task<IResult> RejectPortfolioItem(Guid specialistId, Guid itemId, [FromBody] AdminReviewPortfolioRequest request, CancellationToken ct)
+    {
+        var result = await portfolioService.RejectAsync(specialistId, itemId, request, ct);
+        return result.Match(
+            value => Results.Ok(ApiResponse<PortfolioItemDto>.SuccessResponse(value, "Portfolio item rejected.")),
+            errors => errors.ToProblem());
+    }
+
+    #endregion
 
     //[HttpGet("dashboard")]
     //[ProducesResponseType(typeof(ApiResponse<DashboardDto>), StatusCodes.Status200OK)]
