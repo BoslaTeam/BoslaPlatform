@@ -168,7 +168,9 @@ namespace BoslaPlatform.Application.Services
                 {
                     Id = a.Id,
                     SpecialistId = a.SpecialistId,
+                    SpecialistName = a.Specialist.User.Name,
                     UserId = a.UserId,
+                    UserName = a.User.Name,
                     Start = a.Start,
                     End = a.End,
                     Status = a.Status,
@@ -203,7 +205,9 @@ namespace BoslaPlatform.Application.Services
                 {
                     Id = a.Id,
                     SpecialistId = a.SpecialistId,
+                    SpecialistName = a.Specialist.User.Name,
                     UserId = a.UserId,
+                    UserName = a.User.Name,
                     Start = a.Start,
                     End = a.End,
                     Status = a.Status,
@@ -253,7 +257,9 @@ namespace BoslaPlatform.Application.Services
                 {
                     Id = a.Id,
                     SpecialistId = a.SpecialistId,
+                    SpecialistName = a.Specialist.User.Name,
                     UserId = a.UserId,
+                    UserName = a.User.Name,
                     Start = a.Start,
                     End = a.End,
                     Status = a.Status,
@@ -298,7 +304,9 @@ namespace BoslaPlatform.Application.Services
                 {
                     Id = a.Id,
                     SpecialistId = a.SpecialistId,
+                    SpecialistName = a.Specialist.User.Name,
                     UserId = a.UserId,
+                    UserName = a.User.Name,
                     Start = a.Start,
                     End = a.End,
                     Status = a.Status,
