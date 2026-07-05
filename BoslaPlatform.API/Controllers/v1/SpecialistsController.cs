@@ -1,6 +1,9 @@
 ﻿using Asp.Versioning;
 using BoslaPlatform.API.Common.Extensions;
 using BoslaPlatform.API.Common.Responses;
+using BoslaPlatform.Application.Features.Portfolio.DTOs;
+using BoslaPlatform.Application.Features.Portfolio.Requests;
+using BoslaPlatform.Application.Features.Portfolio.Services;
 using BoslaPlatform.Application.Features.Specialists.DTOs;
 using BoslaPlatform.Application.Features.Specialists.Request;
 using BoslaPlatform.Application.Features.Specialists.Response;
@@ -21,7 +24,7 @@ namespace BoslaPlatform.API.Controllers.v1
     [Route("api/v{version:apiVersion}/specialists")]
     [Authorize]
     [ApiConventionType(typeof(DefaultApiConventions))]
-    public class SpecialistsController(ISpecialistService specialistService, IEmbeddingAdminService embeddingAdmin, IAppDbContext context) : ControllerBase
+    public class SpecialistsController(ISpecialistService specialistService, IEmbeddingAdminService embeddingAdmin, IAppDbContext context, IPortfolioService portfolioService) : ControllerBase
     {
         private async Task<Guid> GetCurrentSpecialistIdAsync()
         {
@@ -654,6 +657,125 @@ namespace BoslaPlatform.API.Controllers.v1
             if (result.IsSuccess)
                 return Results.Ok(ApiResponse.SuccessResponse("Verification submitted successfully."));
             return result.Errors.ToProblem();
+        }
+
+        #endregion
+
+        #region Portfolio
+
+        [HttpGet("{specialistId:guid}/portfolio")]
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(ApiResponse<List<PortfolioItemDto>>), StatusCodes.Status200OK)]
+        public async Task<IResult> GetPublicPortfolio(Guid specialistId, CancellationToken ct)
+        {
+            var result = await portfolioService.GetPublicAsync(specialistId, ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<List<PortfolioItemDto>>.SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        [HttpGet("{specialistId:guid}/portfolio/{itemId:guid}")]
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(ApiResponse<PortfolioItemDto>), StatusCodes.Status200OK)]
+        public async Task<IResult> GetPublicPortfolioItem(Guid specialistId, Guid itemId, CancellationToken ct)
+        {
+            var result = await portfolioService.GetByIdAsync(specialistId, itemId, ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<PortfolioItemDto>.SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        [HttpGet("me/portfolio")]
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<List<PortfolioItemDto>>), StatusCodes.Status200OK)]
+        public async Task<IResult> GetMyPortfolio(CancellationToken ct)
+        {
+            var result = await portfolioService.GetMyAsync(ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<List<PortfolioItemDto>>.SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        [HttpPost("me/portfolio/upload-image")]
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+        public async Task<IResult> UploadPortfolioImage(IFormFile file, CancellationToken ct)
+        {
+            if (file == null || file.Length == 0)
+                return Results.BadRequest(ApiResponse<string>.FailureResponse(
+                    [BoslaPlatform.Shared.Error.Create(BoslaPlatform.Shared.ErrorKind.Validation, "File", "No file uploaded.")]));
+
+            if (file.Length > 10 * 1024 * 1024)
+                return Results.BadRequest(ApiResponse<string>.FailureResponse(
+                    [BoslaPlatform.Shared.Error.Create(BoslaPlatform.Shared.ErrorKind.Validation, "File", "File size must not exceed 10MB.")]));
+
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+                return Results.BadRequest(ApiResponse<string>.FailureResponse(
+                    [BoslaPlatform.Shared.Error.Create(BoslaPlatform.Shared.ErrorKind.Validation, "File", "Invalid file type. Allowed: JPG, JPEG, PNG, GIF, WEBP.")]));
+
+            var webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var uploadsFolder = Path.Combine(webRootPath, "uploads", "specialists", "portfolio");
+            Directory.CreateDirectory(uploadsFolder);
+
+            var uniqueFileName = $"{Guid.NewGuid()}{extension}";
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            await using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream, ct);
+            }
+
+            var request = HttpContext.Request;
+            var baseUrl = $"{request.Scheme}://{request.Host}";
+            var fileUrl = $"{baseUrl}/uploads/specialists/portfolio/{uniqueFileName}";
+
+            return Results.Ok(ApiResponse<string>.SuccessResponse(fileUrl, "Image uploaded."));
+        }
+
+        [HttpPost("me/portfolio")]
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<PortfolioItemDto>), StatusCodes.Status200OK)]
+        public async Task<IResult> CreatePortfolioItem([FromBody] CreatePortfolioItemRequest request, CancellationToken ct)
+        {
+            var result = await portfolioService.CreateAsync(request, ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<PortfolioItemDto>.SuccessResponse(value, "Portfolio item created.")),
+                errors => errors.ToProblem());
+        }
+
+        [HttpPut("me/portfolio/{id:guid}")]
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<PortfolioItemDto>), StatusCodes.Status200OK)]
+        public async Task<IResult> UpdatePortfolioItem(Guid id, [FromBody] UpdatePortfolioItemRequest request, CancellationToken ct)
+        {
+            var result = await portfolioService.UpdateAsync(id, request, ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<PortfolioItemDto>.SuccessResponse(value, "Portfolio item updated.")),
+                errors => errors.ToProblem());
+        }
+
+        [HttpDelete("me/portfolio/{id:guid}")]
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IResult> DeletePortfolioItem(Guid id, CancellationToken ct)
+        {
+            var result = await portfolioService.DeleteAsync(id, ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<bool>.SuccessResponse(value, "Portfolio item deleted.")),
+                errors => errors.ToProblem());
+        }
+
+        [HttpPut("me/portfolio/reorder")]
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IResult> ReorderPortfolio([FromBody] ReorderPortfolioRequest request, CancellationToken ct)
+        {
+            var result = await portfolioService.ReorderAsync(request, ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<bool>.SuccessResponse(value, "Portfolio reordered.")),
+                errors => errors.ToProblem());
         }
 
         #endregion

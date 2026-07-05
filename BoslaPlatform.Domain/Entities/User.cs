@@ -4,6 +4,7 @@ using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Communication;
 using BoslaPlatform.Domain.Models.Identity;
 using BoslaPlatform.Domain.Models.Junctions;
+using BoslaPlatform.Domain.Models.Lookup;
 using BoslaPlatform.Domain.Models.Profile;
 using BoslaPlatform.Domain.Models.Video;
 using Microsoft.AspNetCore.Identity;
@@ -34,6 +35,7 @@ namespace BoslaPlatform.Domain.Entities
         public ICollection<VideoSessionParticipant> VideoSessionParticipants { get; set; } = [];
         public ICollection<UserExpertise> UserExpertise { get; set; } = [];
         public ICollection<UserIndustry> UserIndustries { get; set; } = [];
+        public ICollection<UserNotificationPreference> NotificationPreferences { get; set; } = [];
         public DateTimeOffset CreatedAtUtc { get ; set ; }
         public Guid? CreatedBy { get ; set ; }
         public DateTimeOffset? LastModifiedUtc { get ; set ; }

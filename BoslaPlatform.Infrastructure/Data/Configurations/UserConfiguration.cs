@@ -82,6 +82,12 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
                 .WithOne(ui => ui.User)
                 .HasForeignKey(ui => ui.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // One-to-Many relationship with NotificationPreferences
+            builder.HasMany(u => u.NotificationPreferences)
+                .WithOne(p => p.User)
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
