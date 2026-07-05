@@ -46,13 +46,14 @@ namespace BoslaPlatform.Domain.Models.Video
         public void MarkLeft()
         {
             if (LeftAt is not null)
-            {
                 return;
-            }
 
             LeftAt = DateTime.UtcNow;
+        }
 
-            
+        public void ClearLeaveState()
+        {
+            LeftAt = null;
         }
     }
 }

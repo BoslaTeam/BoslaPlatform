@@ -187,5 +187,26 @@ namespace BoslaPlatform.Domain.Models.Booking
 
             return Result.Success();
         }
+
+        public Result CanJoinVideoSession(DateTimeOffset currentTime)
+        {
+            var allowedStart = Start.AddMinutes(-10);
+
+            if (currentTime < allowedStart)
+            {
+                return Error.Validation(
+                    "VideoSession.JoinTooEarly",
+                    "You can join the video session up to 10 minutes before the appointment start time.");
+            }
+
+            if (currentTime >= End)
+            {
+                return Error.Validation(
+                    "VideoSession.SessionExpired",
+                    "The appointment has ended. You cannot join the video session.");
+            }
+
+            return Result.Success();
+        }
     }
 }

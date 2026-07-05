@@ -14,6 +14,18 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Interfaces
             Guid appointmentId,
             CancellationToken ct = default);
 
+        Task<Result<JoinVideoSessionResponse>> JoinAsync(
+            Guid videoSessionId,
+            CancellationToken ct = default);
+
+        Task<Result<LeaveVideoSessionResponse>> LeaveAsync(
+            Guid videoSessionId,
+            CancellationToken ct = default);
+
+        Task<Result<FinishConsultationResponse>> FinishConsultationAsync(
+            Guid videoSessionId,
+            CancellationToken ct = default);
+
         Task<Result<StartVideoSessionResponse>> StartAsync(
             Guid videoSessionId,
             CancellationToken ct = default);

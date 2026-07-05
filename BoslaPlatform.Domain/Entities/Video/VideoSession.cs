@@ -105,6 +105,47 @@ namespace BoslaPlatform.Domain.Models.Video
             return Result.Success();
         }
 
+        public Result Complete()
+        {
+            if (Status == VideoSessionStatus.Completed)
+                return Result.Success();
+
+            if (Status == VideoSessionStatus.Ended)
+                return Error.Validation(
+                    "VideoSession.AlreadyEnded",
+                    "Cannot complete an already ended session.");
+
+            if (IsRecording)
+                FailActiveRecording("Session completed while recording was active.");
+
+            Status = VideoSessionStatus.Completed;
+            EndedAt = DateTime.UtcNow;
+
+            AddDomainEvent(new VideoSessionEndedEvent(Id, AppointmentId, EndedAt.Value));
+
+            return Result.Success();
+        }
+
+        public Result ParticipantRejoined(Guid userId)
+        {
+            if (Status == VideoSessionStatus.Completed)
+                return Error.Validation("VideoSession.Completed", "This session has been completed and cannot be rejoined.");
+
+            var participant = _participants.FirstOrDefault(x => x.UserId == userId);
+
+            if (participant is null)
+                return Error.NotFound("VideoSessionParticipant.NotFound", "Participant not found.");
+
+            if (participant.LeftAt is null)
+                return Result.Success();
+
+            participant.ClearLeaveState();
+
+            AddDomainEvent(new ParticipantRejoinedVideoSessionEvent(Id, userId));
+
+            return Result.Success();
+        }
+
         public Result AddParticipant(
             Guid userId,
             long agoraUid,

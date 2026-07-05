@@ -5,6 +5,7 @@ using BoslaPlatform.Application.Features.VideoSessions.Responses;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Application.Interfaces.Video;
+using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Video;
@@ -40,290 +41,277 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             _logger = logger;
         }
 
-        /// <summary>
-        /// Retrieves a video session by its unique identifier.
-        /// Validates authentication and appointment membership before returning session details.
-        /// </summary>
-        /// <param name="sessionId">The unique identifier of the video session.</param>
-        /// <param name="ct">The cancellation token.</param>
-        /// <returns>A Result containing the VideoSessionDto or an appropriate error.</returns>
+        private Guid CurrentUserId => _currentUser.Id!.Value;
+
+        private Result EnsureAuthenticated()
+        {
+            if (!_currentUser.IsAuthenticated || _currentUser.Id is null)
+                return Error.Unauthorized("User.Unauthorized", "User is not authenticated.");
+            return Result.Success();
+        }
+
+        private async Task<Specialist?> GetCurrentSpecialistAsync(CancellationToken ct)
+        {
+            return await _context.Specialists
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.UserId == CurrentUserId, ct);
+        }
+
+        private async Task<Result<VideoSession>> LoadSessionAsync(
+            Guid sessionId,
+            CancellationToken ct,
+            params Func<IQueryable<VideoSession>, IQueryable<VideoSession>>[] includes)
+        {
+            IQueryable<VideoSession> query = _context.VideoSessions;
+
+            foreach (var include in includes)
+                query = include(query);
+
+            if (includes.Length > 1)
+                query = query.AsSplitQuery();
+
+            var session = await query.FirstOrDefaultAsync(x => x.Id == sessionId, ct);
+
+            if (session is null)
+                return Error.NotFound("VideoSession.NotFound", "Video session was not found.");
+
+            return Result<VideoSession>.Success(session);
+        }
+
+        private async Task<Result<VideoSession>> LoadSessionReadOnlyAsync(
+            Guid sessionId,
+            CancellationToken ct,
+            params Func<IQueryable<VideoSession>, IQueryable<VideoSession>>[] includes)
+        {
+            IQueryable<VideoSession> query = _context.VideoSessions.AsNoTracking();
+
+            foreach (var include in includes)
+                query = include(query);
+
+            if (includes.Length > 1)
+                query = query.AsSplitQuery();
+
+            var session = await query.FirstOrDefaultAsync(x => x.Id == sessionId, ct);
+
+            if (session is null)
+                return Error.NotFound("VideoSession.NotFound", "Video session was not found.");
+
+            return Result<VideoSession>.Success(session);
+        }
+
+        private async Task<Result> ValidateAssignedSpecialistAsync(
+            VideoSession session,
+            CancellationToken ct,
+            string? action = null)
+        {
+            var specialist = await GetCurrentSpecialistAsync(ct);
+
+            var isAssigned = specialist is not null
+                && session.Appointment!.SpecialistId == specialist.Id;
+
+            if (!isAssigned)
+                return Error.Forbidden("VideoSession.AccessDenied",
+                    action is not null
+                        ? $"Only the assigned specialist can {action}."
+                        : "Only the assigned specialist can perform this action.");
+
+            return Result.Success();
+        }
+
+        private async Task<Result> ValidateAppointmentMembershipAsync(Appointment appointment, CancellationToken ct)
+        {
+            var isClient = appointment.UserId == CurrentUserId;
+
+            var specialist = await GetCurrentSpecialistAsync(ct);
+
+            var isSpecialist = specialist is not null && appointment.SpecialistId == specialist.Id;
+
+            if (!isClient && !isSpecialist)
+                return Error.Forbidden("VideoSession.AccessDenied", "You are not authorized to access this video session.");
+
+            return Result.Success();
+        }
+
         public async Task<Result<VideoSessionDto>> GetByIdAsync(
             Guid sessionId,
             CancellationToken ct = default)
         {
-            // 1. Validate authentication
-            if (!_currentUser.IsAuthenticated || _currentUser.Id is null)
-            {
-                return Error.Unauthorized(
-                    "User.Unauthorized",
-                    "User is not authenticated.");
-            }
+            var auth = EnsureAuthenticated();
+            if (auth.IsError) return auth.Errors;
 
-            // 2. Retrieve session with participants and their user information
-            var session = await _context.VideoSessions
-                .AsNoTracking()
-                .Include(x => x.Participants)
-                    .ThenInclude(p => p.User)
-                .Include(x => x.Appointment)
-                .Include(x => x.CurrentRecording)
-                .FirstOrDefaultAsync(
-                    x => x.Id == sessionId,
-                    ct);
+            var sessionResult = await LoadSessionReadOnlyAsync(sessionId, ct,
+                q => q.Include(x => x.Participants).ThenInclude(p => p.User),
+                q => q.Include(x => x.Appointment),
+                q => q.Include(x => x.CurrentRecording));
 
-            // 3. Validate session exists
-            if (session is null)
-            {
-                return Error.NotFound(
-                    "VideoSession.NotFound",
-                    "Video session was not found.");
-            }
+            if (sessionResult.IsError) return sessionResult.Errors;
 
-            // 4. Validate current user belongs to the appointment
-            var appointment = session.Appointment!;
-            var isClient = appointment.UserId == _currentUser.Id;
+            var membership = await ValidateAppointmentMembershipAsync(sessionResult.Value.Appointment!, ct);
+            if (membership.IsError) return membership.Errors;
 
-            var specialist = await _context.Specialists
-                .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    s => s.UserId == _currentUser.Id,
-                    ct);
-
-            var isSpecialist =
-                specialist is not null &&
-                appointment.SpecialistId == specialist.Id;
-
-            if (!isClient && !isSpecialist)
-            {
-                return Error.Forbidden(
-                    "VideoSession.AccessDenied",
-                    "You are not authorized to access this video session.");
-            }
-
-            // 5. Map and return
-            var dto = _mapper.Map<VideoSessionDto>(session);
-
+            var dto = _mapper.Map<VideoSessionDto>(sessionResult.Value);
             return Result<VideoSessionDto>.Success(dto);
         }
 
-        /// <summary>
-        /// Generates an Agora RTC token for a video session associated with an appointment.
-        /// </summary>
-        /// <param name="appointmentId">The ID of the appointment.</param>
-        /// <param name="ct">The cancellation token.</param>
-        /// <returns>A Result containing the AgoraTokenResponse or an appropriate error.</returns>
         public async Task<Result<AgoraTokenResponse>> GenerateTokenAsync(
             Guid appointmentId,
             CancellationToken ct = default)
         {
-            var tokenResult = await _agoraTokenService.GenerateTokenAsync(
-                appointmentId,
-                ct);
-
-            return tokenResult;
+            return await _agoraTokenService.GenerateTokenAsync(appointmentId, ct);
         }
-        //public async Task<Result<JoinVideoSessionResponse>> JoinAsync( Guid videoSessionId,CancellationToken ct = default)
-        //{
-        //    if (!_currentUser.IsAuthenticated ||
-        //        _currentUser.Id is null)
-        //    {
-        //        return Error.Unauthorized(
-        //            "User.Unauthorized",
-        //            "User is not authenticated.");
-        //    }
 
-        //    var session = await _context.VideoSessions
-        //        .Include(x => x.Participants)
-        //        .FirstOrDefaultAsync(
-        //            x => x.Id == videoSessionId,
-        //            ct);
-
-        //    if (session is null)
-        //    {
-        //        return Error.NotFound(
-        //            "VideoSession.NotFound",
-        //            "Video session was not found.");
-        //    }
-
-        //    var uid = GenerateAgoraUid(
-        //        _currentUser.Id.Value);
-
-        //    var role = VideoParticipantRole.Participant;
-
-        //    var result = session.AddParticipant(
-        //        _currentUser.Id.Value,
-        //        uid,
-        //        role);
-
-        //    if (result.IsError)
-        //    {
-        //        return result.Errors;
-        //    }
-
-        //    await _context.SaveChangesAsync(ct);
-
-        //    return Result<JoinVideoSessionResponse>.Success(
-        //        new JoinVideoSessionResponse(
-        //            session.Id,
-        //            _currentUser.Id.Value,
-        //            DateTime.UtcNow));
-        //}
-        /// <summary>
-        /// Prepares a video session for joining.
-        ///
-        /// This is a VALIDATION and PREPARATION step only.
-        /// It does NOT activate the session — the session transitions to Active
-        /// exclusively when Agora fires the channel_created webhook callback
-        /// (VideoSession.ChannelCreated()). The specialist and participants can
-        /// obtain tokens and prepare to join after this step succeeds.
-        /// </summary>
-        /// <param name="videoSessionId">
-        /// Video session identifier.
-        /// </param>
-        /// <param name="ct">
-        /// Cancellation token.
-        /// </param>
-        /// <returns>
-        /// Preparation confirmation with acknowledgment timestamp.
-        /// The actual StartedAt is set when Agora confirms the first participant join.
-        /// </returns>
-        public async Task<Result<StartVideoSessionResponse>> StartAsync(Guid videoSessionId,CancellationToken ct = default)
+        public async Task<Result<JoinVideoSessionResponse>> JoinAsync(
+            Guid videoSessionId,
+            CancellationToken ct = default)
         {
-            if (!_currentUser.IsAuthenticated || _currentUser.Id is null)
+            var auth = EnsureAuthenticated();
+            if (auth.IsError) return auth.Errors;
+
+            var sessionResult = await LoadSessionAsync(videoSessionId, ct,
+                q => q.Include(x => x.Appointment),
+                q => q.Include(x => x.Participants));
+
+            if (sessionResult.IsError) return sessionResult.Errors;
+
+            var membership = await ValidateAppointmentMembershipAsync(sessionResult.Value.Appointment!, ct);
+            if (membership.IsError) return membership.Errors;
+
+            var session = sessionResult.Value;
+            var appointment = session.Appointment!;
+
+            if (session.Status == VideoSessionStatus.Completed)
+                return Error.Validation("VideoSession.Completed", "This video session has been completed and cannot be joined.");
+
+            var timeValidation = appointment.CanJoinVideoSession(DateTimeOffset.UtcNow);
+            if (timeValidation.IsError) return timeValidation.Errors;
+
+            var participant = session.Participants.FirstOrDefault(x => x.UserId == CurrentUserId);
+
+            if (participant is null)
+                return Error.Validation("VideoSession.InvalidState", "You must generate a token before joining the session.");
+
+            if (participant.LeftAt is not null)
             {
-                return Error.Unauthorized(
-                    "User.Unauthorized",
-                    "User is not authenticated.");
+                var rejoinResult = session.ParticipantRejoined(CurrentUserId);
+                if (rejoinResult.IsError) return rejoinResult.Errors;
+
+                await _context.SaveChangesAsync(ct);
             }
 
-            var session = await _context.VideoSessions
-                .Include(x => x.Appointment)
-                .FirstOrDefaultAsync(
-                    x => x.Id == videoSessionId,
-                    ct);
+            return Result<JoinVideoSessionResponse>.Success(
+                new JoinVideoSessionResponse(session.Id, CurrentUserId, DateTime.UtcNow));
+        }
 
-            if (session is null)
-            {
-                return Error.NotFound(
-                    "VideoSession.NotFound",
-                    "Video session was not found.");
-            }
-            var specialist = await _context.Specialists
-                .AsNoTracking()
-                .FirstOrDefaultAsync(
-                s => s.UserId == _currentUser.Id,
-                ct);
+        public async Task<Result<LeaveVideoSessionResponse>> LeaveAsync(
+            Guid videoSessionId,
+            CancellationToken ct = default)
+        {
+            var auth = EnsureAuthenticated();
+            if (auth.IsError) return auth.Errors;
 
-            var isAssignedSpecialist =
-                specialist is not null &&
-                session.Appointment!.SpecialistId == specialist.Id;
+            var sessionResult = await LoadSessionAsync(videoSessionId, ct,
+                q => q.Include(x => x.Participants));
 
-            if (!isAssignedSpecialist)
-            {
-                return Error.Forbidden(
-                    "VideoSession.AccessDenied",
-                    "Only the assigned specialist can start this session.");
-            }
+            if (sessionResult.IsError) return sessionResult.Errors;
 
-            //var validation = session.Appointment!.CanStartVideoSession(DateTimeOffset.UtcNow);
+            var session = sessionResult.Value;
+            var participant = session.Participants.FirstOrDefault(x => x.UserId == CurrentUserId);
 
-            //if (validation.IsError)
-            //{
-            //    return validation.Errors;
-            //}
+            if (participant is null)
+                return Error.Validation("VideoSessionParticipant.NotFound", "You are not a participant of this session.");
 
-            var result = session.Start();
+            if (participant.LeftAt is not null)
+                return Error.Validation("VideoSessionParticipant.AlreadyLeft", "You have already left this session.");
 
-            if (result.IsError)
-            {
-                return result.Errors;
-            }
+            var result = session.MarkParticipantLeft(CurrentUserId);
+            if (result.IsError) return result.Errors;
+
+            await _context.SaveChangesAsync(ct);
+
+            return Result<LeaveVideoSessionResponse>.Success(
+                new LeaveVideoSessionResponse(session.Id, CurrentUserId, DateTime.UtcNow));
+        }
+
+        public async Task<Result<FinishConsultationResponse>> FinishConsultationAsync(
+            Guid videoSessionId,
+            CancellationToken ct = default)
+        {
+            var auth = EnsureAuthenticated();
+            if (auth.IsError) return auth.Errors;
+
+            var sessionResult = await LoadSessionAsync(videoSessionId, ct,
+                q => q.Include(x => x.Appointment),
+                q => q.Include(x => x.CurrentRecording),
+                q => q.Include(x => x.Recordings));
+
+            if (sessionResult.IsError) return sessionResult.Errors;
+
+            var specialistCheck = await ValidateAssignedSpecialistAsync(sessionResult.Value, ct, "finish this consultation");
+            if (specialistCheck.IsError) return specialistCheck.Errors;
+
+            var completeResult = sessionResult.Value.Complete();
+            if (completeResult.IsError) return completeResult.Errors;
+
+            await _context.SaveChangesAsync(ct);
+
+            return Result<FinishConsultationResponse>.Success(
+                new FinishConsultationResponse(sessionResult.Value.Id, sessionResult.Value.EndedAt!.Value));
+        }
+
+        public async Task<Result<StartVideoSessionResponse>> StartAsync(
+            Guid videoSessionId,
+            CancellationToken ct = default)
+        {
+            var auth = EnsureAuthenticated();
+            if (auth.IsError) return auth.Errors;
+
+            var sessionResult = await LoadSessionAsync(videoSessionId, ct,
+                q => q.Include(x => x.Appointment));
+
+            if (sessionResult.IsError) return sessionResult.Errors;
+
+            var specialistCheck = await ValidateAssignedSpecialistAsync(sessionResult.Value, ct, "start this session");
+            if (specialistCheck.IsError) return specialistCheck.Errors;
+
+            var result = sessionResult.Value.Start();
+            if (result.IsError) return result.Errors;
 
             await _context.SaveChangesAsync(ct);
 
             return Result<StartVideoSessionResponse>.Success(
-                new StartVideoSessionResponse(
-                    session.Id,
-                    session.StartedAt!.Value));
+                new StartVideoSessionResponse(sessionResult.Value.Id, sessionResult.Value.StartedAt!.Value));
         }
-        /// <summary>
-        /// Ends a video session manually.
-        /// The specialist can end the session before the scheduled appointment end.
-        /// If the session has not been activated yet (Waiting status), ending it
-        /// cancels the preparation — the session will be marked as Ended and
-        /// will not transition to Active when Agora fires channel_created.
-        /// </summary>
-        /// <param name="videoSessionId">
-        /// Video session identifier.
-        /// </param>
-        /// <param name="ct">
-        /// Cancellation token.
-        /// </param>
-        /// <returns>
-        /// Ended session details.
-        /// </returns>
-        public async Task<Result<EndVideoSessionResponse>> EndAsync( Guid videoSessionId,CancellationToken ct = default)
+
+        public async Task<Result<EndVideoSessionResponse>> EndAsync(
+            Guid videoSessionId,
+            CancellationToken ct = default)
         {
-            if (!_currentUser.IsAuthenticated || _currentUser.Id is null)
-            {
-                return Error.Unauthorized(
-                    "User.Unauthorized",
-                    "User is not authenticated.");
-            }
-            var session = await _context.VideoSessions
-                .Include(x => x.Appointment)
-                .FirstOrDefaultAsync(
-                    x => x.Id == videoSessionId,
-                    ct);
+            var auth = EnsureAuthenticated();
+            if (auth.IsError) return auth.Errors;
 
-            if (session is null)
-            {
-                return Error.NotFound(
-                    "VideoSession.NotFound",
-                    "Video session was not found.");
-            }
+            var sessionResult = await LoadSessionAsync(videoSessionId, ct,
+                q => q.Include(x => x.Appointment));
 
-            var specialist = await _context.Specialists
-                .AsNoTracking()
-                .FirstOrDefaultAsync(
-                s => s.UserId == _currentUser.Id,
-                ct);
+            if (sessionResult.IsError) return sessionResult.Errors;
 
-            var isAssignedSpecialist =
-                specialist is not null &&
-                session.Appointment!.SpecialistId == specialist.Id;
+            var specialistCheck = await ValidateAssignedSpecialistAsync(sessionResult.Value, ct, "end this session");
+            if (specialistCheck.IsError) return specialistCheck.Errors;
 
-            if (!isAssignedSpecialist)
-            {
-                return Error.Forbidden(
-                    "VideoSession.AccessDenied",
-                    "Only the assigned specialist can end this session.");
-            }
-
-            var result = session.End();
-
-            if (result.IsError)
-            {
-                return result.Errors;
-            }
+            var result = sessionResult.Value.End();
+            if (result.IsError) return result.Errors;
 
             await _context.SaveChangesAsync(ct);
 
             return Result<EndVideoSessionResponse>.Success(
-                new EndVideoSessionResponse(
-                    session.Id,
-                    session.EndedAt!.Value));
+                new EndVideoSessionResponse(sessionResult.Value.Id, sessionResult.Value.EndedAt!.Value));
         }
 
         public async Task<Result<StartRecordingResponse>> StartRecordingAsync(
             Guid videoSessionId,
             CancellationToken ct = default)
         {
-            if (!_currentUser.IsAuthenticated || _currentUser.Id is null)
-            {
-                return Error.Unauthorized(
-                    "User.Unauthorized",
-                    "User is not authenticated.");
-            }
+            var auth = EnsureAuthenticated();
+            if (auth.IsError) return auth.Errors;
 
             _logger.LogInformation("Recording requested for session {SessionId}", videoSessionId);
 
@@ -335,32 +323,16 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
 
             await using (var tx1 = await _context.BeginTransactionAsync(ct))
             {
-                session = (await _context.VideoSessions
-                    .Include(x => x.Appointment)
-                    .Include(x => x.CurrentRecording)
-                    .Include(x => x.Recordings)
-                    .FirstOrDefaultAsync(x => x.Id == videoSessionId, ct))!;
+                var sessionResult = await LoadSessionAsync(videoSessionId, ct,
+                    q => q.Include(x => x.Appointment),
+                    q => q.Include(x => x.CurrentRecording),
+                    q => q.Include(x => x.Recordings));
 
-                if (session is null)
-                {
-                    return Error.NotFound(
-                        "VideoSession.NotFound",
-                        "Video session was not found.");
-                }
+                if (sessionResult.IsError) return sessionResult.Errors;
+                session = sessionResult.Value;
 
-                var specialist = await _context.Specialists
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(s => s.UserId == _currentUser.Id, ct);
-
-                var isAssignedSpecialist = specialist is not null
-                    && session.Appointment!.SpecialistId == specialist.Id;
-
-                if (!isAssignedSpecialist)
-                {
-                    return Error.Forbidden(
-                        "VideoSession.AccessDenied",
-                        "Only the assigned specialist can start recording.");
-                }
+                var specialistCheck = await ValidateAssignedSpecialistAsync(session, ct, "start recording");
+                if (specialistCheck.IsError) return specialistCheck.Errors;
 
                 var recordingResult = ScreenRecording.Create(
                     session.Id,
@@ -456,12 +428,8 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             Guid videoSessionId,
             CancellationToken ct = default)
         {
-            if (!_currentUser.IsAuthenticated || _currentUser.Id is null)
-            {
-                return Error.Unauthorized(
-                    "User.Unauthorized",
-                    "User is not authenticated.");
-            }
+            var auth = EnsureAuthenticated();
+            if (auth.IsError) return auth.Errors;
 
             _logger.LogInformation("Recording stop requested for session {SessionId}", videoSessionId);
 
@@ -472,32 +440,16 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
 
             await using (var tx1 = await _context.BeginTransactionAsync(ct))
             {
-                var session = await _context.VideoSessions
-                    .Include(x => x.Appointment)
-                    .Include(x => x.CurrentRecording)
-                    .Include(x => x.Recordings)
-                    .FirstOrDefaultAsync(x => x.Id == videoSessionId, ct);
+                var sessionResult = await LoadSessionAsync(videoSessionId, ct,
+                    q => q.Include(x => x.Appointment),
+                    q => q.Include(x => x.CurrentRecording),
+                    q => q.Include(x => x.Recordings));
 
-                if (session is null)
-                {
-                    return Error.NotFound(
-                        "VideoSession.NotFound",
-                        "Video session was not found.");
-                }
+                if (sessionResult.IsError) return sessionResult.Errors;
+                var session = sessionResult.Value;
 
-                var specialist = await _context.Specialists
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(s => s.UserId == _currentUser.Id, ct);
-
-                var isAssignedSpecialist = specialist is not null
-                    && session.Appointment!.SpecialistId == specialist.Id;
-
-                if (!isAssignedSpecialist)
-                {
-                    return Error.Forbidden(
-                        "VideoSession.AccessDenied",
-                        "Only the assigned specialist can stop recording.");
-                }
+                var specialistCheck = await ValidateAssignedSpecialistAsync(session, ct, "stop recording");
+                if (specialistCheck.IsError) return specialistCheck.Errors;
 
                 if (!session.IsRecording)
                 {
@@ -599,42 +551,25 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             Guid videoSessionId,
             CancellationToken ct = default)
         {
-            if (!_currentUser.IsAuthenticated || _currentUser.Id is null)
-            {
-                return Error.Unauthorized(
-                    "User.Unauthorized",
-                    "User is not authenticated.");
-            }
+            var auth = EnsureAuthenticated();
+            if (auth.IsError) return auth.Errors;
 
-            var session = await _context.VideoSessions
-                .AsNoTracking()
-                .Include(x => x.Appointment)
-                .Include(x => x.CurrentRecording)
-                .FirstOrDefaultAsync(x => x.Id == videoSessionId, ct);
+            var sessionResult = await LoadSessionReadOnlyAsync(videoSessionId, ct,
+                q => q.Include(x => x.Appointment),
+                q => q.Include(x => x.CurrentRecording));
 
-            if (session is null)
-            {
-                return Error.NotFound(
-                    "VideoSession.NotFound",
-                    "Video session was not found.");
-            }
+            if (sessionResult.IsError) return sessionResult.Errors;
 
+            var membership = await ValidateAppointmentMembershipAsync(sessionResult.Value.Appointment!, ct);
+            if (membership.IsError) return membership.Errors;
+
+            var session = sessionResult.Value;
             var appointment = session.Appointment!;
-            var isClient = appointment.UserId == _currentUser.Id;
 
-            var specialist = await _context.Specialists
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.UserId == _currentUser.Id, ct);
+            var specialist = await GetCurrentSpecialistAsync(ct);
 
             var isSpecialist = specialist is not null
                 && appointment.SpecialistId == specialist.Id;
-
-            if (!isClient && !isSpecialist)
-            {
-                return Error.Forbidden(
-                    "VideoSession.AccessDenied",
-                    "You are not authorized to view recording info.");
-            }
 
             var dto = _mapper.Map<RecordingInfoDto>(session.CurrentRecording)
                 ?? new RecordingInfoDto();
@@ -647,7 +582,7 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             dto.Url ??= session.RecordingUrl;
 
             dto.CanStartRecording = isSpecialist
-                && session.Status == Domain.Enums.VideoSessionStatus.Active
+                && session.Status == VideoSessionStatus.Active
                 && session.RecordingStatus is null;
 
             dto.CanStopRecording = isSpecialist

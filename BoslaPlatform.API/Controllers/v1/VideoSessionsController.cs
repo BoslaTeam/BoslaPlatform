@@ -129,16 +129,86 @@ namespace BoslaPlatform.API.Controllers.v1
 
                 errors => errors.ToProblem());
         }
-    //    [HttpPost("{id:guid}/join")]
-    //    public async Task<IActionResult> Join(
-    //Guid id,
-    //CancellationToken ct)
-    //    {
-    //        var result = await _videoSessionService
-    //            .JoinAsync(id, ct);
+        [HttpPost("{id:guid}/join")]
+        [ProducesResponseType(typeof(ApiResponse<JoinVideoSessionResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [EndpointName("JoinVideoSession")]
+        [EndpointSummary("Joins a video session.")]
+        [EndpointDescription("Allows an authorized participant to join the video session. Validates time window and session state.")]
+        [Tags("Communication")]
+        public async Task<IResult> Join(
+            Guid id,
+            CancellationToken ct)
+        {
+            var result = await _videoSessionService
+                .JoinAsync(id, ct);
 
-    //        return result.ToApiResponse();
-    //    }
+            return result.Match(
+                value =>
+                {
+                    var response = ApiResponse<JoinVideoSessionResponse>
+                        .SuccessResponse(value, "Joined video session successfully.");
+                    return Results.Ok(response);
+                },
+                errors => errors.ToProblem());
+        }
+
+        [HttpPost("{id:guid}/leave")]
+        [ProducesResponseType(typeof(ApiResponse<LeaveVideoSessionResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [EndpointName("LeaveVideoSession")]
+        [EndpointSummary("Leaves a video session.")]
+        [EndpointDescription("Allows a participant to leave the session without ending it. The session remains active.")]
+        [Tags("Communication")]
+        public async Task<IResult> Leave(
+            Guid id,
+            CancellationToken ct)
+        {
+            var result = await _videoSessionService
+                .LeaveAsync(id, ct);
+
+            return result.Match(
+                value =>
+                {
+                    var response = ApiResponse<LeaveVideoSessionResponse>
+                        .SuccessResponse(value, "Left video session successfully.");
+                    return Results.Ok(response);
+                },
+                errors => errors.ToProblem());
+        }
+
+        [HttpPost("{id:guid}/finish-consultation")]
+        [ProducesResponseType(typeof(ApiResponse<FinishConsultationResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [EndpointName("FinishConsultation")]
+        [EndpointSummary("Finishes the consultation.")]
+        [EndpointDescription("Allows the assigned specialist to complete the consultation. Stops any active recording and marks the session as completed.")]
+        [Tags("Communication")]
+        public async Task<IResult> FinishConsultation(
+            Guid id,
+            CancellationToken ct)
+        {
+            var result = await _videoSessionService
+                .FinishConsultationAsync(id, ct);
+
+            return result.Match(
+                value =>
+                {
+                    var response = ApiResponse<FinishConsultationResponse>
+                        .SuccessResponse(value, "Consultation finished successfully.");
+                    return Results.Ok(response);
+                },
+                errors => errors.ToProblem());
+        }
 
         /// <summary>
         /// Starts a video session.
