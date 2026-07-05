@@ -2,7 +2,9 @@ using Asp.Versioning;
 using BoslaPlatform.API.Common.Extensions;
 using BoslaPlatform.API.Common.Responses;
 using BoslaPlatform.Application.Features.Notifications.DTOs;
+using BoslaPlatform.Application.Features.Notifications.Requests;
 using BoslaPlatform.Application.Features.Notifications.Services;
+using BoslaPlatform.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -19,10 +21,14 @@ namespace BoslaPlatform.API.Controllers.v1
     public class NotificationsController : ControllerBase
     {
         private readonly INotificationService _notificationService;
+        private readonly INotificationPreferenceService _preferenceService;
 
-        public NotificationsController(INotificationService notificationService)
+        public NotificationsController(
+            INotificationService notificationService,
+            INotificationPreferenceService preferenceService)
         {
             _notificationService = notificationService;
+            _preferenceService = preferenceService;
         }
 
         [HttpGet]
@@ -71,6 +77,33 @@ namespace BoslaPlatform.API.Controllers.v1
             var result = await _notificationService.MarkAllReadAsync(ct);
             return result.Match(
                 value => Results.Ok(ApiResponse<bool>.SuccessResponse(value, "All notifications marked as read.")),
+                errors => errors.ToProblem());
+        }
+
+        [HttpGet("preferences")]
+        [ProducesResponseType(typeof(ApiResponse<List<NotificationPreferenceDto>>), StatusCodes.Status200OK)]
+        public async Task<IResult> GetPreferences(CancellationToken ct)
+        {
+            var result = await _preferenceService.GetMyAsync(ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<List<NotificationPreferenceDto>>.SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
+        [HttpPut("preferences/{type}")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IResult> UpdatePreference(
+            string type,
+            [FromBody] UpdateNotificationPreferenceRequest request,
+            CancellationToken ct)
+        {
+            if (!Enum.TryParse<NotificationType>(type, out var notificationType))
+                return Results.BadRequest(ApiResponse<bool>.FailureResponse(
+                    new List<BoslaPlatform.Shared.Error> { BoslaPlatform.Shared.Error.Create(BoslaPlatform.Shared.ErrorKind.Validation, "NotificationType", $"Invalid notification type: {type}") }));
+
+            var result = await _preferenceService.UpdateAsync(notificationType, request.Enabled, ct);
+            return result.Match(
+                value => Results.Ok(ApiResponse<bool>.SuccessResponse(value, "Preference updated.")),
                 errors => errors.ToProblem());
         }
     }

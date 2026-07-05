@@ -81,6 +81,59 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.ToTable("Withdrawals");
                 });
 
+            modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.FavoriteSpecialist", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("SpecialistId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SpecialistId");
+
+                    b.HasIndex("UserId", "SpecialistId")
+                        .IsUnique();
+
+                    b.ToTable("FavoriteSpecialists");
+                });
+
+            modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.PortfolioItemImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid>("PortfolioItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PortfolioItemId");
+
+                    b.ToTable("PortfolioItemImages");
+                });
+
             modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.Specialist", b =>
                 {
                     b.Property<Guid>("Id")
@@ -207,6 +260,71 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.HasIndex("SpecialistId");
 
                     b.ToTable("SpecialistDocuments");
+                });
+
+            modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.SpecialistPortfolioItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<string>("AdminNotes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("CoverImageUrl")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid?>("LastModifiedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("LastModifiedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<Guid>("SpecialistId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Pending");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("WorkUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SpecialistId", "SortOrder");
+
+                    b.HasIndex("SpecialistId", "Status");
+
+                    b.ToTable("SpecialistPortfolioItems");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.SpecialistVerification", b =>
@@ -447,6 +565,9 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.Property<string>("CancellationReason")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTimeOffset?>("ConfirmedAt")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
@@ -927,6 +1048,34 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.HasIndex("UserId", "IsRead");
 
                     b.ToTable("Notifications");
+                });
+
+            modelBuilder.Entity("BoslaPlatform.Domain.Models.Communication.UserNotificationPreference", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<bool>("Enabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Type")
+                        .IsUnique();
+
+                    b.ToTable("UserNotificationPreferences");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Models.Identity.RefreshToken", b =>
@@ -1818,6 +1967,36 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.Navigation("Specialist");
                 });
 
+            modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.FavoriteSpecialist", b =>
+                {
+                    b.HasOne("BoslaPlatform.Domain.Entities.Profile.Specialist", "Specialist")
+                        .WithMany()
+                        .HasForeignKey("SpecialistId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BoslaPlatform.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Specialist");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.PortfolioItemImage", b =>
+                {
+                    b.HasOne("BoslaPlatform.Domain.Entities.Profile.SpecialistPortfolioItem", "PortfolioItem")
+                        .WithMany("Images")
+                        .HasForeignKey("PortfolioItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PortfolioItem");
+                });
+
             modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.Specialist", b =>
                 {
                     b.HasOne("BoslaPlatform.Domain.Entities.User", "User")
@@ -1833,6 +2012,17 @@ namespace BoslaPlatform.Infrastructure.Migrations
                 {
                     b.HasOne("BoslaPlatform.Domain.Entities.Profile.Specialist", "Specialist")
                         .WithMany("Documents")
+                        .HasForeignKey("SpecialistId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Specialist");
+                });
+
+            modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.SpecialistPortfolioItem", b =>
+                {
+                    b.HasOne("BoslaPlatform.Domain.Entities.Profile.Specialist", "Specialist")
+                        .WithMany("PortfolioItems")
                         .HasForeignKey("SpecialistId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -2025,6 +2215,17 @@ namespace BoslaPlatform.Infrastructure.Migrations
                 {
                     b.HasOne("BoslaPlatform.Domain.Entities.User", "User")
                         .WithMany("Notifications")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BoslaPlatform.Domain.Models.Communication.UserNotificationPreference", b =>
+                {
+                    b.HasOne("BoslaPlatform.Domain.Entities.User", "User")
+                        .WithMany("NotificationPreferences")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -2359,6 +2560,8 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.Navigation("Experiences");
 
+                    b.Navigation("PortfolioItems");
+
                     b.Navigation("Reviews");
 
                     b.Navigation("SpecialistExpertise");
@@ -2372,6 +2575,11 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.Navigation("Verification");
                 });
 
+            modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.SpecialistPortfolioItem", b =>
+                {
+                    b.Navigation("Images");
+                });
+
             modelBuilder.Entity("BoslaPlatform.Domain.Entities.User", b =>
                 {
                     b.Navigation("Appointments");
@@ -2379,6 +2587,8 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.Navigation("ConversationParticipants");
 
                     b.Navigation("Educations");
+
+                    b.Navigation("NotificationPreferences");
 
                     b.Navigation("Notifications");
 

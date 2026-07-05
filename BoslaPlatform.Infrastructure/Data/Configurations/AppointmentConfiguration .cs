@@ -14,6 +14,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
             builder.Property(a => a.SessionTopic).HasMaxLength(500);
             builder.Property(a => a.Notes).HasMaxLength(2000);
             builder.Property(a => a.CancellationReason).HasMaxLength(1000);
+            builder.Property(a => a.ConfirmedAt).HasColumnName("ConfirmedAt");
 
             builder.HasOne(a => a.Specialist).WithMany(s => s.Appointments).HasForeignKey(a => a.SpecialistId)
                 .OnDelete(DeleteBehavior.Restrict);

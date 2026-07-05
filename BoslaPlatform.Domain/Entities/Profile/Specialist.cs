@@ -40,6 +40,7 @@ namespace BoslaPlatform.Domain.Entities.Profile
         public ICollection<SpecialistSkill> SpecialistSkills { get; set; } = [];
         public ICollection<SpecialistTool> SpecialistTools { get; set; } = [];
         public ICollection<SpecialistDocument> Documents { get; set; } = [];
+        public ICollection<SpecialistPortfolioItem> PortfolioItems { get; set; } = [];
         public SpecialistEmbedding? Embedding { get; set; }
         public SpecialistVerification? Verification { get; set; }
         public User User { get; set; } = null!;

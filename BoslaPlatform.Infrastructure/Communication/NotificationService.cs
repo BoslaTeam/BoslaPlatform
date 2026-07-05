@@ -22,15 +22,18 @@ namespace BoslaPlatform.Infrastructure.Communication
         private readonly IAppDbContext _context;
         private readonly IUser _currentUser;
         private readonly INotificationSender _notificationSender;
+        private readonly INotificationPreferenceService _preferenceService;
 
         public NotificationService(
             IAppDbContext context,
             IUser currentUser, 
-            INotificationSender notificationSender)
+            INotificationSender notificationSender,
+            INotificationPreferenceService preferenceService)
         {
             _context = context;
             _currentUser = currentUser;
             _notificationSender = notificationSender;
+            _preferenceService = preferenceService;
         }
 
         private Result<Guid> GetUserId()
@@ -124,6 +127,12 @@ namespace BoslaPlatform.Infrastructure.Communication
                     "Notification.InvalidUser",
                     "User id is invalid.");
             }
+
+            var prefResult = await _preferenceService.GetMyByUserAsync(userId, type, ct);
+            if (prefResult.IsError)
+                return prefResult.Errors;
+            if (!prefResult.Value)
+                return Result<bool>.Success(true);
             int? appointmentStatus = null;
             if (appointmentId.HasValue)
             {
