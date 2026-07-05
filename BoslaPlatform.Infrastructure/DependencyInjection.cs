@@ -119,7 +119,11 @@ public static class DependencyInjection
         services.AddScoped<IAdminService, AdminService>();
 
         services.AddScoped<IAppointmentService, AppointmentService>();
+        services.AddHostedService<AutoCancelUnpaidAppointmentsService>();
         services.AddScoped<INotificationSender, SignalRNotificationSender>();
+
+        // TODO: Uncomment once tested
+        // services.AddHostedService<ReminderBackgroundService>();
         services.AddScoped<IEmailService, EmailService>();
         // SignalR: use camelCase JSON so Angular handlers receive the expected
         // property names (userId, isOnline, lastSeen) instead of PascalCase.
