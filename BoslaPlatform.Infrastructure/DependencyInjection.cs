@@ -6,6 +6,7 @@ using BoslaPlatform.Application.Common.Interfaces;
 using BoslaPlatform.Application.Features.Admin.Services;
 using BoslaPlatform.Application.Features.Appointments.Services;
 using BoslaPlatform.Application.Features.Notifications.Services;
+using BoslaPlatform.Application.Features.Portfolio.Services;
 using BoslaPlatform.Application.Interfaces.AI;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Communication;
@@ -17,6 +18,7 @@ using BoslaPlatform.Application.Interfaces.Video;
 using BoslaPlatform.Application.Features.Specialists.Services;
 using BoslaPlatform.Application.Features.VideoSessions.Interfaces;
 using BoslaPlatform.Application.Features.VideoSessions.Services;
+using BoslaPlatform.Application.Features.Favorites.Services;
 using BoslaPlatform.Application.Features.Withdrawals.Services;
 using BoslaPlatform.Application.Services;
 using BoslaPlatform.Application.Settings;
@@ -30,6 +32,7 @@ using BoslaPlatform.Infrastructure.BackgroundJobs;
 //using BoslaPlatform.Infrastructure.AI.OpenAi;
 using BoslaPlatform.Infrastructure.Communication;
 using BoslaPlatform.Infrastructure.Data;
+using BoslaPlatform.Infrastructure.Favorites;
 using BoslaPlatform.Infrastructure.Data.Interceptors;
 using BoslaPlatform.Infrastructure.Identity;
 using BoslaPlatform.Infrastructure.Realtime;
@@ -70,6 +73,7 @@ public static class DependencyInjection
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<INotificationPreferenceService, NotificationPreferenceService>();
             services.AddScoped<IChatNotifier, SignalRChatNotifier>();
             services.AddScoped<IVideoNotifier, SignalRVideoNotifier>();
             services.AddScoped<IRecordingProvider, AgoraRecordingProvider>();
@@ -237,6 +241,12 @@ public static class DependencyInjection
 
         // Withdrawals / Payouts
         services.AddScoped<BoslaPlatform.Application.Interfaces.IWithdrawalService, BoslaPlatform.Application.Features.Withdrawals.Services.WithdrawalService>();
+
+        // Favorites
+        services.AddScoped<IFavoriteService, FavoriteService>();
+
+        // Portfolio
+        services.AddScoped<IPortfolioService, BoslaPlatform.Infrastructure.Portfolio.PortfolioService>();
 
             services.AddAuthorization();
 

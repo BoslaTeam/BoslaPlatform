@@ -4,16 +4,19 @@ using BoslaPlatform.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace BoslaPlatform.Infrastructure.Migrations
+namespace BoslaPlatform.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260705034354_PortfolioImagesAndWorkUrl")]
+    partial class PortfolioImagesAndWorkUrl
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -79,32 +82,6 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("Withdrawals");
-                });
-
-            modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.FavoriteSpecialist", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasDefaultValueSql("NEWSEQUENTIALID()");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid>("SpecialistId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SpecialistId");
-
-                    b.HasIndex("UserId", "SpecialistId")
-                        .IsUnique();
-
-                    b.ToTable("FavoriteSpecialists");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.PortfolioItemImage", b =>
@@ -1962,25 +1939,6 @@ namespace BoslaPlatform.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Specialist");
-                });
-
-            modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.FavoriteSpecialist", b =>
-                {
-                    b.HasOne("BoslaPlatform.Domain.Entities.Profile.Specialist", "Specialist")
-                        .WithMany()
-                        .HasForeignKey("SpecialistId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("BoslaPlatform.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Specialist");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("BoslaPlatform.Domain.Entities.Profile.PortfolioItemImage", b =>

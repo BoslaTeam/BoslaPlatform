@@ -37,6 +37,7 @@ namespace BoslaPlatform.Infrastructure.Data
         public DbSet<ConversationParticipant> ConversationParticipants => Set<ConversationParticipant>();
         public DbSet<Message> Messages => Set<Message>();
         public DbSet<Notification> Notifications => Set<Notification>();
+        public DbSet<UserNotificationPreference> UserNotificationPreferences => Set<UserNotificationPreference>();
 
         // Video
         public DbSet<VideoSession> VideoSessions => Set<VideoSession>();
@@ -47,8 +48,11 @@ namespace BoslaPlatform.Infrastructure.Data
         public DbSet<SpecialistExperience> SpecialistExperiences => Set<SpecialistExperience>();
         public DbSet<SpecialistVerification> SpecialistVerifications => Set<SpecialistVerification>();
         public DbSet<SpecialistDocument> SpecialistDocuments => Set<SpecialistDocument>();
+        public DbSet<SpecialistPortfolioItem> SpecialistPortfolioItems => Set<SpecialistPortfolioItem>();
+        public DbSet<PortfolioItemImage> PortfolioItemImages => Set<PortfolioItemImage>();
         public DbSet<Education> Educations => Set<Education>();
         public DbSet<SocialLink> SocialLinks => Set<SocialLink>();
+        public DbSet<FavoriteSpecialist> FavoriteSpecialists => Set<FavoriteSpecialist>();
 
         // Lookup
         public DbSet<Expertise> Expertises => Set<Expertise>();
