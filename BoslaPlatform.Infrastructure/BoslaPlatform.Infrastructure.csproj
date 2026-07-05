@@ -6,7 +6,28 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Remove="Services\Specialist\**" />
+    <EmbeddedResource Remove="Services\Specialist\**" />
+    <None Remove="Services\Specialist\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
 	<ItemGroup>
+		<PackageReference Include="Google.Apis.Auth" Version="1.75.0" />
+		<PackageReference Include="Microsoft.SemanticKernel.Connectors.Google" Version="1.77.0-alpha" />
+		<PackageReference Include="Microsoft.SemanticKernel.Connectors.Qdrant" Version="1.74.0-preview" />
+		<PackageReference Include="Microsoft.SemanticKernel.Core" Version="1.77.0" />
+		<PackageReference Include="Qdrant.Client" Version="1.18.1" />
+		<PackageReference Include="Stripe.net" Version="52.0.0" />
+		<PackageReference Include="Dapper" Version="2.1.79" />
+		<PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.1" />
+		<PackageReference Include="AgoraIO.Token" Version="1.0.0" />
+		<PackageReference Include="MailKit" Version="4.17.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.8" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
 		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.8" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
@@ -18,11 +39,27 @@
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
+		<PackageReference Include="SharpZipLib" Version="1.4.2" />
+		<PackageReference Include="Microsoft.Extensions.Http.Polly" Version="10.0.8" />
 	</ItemGroup>
 
-	<ItemGroup>
-    <ProjectReference Include="..\BoslaPlatform.Domain\BoslaPlatform.Domain.csproj" />
-    <ProjectReference Include="..\BoslaPlatform.Service\BoslaPlatform.Application.csproj" />
+  <ItemGroup>
+	<PackageReference Include="Microsoft.SemanticKernel" Version="1.77.0" />
   </ItemGroup>
+
+	<ItemGroup>
+	<ProjectReference Include="..\BoslaPlatform.Domain\BoslaPlatform.Domain.csproj" />
+	<ProjectReference Include="..\BoslaPlatform.Service\BoslaPlatform.Application.csproj" />
+  </ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Ai\OpenAi\" />
+	  <Folder Include="BackgroundJobs\" />
+	  <Folder Include="AI\" />
+	  <Folder Include="Realtime\" />
+	  <Folder Include="Observability\" />
+	  <Folder Include="Services\Specialist\" />
+	  <Folder Include="Services\Video\" />
+	</ItemGroup>
 
 </Project>

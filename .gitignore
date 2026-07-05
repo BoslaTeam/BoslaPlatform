@@ -361,3 +361,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/.github/copilot-instructions.md
+/docs/AI_README.md
+/scripts/setup-user-secrets.ps1
+/BoslaPlatform.API/wwwroot/images/profiles
+/BoslaPlatform.API/wwwroot/uploads

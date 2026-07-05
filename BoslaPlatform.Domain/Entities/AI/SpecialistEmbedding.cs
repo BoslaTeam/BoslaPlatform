@@ -1,10 +1,5 @@
 ﻿using BoslaPlatform.Domain.Common;
-using BoslaPlatform.Domain.Models.Profile;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using BoslaPlatform.Domain.Entities.Profile;
 
 namespace BoslaPlatform.Domain.Models
 {
@@ -13,9 +8,10 @@ namespace BoslaPlatform.Domain.Models
         public Guid SpecialistId { get; set; }
         public string EmbeddingVector { get; set; } = string.Empty;
         public string EmbeddingModel { get; set; } = string.Empty;
-        public string ContentHash { get; set; } = string.Empty;
+    public string ContentHash { get; set; } = string.Empty;
+    public DateTimeOffset? LastEmbeddedAt { get; set; }
 
-        // Navigation
-        public Specialist Specialist { get; set; } = null!;
+    // Navigation
+    public Specialist Specialist { get; set; } = null!;
     }
 }

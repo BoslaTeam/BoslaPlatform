@@ -1,0 +1,19 @@
+using BoslaPlatform.Application.Features.Notifications.DTOs;
+using BoslaPlatform.Shared;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace BoslaPlatform.Application.Features.Notifications.Services
+{
+    public interface INotificationService
+    {
+        Task<Result<List<NotificationDto>>> GetMyAsync(CancellationToken ct = default);
+        Task<Result<bool>> MarkReadAsync(Guid id, CancellationToken ct = default);
+        Task<Result<bool>> MarkAllReadAsync(CancellationToken ct = default);
+        Task<Result<bool>> CreateAndSendNotificationAsync(Guid userId, string title, string message, BoslaPlatform.Domain.Enums.NotificationType type, CancellationToken ct = default, Guid? appointmentId = null);
+        Task<Result<int>> GetUnreadCountAsync(CancellationToken ct = default);
+        Task<Result<bool>> DeleteAsync(Guid id, CancellationToken ct = default);
+    }
+}

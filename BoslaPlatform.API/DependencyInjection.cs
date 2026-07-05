@@ -1,7 +1,8 @@
-﻿using Asp.Versioning;
-using BoslaPlatform.API.Middleware;
-using BoslaPlatform.API.Services;
-using BoslaPlatform.Application.Interfaces;
+using Asp.Versioning;
+using BoslaPlatform.API.Common.Exceptions;
+using BoslaPlatform.API.Common.Middleware;
+using BoslaPlatform.Application.Interfaces.Authentication;
+using BoslaPlatform.Infrastructure.Identity;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -9,12 +10,24 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddPresentation(this IServiceCollection services)
     {
+        services.AddCors(options =>
+        {
+            options.AddPolicy("AllowAll", builder =>
+                builder.SetIsOriginAllowed(_ => true)
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowCredentials());
+        });
+
         // Register presentation services here
         services.AddIdentityInfrastructure()
             .AddCustomProblemDetails()
+            .AddExceptionHandling()
             .AddEndpointsApiExplorer()
-            .AddSwaggerGen()
             .AddCustomApiVersioning();
+
+        // Ensure application services (including AutoMapper) are available
+        services.AddApplication();
         return services;
     }
 
@@ -61,8 +74,22 @@ public static class DependencyInjection
 
         app.UseStatusCodePages();
 
+        app.UseCors("AllowAll");
+
         app.UseHttpsRedirection();
 
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            OnPrepareResponse = ctx =>
+            {
+                // Prevent caching for profile images so updates show immediately
+                ctx.Context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+                ctx.Context.Response.Headers.Append("Pragma", "no-cache");
+                ctx.Context.Response.Headers.Append("Expires", "0");
+                ctx.Context.Response.Headers.Append("Access-Control-Allow-Origin", "*");
+            }
+        });
+        app.UseRouting();
         app.UseAuthentication();
 
         app.UseAuthorization();

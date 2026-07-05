@@ -1,11 +1,4 @@
 using BoslaPlatform.Domain.Entities;
-using BoslaPlatform.Domain.Models.Booking;
-using BoslaPlatform.Domain.Models.Communication;
-using BoslaPlatform.Domain.Models.Conversations;
-using BoslaPlatform.Domain.Models.Identity;
-using BoslaPlatform.Domain.Models.Junctions;
-using BoslaPlatform.Domain.Models.Profile;
-using BoslaPlatform.Domain.Models.Video;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -88,6 +81,12 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
             builder.HasMany(u => u.UserIndustries)
                 .WithOne(ui => ui.User)
                 .HasForeignKey(ui => ui.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // One-to-Many relationship with NotificationPreferences
+            builder.HasMany(u => u.NotificationPreferences)
+                .WithOne(p => p.User)
+                .HasForeignKey(p => p.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         }
     }

@@ -1,8 +1,9 @@
 ﻿using BoslaPlatform.Domain.Common;
+using BoslaPlatform.Domain.Entities.Profile;
 
 namespace BoslaPlatform.Domain.Models.Profile
 {
-    public class SpecialistExperience:AuditableEntity
+    public class SpecialistExperience : AuditableEntity
     {
         public Guid SpecialistId { get; set; }
         public string JobTitle { get; set; } = string.Empty;

@@ -1,9 +1,10 @@
-﻿using BoslaPlatform.Application.Interfaces;
+﻿using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Domain.Entities.Payouts;
+using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Models;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Communication;
-using BoslaPlatform.Domain.Models.Conversations;
 using BoslaPlatform.Domain.Models.Identity;
 using BoslaPlatform.Domain.Models.Junctions;
 using BoslaPlatform.Domain.Models.Lookup;
@@ -12,6 +13,7 @@ using BoslaPlatform.Domain.Models.Video;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace BoslaPlatform.Infrastructure.Data
 {
@@ -19,7 +21,7 @@ namespace BoslaPlatform.Infrastructure.Data
     {
         // Identity
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
-        public DbSet<User> Users => Set<User>();
+        public new DbSet<User> Users => Set<User>();
 
         // Booking
         public DbSet<Appointment> Appointments => Set<Appointment>();
@@ -35,6 +37,7 @@ namespace BoslaPlatform.Infrastructure.Data
         public DbSet<ConversationParticipant> ConversationParticipants => Set<ConversationParticipant>();
         public DbSet<Message> Messages => Set<Message>();
         public DbSet<Notification> Notifications => Set<Notification>();
+        public DbSet<UserNotificationPreference> UserNotificationPreferences => Set<UserNotificationPreference>();
 
         // Video
         public DbSet<VideoSession> VideoSessions => Set<VideoSession>();
@@ -43,8 +46,13 @@ namespace BoslaPlatform.Infrastructure.Data
         // Profile
         public DbSet<Specialist> Specialists => Set<Specialist>();
         public DbSet<SpecialistExperience> SpecialistExperiences => Set<SpecialistExperience>();
+        public DbSet<SpecialistVerification> SpecialistVerifications => Set<SpecialistVerification>();
+        public DbSet<SpecialistDocument> SpecialistDocuments => Set<SpecialistDocument>();
+        public DbSet<SpecialistPortfolioItem> SpecialistPortfolioItems => Set<SpecialistPortfolioItem>();
+        public DbSet<PortfolioItemImage> PortfolioItemImages => Set<PortfolioItemImage>();
         public DbSet<Education> Educations => Set<Education>();
         public DbSet<SocialLink> SocialLinks => Set<SocialLink>();
+        public DbSet<FavoriteSpecialist> FavoriteSpecialists => Set<FavoriteSpecialist>();
 
         // Lookup
         public DbSet<Expertise> Expertises => Set<Expertise>();
@@ -60,6 +68,9 @@ namespace BoslaPlatform.Infrastructure.Data
         public DbSet<UserExpertise> UserExpertise => Set<UserExpertise>();
         public DbSet<UserIndustry> UserIndustries => Set<UserIndustry>();
 
+        // Payouts
+        public DbSet<Withdrawal> Withdrawals => Set<Withdrawal>();
+
         // AI
         public DbSet<SessionTranscript> SessionTranscripts => Set<SessionTranscript>();
         public DbSet<SessionSummary> SessionSummaries => Set<SessionSummary>();
@@ -68,9 +79,11 @@ namespace BoslaPlatform.Infrastructure.Data
 
         // System
         public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
-        {
+        private readonly IServiceProvider? _serviceProvider;
 
+        public AppDbContext(DbContextOptions<AppDbContext> options, IServiceProvider? serviceProvider = null) : base(options)
+        {
+            _serviceProvider = serviceProvider;
         }
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -80,6 +93,14 @@ namespace BoslaPlatform.Infrastructure.Data
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        }
+
+        public IServiceProvider? GetInfrastructureServiceProvider() => _serviceProvider;
+
+        public Task<IDbContextTransaction> BeginTransactionAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return Database.BeginTransactionAsync(cancellationToken);
         }
     }
 

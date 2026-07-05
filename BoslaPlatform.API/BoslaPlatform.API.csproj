@@ -1,9 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>f7cfea98-a6c9-494a-b154-06b1823c5225</UserSecretsId>
   </PropertyGroup>
 
 	<ItemGroup>
@@ -14,7 +15,7 @@
 		<PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
 		<PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
 		<PackageReference Include="Serilog.Sinks.Seq" Version="9.1.0" />
-		<PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.7" />
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.1" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -25,6 +26,19 @@
     <ProjectReference Include="..\BoslaPlatform.Infrastructure\BoslaPlatform.Infrastructure.csproj" />
     <ProjectReference Include="..\BoslaPlatform.Service\BoslaPlatform.Application.csproj" />
     <ProjectReference Include="..\BoslaPlatform.Shared\BoslaPlatform.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Common\Filters\" />
+    <Folder Include="Services\" />
+    <Folder Include="wwwroot\images\" />
+    <Folder Include="wwwroot\uploads\specialists\" />
+  </ItemGroup>
+
+  <!-- Exclude user-uploaded images from static web assets tracking -->
+  <ItemGroup>
+    <Content Remove="wwwroot\images\**" />
+    <None Include="wwwroot\images\**" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
