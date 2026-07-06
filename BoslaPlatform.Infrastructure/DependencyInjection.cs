@@ -252,6 +252,9 @@ public static class DependencyInjection
         // Withdrawals / Payouts
         services.AddScoped<BoslaPlatform.Application.Interfaces.IWithdrawalService, BoslaPlatform.Application.Features.Withdrawals.Services.WithdrawalService>();
 
+        // Wallet
+        services.AddScoped<BoslaPlatform.Application.Interfaces.Wallets.IWalletService, BoslaPlatform.Application.Features.Wallets.Services.WalletService>();
+
         // Favorites
         services.AddScoped<IFavoriteService, FavoriteService>();
 

@@ -10,7 +10,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
         {
             base.Configure(builder);
             builder.Property(p => p.Amount).HasPrecision(10, 2).IsRequired();
-            builder.Property(p => p.Currency).HasMaxLength(10).HasDefaultValue("USD");
+            builder.Property(p => p.Currency).HasMaxLength(10).HasDefaultValue("EGP");
             builder.Property(p => p.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
             builder.Property(p => p.PaymentMethod).HasMaxLength(50).IsRequired();
             builder.Property(p => p.ExternalPaymentId).HasMaxLength(200);

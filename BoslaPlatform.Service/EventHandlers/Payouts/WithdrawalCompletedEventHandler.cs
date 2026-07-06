@@ -26,7 +26,7 @@ public sealed class WithdrawalCompletedEventHandler(
             specialist.UserId,
             "تم اكتمال السحب",
             $"تم اكتمال عملية السحب بمبلغ {notification.Amount:C}. تم تحويل المبلغ إلى حسابك البنكي.",
-            NotificationType.Withdrawal,
+            NotificationType.WithdrawalCompleted,
             ct);
 
         if (!string.IsNullOrEmpty(specialist.User.Email))

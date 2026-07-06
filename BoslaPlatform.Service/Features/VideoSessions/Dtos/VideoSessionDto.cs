@@ -48,5 +48,10 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Dtos
         /// Recording state information for the current session.
         /// </summary>
         public RecordingInfoDto? Recording { get; set; }
+
+        /// <summary>
+        /// The UTC timestamp when the appointment ends.
+        /// </summary>
+        public DateTime? AppointmentEndTime { get; set; }
     }
 }

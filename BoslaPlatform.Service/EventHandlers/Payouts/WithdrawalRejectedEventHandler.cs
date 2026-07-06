@@ -30,7 +30,7 @@ public sealed class WithdrawalRejectedEventHandler(
             specialist.UserId,
             "تم رفض طلب السحب",
             $"تم رفض طلب السحب الخاص بك. {reason}",
-            NotificationType.Withdrawal,
+            NotificationType.WithdrawalRejected,
             ct);
 
         if (!string.IsNullOrEmpty(specialist.User.Email))
