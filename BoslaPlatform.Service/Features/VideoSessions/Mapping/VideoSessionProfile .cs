@@ -39,7 +39,10 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Mapping
                     o => o.MapFrom(s => s.Participants))
                 .ForMember(
                     d => d.Recording,
-                    o => o.MapFrom(s => BuildRecordingInfo(s)));
+                    o => o.MapFrom(s => BuildRecordingInfo(s)))
+                .ForMember(
+                    d => d.AppointmentEndTime,
+                    o => o.MapFrom(s => s.Appointment != null ? s.Appointment.End.UtcDateTime : (DateTime?)null));
         }
 
         private static RecordingInfoDto? BuildRecordingInfo(VideoSession session)

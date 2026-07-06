@@ -12,6 +12,21 @@ namespace BoslaPlatform.Application.Features.Withdrawals.Services;
 public class WithdrawalService(
     IAppDbContext context) : IWithdrawalService
 {
+    private async Task<SpecialistWallet> GetOrCreateWalletAsync(Guid specialistId)
+    {
+        var wallet = await context.Set<SpecialistWallet>()
+            .FirstOrDefaultAsync(w => w.SpecialistId == specialistId);
+
+        if (wallet is null)
+        {
+            wallet = new SpecialistWallet(specialistId);
+            context.Set<SpecialistWallet>().Add(wallet);
+            await context.SaveChangesAsync();
+        }
+
+        return wallet;
+    }
+
     public async Task<Result<WalletDto>> GetWalletAsync(Guid specialistId)
     {
         if (context is not DbContext dbContext)
@@ -22,15 +37,18 @@ public class WithdrawalService(
         const string sql = @"
             SELECT 
                 ISNULL(SUM(p.SpecialistAmount), 0) AS TotalEarnings,
-                ISNULL(SUM(CASE WHEN p.Status = 'Completed' THEN p.SpecialistAmount ELSE 0 END), 0) AS CompletedEarnings,
-                ISNULL(SUM(CASE WHEN p.Status IN ('Pending', 'Processing') THEN p.SpecialistAmount ELSE 0 END), 0) AS PendingEarnings
+                ISNULL(SUM(CASE WHEN p.Status = 'Completed' THEN p.SpecialistAmount ELSE 0 END), 0) AS CompletedEarnings
             FROM Payments p
             INNER JOIN Appointments a ON p.AppointmentId = a.Id
             WHERE a.SpecialistId = @Id;
 
             SELECT ISNULL(SUM(w.Amount), 0) AS TotalWithdrawn
             FROM Withdrawals w
-            WHERE w.SpecialistId = @Id AND w.Status IN ('Completed', 'Processing');
+            WHERE w.SpecialistId = @Id AND w.Status = 'Completed';
+
+            SELECT ISNULL(SUM(w.Amount), 0) AS PendingWithdrawalAmount
+            FROM Withdrawals w
+            WHERE w.SpecialistId = @Id AND w.Status IN ('Pending', 'Processing');
 
             SELECT TOP 5
                 w.Id, w.Amount, w.Status, w.PaymentMethod, w.PaymentDetails, w.CreatedAtUtc AS RequestedAt, w.ProcessedAt, w.AdminNotes
@@ -42,17 +60,18 @@ public class WithdrawalService(
 
         var summary = await multi.ReadSingleAsync<dynamic>();
         var totalWithdrawn = await multi.ReadSingleAsync<dynamic>();
+        var pendingWithdrawals = await multi.ReadSingleAsync<dynamic>();
         var recent = (await multi.ReadAsync<WithdrawalDto>()).ToList();
 
         var completedEarnings = (decimal)summary.CompletedEarnings;
-        var pendingEarnings = (decimal)summary.PendingEarnings;
         var withdrawn = (decimal)totalWithdrawn.TotalWithdrawn;
+        var pendingWithdrawalAmount = (decimal)pendingWithdrawals.PendingWithdrawalAmount;
 
         return new WalletDto
         {
             TotalEarnings = (decimal)summary.TotalEarnings,
-            AvailableBalance = completedEarnings - withdrawn,
-            PendingBalance = pendingEarnings,
+            AvailableBalance = completedEarnings - withdrawn - pendingWithdrawalAmount,
+            PendingBalance = pendingWithdrawalAmount,
             TotalWithdrawn = withdrawn,
             RecentWithdrawals = recent
         };
@@ -74,13 +93,17 @@ public class WithdrawalService(
         if (request.Amount <= 0)
             return Error.Validation("Amount.Invalid", "Amount must be greater than zero.");
 
-        var wallet = await GetWalletAsync(specialistId);
-        if (wallet.IsError)
+        var walletDto = await GetWalletAsync(specialistId);
+        if (walletDto.IsError)
             return Error.Unexpected("Wallet.Error", "Could not load wallet.");
 
-        if (request.Amount > wallet.Value.AvailableBalance)
+        if (request.Amount > walletDto.Value.AvailableBalance)
             return Error.Validation("Amount.Insufficient",
-                $"Insufficient balance. Available: {wallet.Value.AvailableBalance:C}");
+                $"Insufficient balance. Available: {walletDto.Value.AvailableBalance:C}");
+
+        var walletEntity = await GetOrCreateWalletAsync(specialistId);
+        if (!walletEntity.TryHold(request.Amount, $"سحب {request.Amount:C} — قيد الانتظار", "Withdrawal", null))
+            return Error.Validation("Amount.Insufficient", "Insufficient balance to hold for withdrawal.");
 
         var withdrawal = Withdrawal.Request(specialistId, request.Amount, request.PaymentMethod, request.PaymentDetails);
 
@@ -240,6 +263,10 @@ public class WithdrawalService(
                 $"Cannot reject withdrawal in status '{withdrawal.Status}'.");
 
         withdrawal.Reject(adminId, notes);
+
+        var wallet = await GetOrCreateWalletAsync(withdrawal.SpecialistId);
+        wallet.ReleaseHold(withdrawal.Amount, $"إلغاء السحب {withdrawal.Amount:C} — رد المبلغ", "Withdrawal", withdrawal.Id);
+
         await context.SaveChangesAsync();
         return Result.Success();
     }
@@ -257,6 +284,10 @@ public class WithdrawalService(
                 $"Cannot complete withdrawal in status '{withdrawal.Status}'.");
 
         withdrawal.Complete();
+
+        var wallet = await GetOrCreateWalletAsync(withdrawal.SpecialistId);
+        wallet.ReleaseHoldAndDebit(withdrawal.Amount, $"اكتمال السحب {withdrawal.Amount:C}", "Withdrawal", withdrawal.Id);
+
         await context.SaveChangesAsync();
         return Result.Success();
     }

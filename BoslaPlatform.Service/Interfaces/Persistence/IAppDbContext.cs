@@ -59,6 +59,10 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
         DbSet<SpecialistTool> SpecialistTools { get; }
         DbSet<Reminder> Reminders { get; }
         DbSet<Withdrawal> Withdrawals { get; }
+        DbSet<SpecialistWallet> SpecialistWallets { get; }
+        DbSet<PlatformWallet> PlatformWallets { get; }
+        DbSet<UserWallet> UserWallets { get; }
+        DbSet<WalletTransaction> WalletTransactions { get; }
 
         DbSet<TEntity> Set<TEntity>()
             where TEntity : class;

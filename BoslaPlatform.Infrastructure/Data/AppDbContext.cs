@@ -70,6 +70,10 @@ namespace BoslaPlatform.Infrastructure.Data
 
         // Payouts
         public DbSet<Withdrawal> Withdrawals => Set<Withdrawal>();
+        public DbSet<SpecialistWallet> SpecialistWallets => Set<SpecialistWallet>();
+        public DbSet<PlatformWallet> PlatformWallets => Set<PlatformWallet>();
+        public DbSet<UserWallet> UserWallets => Set<UserWallet>();
+        public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
 
         // AI
         public DbSet<SessionTranscript> SessionTranscripts => Set<SessionTranscript>();

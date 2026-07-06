@@ -49,7 +49,7 @@ namespace BoslaPlatform.Infrastructure.Favorites
                     UserImage = f.Specialist.User.ProfileImageUrl,
                     AvgRating = f.Specialist.Reviews.Select(r => (double)r.Rating).DefaultIfEmpty(0).Average(),
                     IsVerified = f.Specialist.Verification != null && f.Specialist.Verification.Status == VerificationStatus.Approved,
-                    ExperienceLevel = (int)f.Specialist.ExperienceLevel,
+                    ExperienceLevel = f.Specialist.ExperienceLevel,
                     HourlyRate = f.Specialist.HourlyRate
                 })
                 .ToListAsync(ct);
@@ -62,7 +62,7 @@ namespace BoslaPlatform.Infrastructure.Favorites
                 i.UserImage,
                 i.AvgRating,
                 i.IsVerified,
-                i.ExperienceLevel,
+                (int)i.ExperienceLevel,
                 i.HourlyRate,
                 i.CreatedAtUtc)).ToList();
 
