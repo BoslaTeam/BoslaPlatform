@@ -185,6 +185,9 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             if (session.Status == VideoSessionStatus.Completed)
                 return Error.Validation("VideoSession.Completed", "This video session has been completed and cannot be joined.");
 
+            if (appointment.Status != AppointmentStatus.Paid)
+                return Error.Validation("Appointment.NotPaid", "The appointment must be paid before joining the video session.");
+
             var timeValidation = appointment.CanJoinVideoSession(DateTimeOffset.UtcNow);
             if (timeValidation.IsError) return timeValidation.Errors;
 
@@ -273,6 +276,11 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
 
             var specialistCheck = await ValidateAssignedSpecialistAsync(sessionResult.Value, ct, "start this session");
             if (specialistCheck.IsError) return specialistCheck.Errors;
+
+            var appointment = sessionResult.Value.Appointment!;
+
+            if (appointment.Status != AppointmentStatus.Paid)
+                return Error.Validation("Appointment.NotPaid", "The appointment must be paid before starting the video session.");
 
             var result = sessionResult.Value.Start();
             if (result.IsError) return result.Errors;
