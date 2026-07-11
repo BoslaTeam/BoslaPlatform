@@ -66,8 +66,24 @@ public static class DependencyInjection
 
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationAssemblyReference).Assembly));
 
+            // ── Interceptor execution order (required) ──────────────────────
+            // SavingChanges (forward): Audit → Auditable → Outbox → DomainEvents
+            //   Audit:        records audit trails (before any entity mutation)
+            //   Auditable:    sets CreatedBy/LastModifiedBy
+            //   Outbox:       serialises events → OutboxMessages (inside txn)
+            //   DomainEvents: captures event snapshot for post-commit publish
+            //
+            // SavedChanges (reverse): DomainEvents → Outbox → Auditable → Audit
+            //   DomainEvents: publishes via MediatR → THEN clears from entities
+            //   Outbox:       nothing to do (messages already added in SavingChanges)
+            //
+            // WHY this order?
+            //   Outbox must run BEFORE commit so outbox records are in the same
+            //   transaction as domain data (atomicity). DomainEvents must run
+            //   AFTER commit so local handlers see a consistent committed state.
             services.AddScoped<ISaveChangesInterceptor, AuditLogInterceptor>();
             services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
+            services.AddScoped<ISaveChangesInterceptor, OutboxSaveChangesInterceptor>();
             services.AddScoped<ISaveChangesInterceptor, DomainEventsInterceptor>();
             services.AddScoped<ApplicationDbContextInitialiser>();
             services.AddScoped<IAuthService, AuthService>();

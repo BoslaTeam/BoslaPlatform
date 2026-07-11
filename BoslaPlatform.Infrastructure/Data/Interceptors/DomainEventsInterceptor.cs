@@ -6,14 +6,56 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace BoslaPlatform.Infrastructure.Data.Interceptors
 {
+    /// <summary>
+    /// An EF Core <see cref="SaveChangesInterceptor"/> that publishes local Domain Events
+    /// through MediatR <b>after</b> <see cref="DbContext.SaveChangesAsync()"/> has
+    /// successfully committed the transaction (in <c>SavedChanges</c>).
+    ///
+    /// This implements the <b>Local Domain Events</b> side of the
+    /// Hybrid Domain Event Architecture:
+    ///
+    /// ┌──────────────────────────────────────────────────────────────────────────┐
+    /// │  Hybrid Domain Event Architecture                                       │
+    /// ├──────────────────────────────────────────────────────────────────────────┤
+    /// │  BEFORE COMMIT  │  OutboxSaveChangesInterceptor                          │
+    /// │  (SavingChanges) │  → Serialises domain events → persists to Outbox      │
+    /// │                  │  → Does NOT touch DomainEvents collections            │
+    /// │                  │  → Same transaction as domain data                    │
+    /// ├──────────────────────────────────────────────────────────────────────────┤
+    /// │  AFTER COMMIT   │  DomainEventsInterceptor (this)                       │
+    /// │  (SavedChanges)  │  → Publishes each captured event via MediatR         │
+    /// │                  │  → THEN clears DomainEvents from aggregates           │
+    /// │                  │                                                       │
+    /// │                  │  Why after commit?                                    │
+    /// │                  │  - Handlers see a consistent, committed database      │
+    /// │                  │  - If a handler fails, the transaction is NOT rolled  │
+    /// │                  │    back (it already committed)                        │
+    /// │                  │  - This prevents partial commits from partial handler  │
+    /// │                  │    failures                                           │
+    /// │                  │  - Handlers MUST be idempotent                        │
+    /// └──────────────────────────────────────────────────────────────────────────┘
+    ///
+    /// <b>Event lifecycle:</b>
+    ///   1. Aggregate method raises event → AddDomainEvent()
+    ///   2. SaveChangesAsync → OutboxSaveChangesInterceptor serialises to Outbox
+    ///   3. SaveChangesAsync → DomainEventsInterceptor captures snapshot (SavingChanges)
+    ///   4. EF Core commits the transaction (OutboxMessages + domain data)
+    ///   5. DomainEventsInterceptor publishes snapshot via MediatR (SavedChanges)
+    ///   6. DomainEventsInterceptor clears DomainEvents from aggregates (SavedChanges)
+    ///
+    /// <b>Single owner of ClearDomainEvents:</b>
+    /// This interceptor is the ONLY component that calls ClearDomainEvents().
+    /// OutboxSaveChangesInterceptor does NOT clear events — it only reads and
+    /// serialises. This ensures that Local Domain Events are always dispatched
+    /// even when Integration Events are also being persisted.
+    /// </summary>
     public sealed class DomainEventsInterceptor : SaveChangesInterceptor
     {
         /// <summary>
-        /// Pending Domain Events captured before SaveChanges().
-        /// IMPORTANT:
-        /// This interceptor must be registered with Scoped lifetime.
+        /// Pending entries captured before SaveChanges, each with a snapshot
+        /// of its domain events at that point in time.
         /// </summary>
-        private readonly List<DomainEvent> _pendingDomainEvents = [];
+        private readonly List<(BaseEntity Entity, List<DomainEvent> Events)> _pendingEntries = [];
 
         private readonly IPublisher _publisher;
 
@@ -50,17 +92,27 @@ namespace BoslaPlatform.Infrastructure.Data.Interceptors
             int result,
             CancellationToken cancellationToken = default)
         {
-            if (_pendingDomainEvents.Count == 0)
+            if (_pendingEntries.Count == 0)
                 return result;
 
-            // Snapshot to avoid issues if a handler triggers another SaveChanges()
-            var events = _pendingDomainEvents.ToList();
+            // Snapshot and clear the pending list before publishing.
+            // This ensures re-entrant SaveChanges (triggered by a handler)
+            // do not see these events again.
+            var entries = _pendingEntries.ToList();
+            _pendingEntries.Clear();
 
-            _pendingDomainEvents.Clear();
-
-            foreach (var domainEvent in events)
+            foreach (var (_, events) in entries)
             {
-                await _publisher.Publish(domainEvent, cancellationToken);
+                foreach (var domainEvent in events)
+                {
+                    await _publisher.Publish(domainEvent, cancellationToken);
+                }
+            }
+
+            // Clear domain events from aggregates only after successful publication.
+            foreach (var (entity, _) in entries)
+            {
+                entity.ClearDomainEvents();
             }
 
             return result;
@@ -73,14 +125,14 @@ namespace BoslaPlatform.Infrastructure.Data.Interceptors
         public override void SaveChangesFailed(
             DbContextErrorEventData eventData)
         {
-            _pendingDomainEvents.Clear();
+            _pendingEntries.Clear();
         }
 
         public override Task SaveChangesFailedAsync(
             DbContextErrorEventData eventData,
             CancellationToken cancellationToken = default)
         {
-            _pendingDomainEvents.Clear();
+            _pendingEntries.Clear();
             return Task.CompletedTask;
         }
 
@@ -91,9 +143,8 @@ namespace BoslaPlatform.Infrastructure.Data.Interceptors
             if (context is null)
                 return;
 
-            // Defensive programming.
             // Each SaveChanges starts with a clean staging list.
-            _pendingDomainEvents.Clear();
+            _pendingEntries.Clear();
 
             var entities = context.ChangeTracker
                 .Entries<BaseEntity>()
@@ -104,12 +155,12 @@ namespace BoslaPlatform.Infrastructure.Data.Interceptors
                 .Where(e => e.Entity.DomainEvents.Any())
                 .ToList();
 
-            foreach (var entity in entities)
+            foreach (var entry in entities)
             {
-                _pendingDomainEvents.AddRange(entity.Entity.DomainEvents);
-
-                // Prevent duplicate publishing on subsequent SaveChanges().
-                entity.Entity.ClearDomainEvents();
+                // Take a snapshot so changes between SavingChanges and SavedChanges
+                // do not affect what we publish.
+                var snapshot = entry.Entity.DomainEvents.ToList();
+                _pendingEntries.Add((entry.Entity, snapshot));
             }
         }
     }

@@ -19,17 +19,30 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
         builder.Property(x => x.Id).ValueGeneratedNever();
 
         builder.Property(x => x.EventType)
-            .HasMaxLength(500)
+            .HasMaxLength(OutboxConstants.EventTypeMaxLength)
+            .IsRequired();
+
+        builder.Property(x => x.AssemblyName)
+            .HasMaxLength(OutboxConstants.AssemblyNameMaxLength)
+            .IsRequired();
+
+        // EventVersion has no SQL default — the C# property initialiser on
+        // OutboxMessage (→ OutboxConstants.EventVersion) is the single source of truth.
+        builder.Property(x => x.EventVersion)
             .IsRequired();
 
         builder.Property(x => x.Payload)
             .IsRequired();
 
+        builder.Property(x => x.CorrelationId);
+
         builder.Property(x => x.OccurredOnUtc)
             .IsRequired();
 
+        builder.Property(x => x.ProcessingStartedUtc);
+
         builder.Property(x => x.LastError)
-            .HasMaxLength(2000);
+            .HasMaxLength(OutboxConstants.ErrorMaxLength);
 
         // Index: fetch unprocessed messages efficiently
         builder.HasIndex(x => x.ProcessedOnUtc)
