@@ -32,6 +32,7 @@ using BoslaPlatform.Infrastructure.BackgroundJobs;
 //using BoslaPlatform.Infrastructure.AI.OpenAi;
 using BoslaPlatform.Infrastructure.Communication;
 using BoslaPlatform.Infrastructure.Data;
+using BoslaPlatform.Infrastructure.Data.Outbox;
 using BoslaPlatform.Infrastructure.Favorites;
 using BoslaPlatform.Infrastructure.Data.Interceptors;
 using BoslaPlatform.Infrastructure.Identity;
@@ -86,6 +87,13 @@ public static class DependencyInjection
             services.AddScoped<ISaveChangesInterceptor, OutboxSaveChangesInterceptor>();
             services.AddScoped<ISaveChangesInterceptor, DomainEventsInterceptor>();
             services.AddScoped<ApplicationDbContextInitialiser>();
+
+            // ── Outbox dispatcher ───────────────────────────────────────────
+            services.Configure<OutboxDispatcherOptions>(
+                configuration.GetSection(OutboxDispatcherOptions.SectionName));
+            services.AddSingleton<IEventTypeResolver, CachedEventTypeResolver>();
+            services.AddScoped<IOutboxMessagePublisher, NoOpOutboxMessagePublisher>();
+            services.AddHostedService<OutboxDispatcherService>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUserService, UserService>();
