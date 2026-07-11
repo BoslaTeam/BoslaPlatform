@@ -44,6 +44,8 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
         builder.Property(x => x.LastError)
             .HasMaxLength(OutboxConstants.ErrorMaxLength);
 
+        builder.Property(x => x.NextRetryUtc);
+
         // Index: fetch unprocessed messages efficiently
         builder.HasIndex(x => x.ProcessedOnUtc)
             .HasDatabaseName("IX_OutboxMessages_ProcessedOnUtc");

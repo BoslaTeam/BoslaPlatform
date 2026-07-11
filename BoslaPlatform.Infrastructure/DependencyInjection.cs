@@ -91,6 +91,8 @@ public static class DependencyInjection
             // ── Outbox dispatcher ───────────────────────────────────────────
             services.Configure<OutboxDispatcherOptions>(
                 configuration.GetSection(OutboxDispatcherOptions.SectionName));
+            services.Configure<OutboxRetryOptions>(
+                configuration.GetSection(OutboxRetryOptions.SectionName));
             services.AddSingleton<IEventTypeResolver, CachedEventTypeResolver>();
             services.AddScoped<IOutboxMessagePublisher, NoOpOutboxMessagePublisher>();
             services.AddHostedService<OutboxDispatcherService>();

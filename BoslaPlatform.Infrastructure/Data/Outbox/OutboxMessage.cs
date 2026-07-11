@@ -124,4 +124,15 @@ public class OutboxMessage
     /// Starts at 0 and increments on each attempt.
     /// </summary>
     public int RetryCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the UTC timestamp before which this message must not be retried.
+    /// Used by the dispatcher to implement exponential back-off.
+    ///
+    /// A null value means either:
+    ///   - The message has never been attempted (no failure yet), or
+    ///   - The message has reached the maximum retry limit and is permanently failed,
+    ///     awaiting a future Dead Letter Queue migration.
+    /// </summary>
+    public DateTime? NextRetryUtc { get; set; }
 }
