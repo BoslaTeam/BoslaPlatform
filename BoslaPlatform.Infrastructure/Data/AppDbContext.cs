@@ -10,6 +10,7 @@ using BoslaPlatform.Domain.Models.Junctions;
 using BoslaPlatform.Domain.Models.Lookup;
 using BoslaPlatform.Domain.Models.Profile;
 using BoslaPlatform.Domain.Models.Video;
+using BoslaPlatform.Infrastructure.Data.Outbox;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -83,6 +84,7 @@ namespace BoslaPlatform.Infrastructure.Data
 
         // System
         public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+        public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
         private readonly IServiceProvider? _serviceProvider;
 
         public AppDbContext(DbContextOptions<AppDbContext> options, IServiceProvider? serviceProvider = null) : base(options)
