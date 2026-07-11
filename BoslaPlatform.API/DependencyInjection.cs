@@ -91,6 +91,7 @@ public static class DependencyInjection
         });
         app.UseRouting();
         app.UseAuthentication();
+        app.UseRateLimiter();
 
         app.UseAuthorization();
 

@@ -36,6 +36,7 @@ using BoslaPlatform.Infrastructure.Favorites;
 using BoslaPlatform.Infrastructure.Data.Interceptors;
 using BoslaPlatform.Infrastructure.Identity;
 using BoslaPlatform.Infrastructure.Realtime;
+using BoslaPlatform.Infrastructure.RateLimiting;
 using BoslaPlatform.Infrastructure.Services;
 using BoslaPlatform.Infrastructure.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -84,6 +85,8 @@ public static class DependencyInjection
 
             services.Configure<VideoSessionExpirationOptions>(
                 configuration.GetSection("VideoSessionExpiration"));
+
+            services.AddRateLimitingPolicies(configuration);
 
             // Agora Cloud Recording — Typed HttpClient with authentication handler and retry policy
             var agoraSettings = configuration.GetSection(AgoraSettings.SectionName);
