@@ -1,5 +1,7 @@
 ﻿using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Models.Video;
+using static BoslaPlatform.Domain.Enums.UploadStatus;
+using static BoslaPlatform.Domain.Enums.StorageProvider;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -58,6 +60,58 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
             builder.Metadata
                 .FindNavigation(nameof(VideoSession.Recordings))!
                 .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+            builder.Property(v => v.UploadStatus)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .HasDefaultValue(UploadStatus.Pending)
+                .IsRequired();
+
+            builder.Property(v => v.StorageProvider)
+                .HasConversion<string>()
+                .HasMaxLength(30)
+                .IsRequired(false);
+
+            builder.Property(v => v.BucketName)
+                .HasMaxLength(100)
+                .IsRequired(false);
+
+            builder.Property(v => v.ObjectKey)
+                .HasMaxLength(500)
+                .IsRequired(false);
+
+            builder.Property(v => v.ContentType)
+                .HasMaxLength(100)
+                .IsRequired(false);
+
+            builder.Property(v => v.ContentLength)
+                .IsRequired(false);
+
+            builder.Property(v => v.UploadAttempts)
+                .HasDefaultValue(0)
+                .IsRequired();
+
+            builder.Property(v => v.LastUploadError)
+                .HasMaxLength(1000)
+                .IsRequired(false);
+
+            builder.Property(v => v.UploadedAtUtc)
+                .IsRequired(false);
+
+            builder.Property(v => v.ChecksumSha256)
+                .HasMaxLength(64)
+                .IsRequired(false);
+
+            builder.Property(v => v.VersionId)
+                .HasMaxLength(100)
+                .IsRequired(false);
+
+            builder.Property(v => v.ETag)
+                .HasMaxLength(200)
+                .IsRequired(false);
+
+            builder.Property(v => v.LastUploadAttemptUtc)
+                .IsRequired(false);
 
             builder.HasIndex(v => v.AgoraChannelName).IsUnique();
             builder.HasIndex(v => v.AppointmentId)

@@ -3,6 +3,8 @@ using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Events.Videos;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Shared;
+using static BoslaPlatform.Domain.Enums.UploadStatus;
+using static BoslaPlatform.Domain.Enums.StorageProvider;
 
 namespace BoslaPlatform.Domain.Models.Video
 {
@@ -29,6 +31,23 @@ namespace BoslaPlatform.Domain.Models.Video
         public DateTime? RecordingCompletedAt { get; private set; }
         public string? RecordingFailureReason { get; private set; }
 
+        // Upload tracking
+        public UploadStatus UploadStatus { get; private set; }
+        public DateTime? UploadedAtUtc { get; private set; }
+        public StorageProvider? StorageProvider { get; private set; }
+        public string? BucketName { get; private set; }
+        public string? ObjectKey { get; private set; }
+        public string? ContentType { get; private set; }
+        public long? ContentLength { get; private set; }
+        public int UploadAttempts { get; private set; }
+        public string? LastUploadError { get; private set; }
+
+        // Upload integrity & metadata
+        public string? ChecksumSha256 { get; private set; }
+        public string? VersionId { get; private set; }
+        public string? ETag { get; private set; }
+        public DateTime? LastUploadAttemptUtc { get; private set; }
+
         public Appointment? Appointment { get; private set; }
         private readonly List<ScreenRecording> _recordings = [];
 
@@ -36,6 +55,9 @@ namespace BoslaPlatform.Domain.Models.Video
             => _recordings.AsReadOnly();
         public IReadOnlyCollection<VideoSessionParticipant> Participants
             => _participants.AsReadOnly();
+
+        public bool IsUploadPendingOrRetrying
+            => UploadStatus is Pending or Uploading or Retrying;
 
         public bool IsRecording => RecordingStatus is Domain.Enums.RecordingStatus.Recording;
 
@@ -206,6 +228,11 @@ namespace BoslaPlatform.Domain.Models.Video
             return Result.Success();
         }
 
+        public bool IsUploaded
+            => UploadStatus == Uploaded
+                && !string.IsNullOrWhiteSpace(ObjectKey)
+                && !string.IsNullOrWhiteSpace(BucketName);
+
         public void SetRecording(
             string recordingId,
             string recordingSid,
@@ -355,6 +382,63 @@ namespace BoslaPlatform.Domain.Models.Video
         // Called exclusively by VideoSessionWebhookService.
         // Webhooks confirm provider state — they never initiate business logic.
         // ----------------------------------------------------------------
+
+        // ----------------------------------------------------------------
+        // Upload lifecycle methods
+        // Called by RecordingTransferService (Application layer).
+        // ----------------------------------------------------------------
+
+        public void MarkUploadPending()
+        {
+            UploadStatus = Pending;
+            UploadAttempts++;
+        }
+
+        public void MarkUploading()
+        {
+            UploadStatus = Uploading;
+        }
+
+        public void MarkUploadSucceeded(
+            StorageProvider storageProvider,
+            string bucketName,
+            string objectKey,
+            string contentType,
+            long contentLength,
+            string? checksumSha256 = null,
+            string? versionId = null,
+            string? etag = null)
+        {
+            UploadStatus = Uploaded;
+            StorageProvider = storageProvider;
+            BucketName = bucketName;
+            ObjectKey = objectKey;
+            ContentType = contentType;
+            ContentLength = contentLength;
+            UploadedAtUtc = DateTime.UtcNow;
+            ChecksumSha256 = checksumSha256;
+            VersionId = versionId;
+            ETag = etag;
+            LastUploadAttemptUtc = DateTime.UtcNow;
+            LastUploadError = null;
+        }
+
+        public void MarkUploadFailed(string error)
+        {
+            UploadStatus = Failed;
+            LastUploadError = error;
+            LastUploadAttemptUtc = DateTime.UtcNow;
+        }
+
+        public void MarkUploadRetrying()
+        {
+            UploadStatus = Retrying;
+        }
+
+        public void MarkUploadCancelled()
+        {
+            UploadStatus = Cancelled;
+        }
 
         /// <summary>
         /// Called when Agora fires eventType 103 (user_joined).

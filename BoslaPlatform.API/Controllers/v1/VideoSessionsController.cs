@@ -1,10 +1,12 @@
 using Asp.Versioning;
 using BoslaPlatform.API.Common.Extensions;
 using BoslaPlatform.API.Common.Responses;
+using BoslaPlatform.Application.Features.RecordingAccess.Dtos;
 using BoslaPlatform.Application.Features.VideoSessions.Dtos;
 using BoslaPlatform.Application.Features.VideoSessions.Interfaces;
 using BoslaPlatform.Application.Features.VideoSessions.Requests;
 using BoslaPlatform.Application.Features.VideoSessions.Responses;
+using BoslaPlatform.Application.Interfaces.Storage;
 using BoslaPlatform.Application.Interfaces.Video;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,13 +21,16 @@ namespace BoslaPlatform.API.Controllers.v1
     {
         private readonly IVideoSessionService _videoSessionService;
         private readonly IRecordingProvider _recordingProvider;
+        private readonly IRecordingAccessService _recordingAccessService;
 
         public VideoSessionsController(
             IVideoSessionService videoSessionService,
-            IRecordingProvider recordingProvider)
+            IRecordingProvider recordingProvider,
+            IRecordingAccessService recordingAccessService)
         {
             _videoSessionService = videoSessionService;
             _recordingProvider = recordingProvider;
+            _recordingAccessService = recordingAccessService;
         }
 
         /// <summary>
@@ -339,6 +344,60 @@ namespace BoslaPlatform.API.Controllers.v1
                     return Results.Ok(response);
                 },
                 errors => errors.ToProblem());
+        }
+
+        [HttpGet("{id:guid}/recording/watch")]
+        [ProducesResponseType(typeof(ApiResponse<RecordingWatchResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [EndpointName("WatchRecording")]
+        [EndpointSummary("Gets a secure temporary URL to watch the recording.")]
+        [EndpointDescription("Returns a time-limited presigned URL for authorized users. Only the appointment owner, assigned specialist, or admin can access.")]
+        [Tags("Communication")]
+        public async Task<IResult> WatchRecording(
+            Guid id,
+            [FromQuery] int? expirationMinutes,
+            CancellationToken ct)
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (userIdClaim is null || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Results.Unauthorized();
+            }
+
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
+
+            var expiration = expirationMinutes.HasValue
+                ? TimeSpan.FromMinutes(Math.Clamp(expirationMinutes.Value, 1, 60))
+                : TimeSpan.FromMinutes(15);
+
+            var result = await _recordingAccessService.GetWatchUrlAsync(
+                id, userId, role, expiration, ct);
+
+            return result.Match(
+                value =>
+                {
+                    var response = ApiResponse<RecordingWatchResponse>
+                        .SuccessResponse(value, "Recording watch URL generated.");
+                    return Results.Ok(response);
+                },
+                errors =>
+                {
+                    if (errors.Any(e => e.Code == "Recording.AccessDenied"))
+                    {
+                        return Results.Forbid();
+                    }
+                    if (errors.Any(e => e.Code == "Recording.NotFound"))
+                    {
+                        return Results.NotFound(new ProblemDetails
+                        {
+                            Status = StatusCodes.Status404NotFound,
+                            Title = "Recording not found."
+                        });
+                    }
+                    return errors.ToProblem();
+                });
         }
 
         [HttpGet("{id:guid}/recording")]

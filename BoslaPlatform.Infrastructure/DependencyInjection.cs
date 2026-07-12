@@ -24,6 +24,7 @@ using BoslaPlatform.Application.Services;
 using BoslaPlatform.Application.Settings;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Infrastructure.AI.SemanticKernel;
+using BoslaPlatform.Infrastructure.Storage;
 using Microsoft.SemanticKernel.Connectors.Qdrant;
 using BoslaPlatform.Infrastructure.Agora;
 using BoslaPlatform.Infrastructure.Agora.Interfaces;
@@ -297,6 +298,8 @@ public static class DependencyInjection
 
             services.AddAuthorization();
 
+            // Storage (Cloudflare R2)
+            services.AddStorageServices(configuration);
 
             return services;
         }

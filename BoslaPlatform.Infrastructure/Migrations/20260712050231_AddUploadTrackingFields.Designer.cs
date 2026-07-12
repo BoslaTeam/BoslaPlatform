@@ -4,6 +4,7 @@ using BoslaPlatform.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BoslaPlatform.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260712050231_AddUploadTrackingFields")]
+    partial class AddUploadTrackingFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1806,10 +1809,6 @@ namespace BoslaPlatform.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("ChecksumSha256")
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
                     b.Property<long?>("ContentLength")
                         .HasColumnType("bigint");
 
@@ -1826,10 +1825,6 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.Property<Guid?>("CurrentRecordingId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("ETag")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
                     b.Property<DateTime?>("EndedAt")
                         .HasColumnType("datetime2");
 
@@ -1838,9 +1833,6 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset?>("LastModifiedUtc")
                         .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTime?>("LastUploadAttemptUtc")
-                        .HasColumnType("datetime2");
 
                     b.Property<string>("LastUploadError")
                         .HasMaxLength(1000)
@@ -1879,8 +1871,8 @@ namespace BoslaPlatform.Infrastructure.Migrations
                         .HasDefaultValue("Waiting");
 
                     b.Property<string>("StorageProvider")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -1901,10 +1893,6 @@ namespace BoslaPlatform.Infrastructure.Migrations
 
                     b.Property<DateTime?>("UploadedAtUtc")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("VersionId")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
 

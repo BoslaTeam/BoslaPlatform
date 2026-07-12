@@ -60,7 +60,8 @@ namespace BoslaPlatform.Application.Interfaces.Video
         string ObjectKey,
         long FileSize,
         DateTime? StartTime,
-        string MimeType);
+        string MimeType,
+        string? DownloadUrl = null);
 
     public sealed record RecordingSummary(
         int FileCount,

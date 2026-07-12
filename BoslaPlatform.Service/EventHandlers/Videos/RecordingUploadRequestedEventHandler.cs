@@ -1,4 +1,4 @@
-using BoslaPlatform.Application.Interfaces.Video;
+using BoslaPlatform.Application.Features.RecordingTransfer.Services;
 using BoslaPlatform.Domain.Events.Videos;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -8,14 +8,14 @@ namespace BoslaPlatform.Application.EventHandlers.Videos
     public sealed class RecordingUploadRequestedEventHandler
     : INotificationHandler<RecordingUploadRequestedEvent>
     {
-        private readonly IVideoNotifier _notifier;
+        private readonly RecordingTransferService _transferService;
         private readonly ILogger<RecordingUploadRequestedEventHandler> _logger;
 
         public RecordingUploadRequestedEventHandler(
-            IVideoNotifier notifier,
+            RecordingTransferService transferService,
             ILogger<RecordingUploadRequestedEventHandler> logger)
         {
-            _notifier = notifier;
+            _transferService = transferService;
             _logger = logger;
         }
 
@@ -29,9 +29,10 @@ namespace BoslaPlatform.Application.EventHandlers.Videos
                 notification.ResourceId,
                 notification.Sid);
 
-            await _notifier.RecordingCompletedAsync(
+            await _transferService.TransferRecordingAsync(
                 notification.SessionId,
-                string.Empty,
+                notification.ResourceId ?? string.Empty,
+                notification.Sid ?? string.Empty,
                 cancellationToken);
         }
     }
