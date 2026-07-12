@@ -34,5 +34,16 @@ namespace BoslaPlatform.Application.Interfaces.Storage
             string objectKey,
             TimeSpan? expiration = null,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Opens a lazy read stream for <paramref name="objectKey"/> without buffering the entire
+        /// object into memory.  The <see cref="DownloadObjectResponse.Content"/> stream is read
+        /// directly from the storage provider over the network; the caller is responsible for
+        /// disposing it once the HTTP response body has been fully written.
+        /// </summary>
+        Task<Result<DownloadObjectResponse>> OpenReadStreamAsync(
+            string bucketName,
+            string objectKey,
+            CancellationToken ct = default);
     }
 }

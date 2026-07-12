@@ -1,7 +1,8 @@
-﻿using BoslaPlatform.Application.Interfaces.Persistence;
+using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Entities.Payouts;
 using BoslaPlatform.Domain.Entities.Profile;
+using BoslaPlatform.Domain.Entities.System;
 using BoslaPlatform.Domain.Models;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Communication;
@@ -85,6 +86,7 @@ namespace BoslaPlatform.Infrastructure.Data
         // System
         public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
         public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+        public DbSet<RecordingAuditLog> RecordingAuditLogs => Set<RecordingAuditLog>();
         private readonly IServiceProvider? _serviceProvider;
 
         public AppDbContext(DbContextOptions<AppDbContext> options, IServiceProvider? serviceProvider = null) : base(options)

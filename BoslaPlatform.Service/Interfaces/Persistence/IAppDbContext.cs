@@ -1,6 +1,7 @@
-﻿using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Domain.Entities;
 using BoslaPlatform.Domain.Entities.Payouts;
 using BoslaPlatform.Domain.Entities.Profile;
+using BoslaPlatform.Domain.Entities.System;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Domain.Models.Communication;
 using BoslaPlatform.Domain.Models.Identity;
@@ -63,6 +64,9 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
         DbSet<PlatformWallet> PlatformWallets { get; }
         DbSet<UserWallet> UserWallets { get; }
         DbSet<WalletTransaction> WalletTransactions { get; }
+
+        // Recording audit
+        DbSet<RecordingAuditLog> RecordingAuditLogs { get; }
 
         DbSet<TEntity> Set<TEntity>()
             where TEntity : class;

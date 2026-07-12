@@ -33,14 +33,15 @@ public sealed class CloudflareR2ObjectStorage : IObjectStorage
             ForcePathStyle = true,
             SignatureVersion = "4",
             UseHttp = false,
-            RetryMode = RequestRetryMode.Adaptive,
-            MaxErrorRetry = _options.MaxRetryAttempts
+            //RetryMode = RequestRetryMode.Adaptive,
+            //MaxErrorRetry = _options.MaxRetryAttempts,
+            //UseChunkEncoding = false
         };
 
-        if (!string.IsNullOrEmpty(_options.Region))
-        {
-            config.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(_options.Region);
-        }
+        //if (!string.IsNullOrEmpty(_options.Region))
+        //{
+        //    config.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(_options.Region);
+        //}
 
         _s3Client = new AmazonS3Client(credentials, config);
     }
@@ -58,9 +59,10 @@ public sealed class CloudflareR2ObjectStorage : IObjectStorage
                 InputStream = request.Content,
                 ContentType = request.ContentType,
                 Headers = { ContentLength = request.ContentLength },
-                DisablePayloadSigning = false
+                DisablePayloadSigning = true,
+                DisableDefaultChecksumValidation = true
             };
-
+            putRequest.Headers.ContentLength = request.ContentLength;
             var response = await _s3Client.PutObjectAsync(putRequest, ct);
 
             if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
@@ -283,6 +285,59 @@ public sealed class CloudflareR2ObjectStorage : IObjectStorage
 
             return Error.Failure(
                 "Storage.PresignedUrlFailed",
+                ex.Message);
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<DownloadObjectResponse>> OpenReadStreamAsync(
+        string bucketName,
+        string objectKey,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var request = new GetObjectRequest
+            {
+                BucketName = bucketName,
+                Key = objectKey
+            };
+
+            // Intentionally NOT using 'using' here.
+            // The ResponseStream is the raw network stream from Cloudflare R2; it must
+            // remain open until the caller has fully written the HTTP response body.
+            // The caller disposes the stream, which closes the underlying HTTP connection.
+            var response = await _s3Client.GetObjectAsync(request, ct);
+
+            _logger.LogInformation(
+                "Opened read stream for {Bucket}/{Key}, ContentLength={ContentLength}",
+                bucketName, objectKey, response.ContentLength);
+
+            var contentType = response.Headers.ContentType ?? "application/octet-stream";
+
+            return new DownloadObjectResponse(
+                response.ResponseStream,
+                contentType,
+                response.ContentLength);
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode is
+            System.Net.HttpStatusCode.Forbidden or
+            System.Net.HttpStatusCode.NotFound)
+        {
+            _logger.LogError(ex, "Non-retryable S3 error opening stream for {Bucket}/{Key}",
+                bucketName, objectKey);
+
+            return Error.Failure(
+                "Storage.StreamOpenRejected",
+                $"S3 stream open rejected: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open stream for {Bucket}/{Key}",
+                bucketName, objectKey);
+
+            return Error.Failure(
+                "Storage.StreamOpenFailed",
                 ex.Message);
         }
     }

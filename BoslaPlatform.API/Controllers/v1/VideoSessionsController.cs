@@ -400,6 +400,80 @@ namespace BoslaPlatform.API.Controllers.v1
                 });
         }
 
+        /// <summary>
+        /// Downloads the recording file for a video session directly from storage.
+        /// </summary>
+        /// <remarks>
+        /// Streams the recording file directly from Cloudflare R2 without loading it into
+        /// server memory.  Authorisation follows the same rules as the watch endpoint:
+        /// the appointment owner, assigned specialist, or an Admin may download.
+        ///
+        /// The response carries <c>Content-Disposition: attachment</c> so browsers prompt a
+        /// save-as dialog rather than attempting inline playback.
+        ///
+        /// Returns <c>404</c> for both "not found" and "upload not yet complete" cases to
+        /// avoid revealing whether a recording exists to unauthorised callers.
+        /// </remarks>
+        /// <param name="id">The unique identifier of the video session.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>A streaming file download of the recording.</returns>
+        /// <response code="200">Recording file streamed successfully.</response>
+        /// <response code="401">User is not authenticated.</response>
+        /// <response code="403">User is not authorized to download this recording.</response>
+        /// <response code="404">Recording not found or upload not yet complete.</response>
+        [HttpGet("{id:guid}/recording/download")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [EndpointName("DownloadRecording")]
+        [EndpointSummary("Downloads the recording file directly from storage.")]
+        [EndpointDescription("Streams the recording from Cloudflare R2 to the client without loading it into server memory. Requires owner, specialist, or Admin role.")]
+        [Tags("Communication")]
+        public async Task<IResult> DownloadRecording(
+            Guid id,
+            CancellationToken ct)
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (userIdClaim is null || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Results.Unauthorized();
+            }
+
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
+
+            var result = await _recordingAccessService.GetDownloadStreamAsync(id, userId, role, ct);
+
+            return result.Match<IResult>(
+                value =>
+                {
+                    // Results.Stream disposes the stream after the body is written — no memory copy.
+                    return Results.Stream(
+                        value.Content,
+                        value.ContentType,
+                        fileDownloadName: value.FileName,
+                        enableRangeProcessing: false);
+                },
+                errors =>
+                {
+                    if (errors.Any(e => e.Code == "Recording.AccessDenied"))
+                    {
+                        return Results.Forbid();
+                    }
+
+                    if (errors.Any(e => e.Code == "Recording.NotFound"))
+                    {
+                        return Results.NotFound(new ProblemDetails
+                        {
+                            Status = StatusCodes.Status404NotFound,
+                            Title = "Recording not found."
+                        });
+                    }
+
+                    return errors.ToProblem();
+                });
+        }
+
         [HttpGet("{id:guid}/recording")]
         [ProducesResponseType(typeof(ApiResponse<RecordingInfoDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]

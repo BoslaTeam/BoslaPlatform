@@ -5,4 +5,5 @@ public sealed record RecordingWatchResponse(
     DateTime ExpiresAtUtc,
     string ContentType,
     long? ContentLength,
+    string? FileName,
     int? DurationSeconds);

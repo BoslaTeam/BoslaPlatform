@@ -4,7 +4,7 @@ namespace BoslaPlatform.Infrastructure.Storage.Configuration;
 
 public sealed class StorageOptions
 {
-    public const string SectionName = "Storage";
+    public const string SectionName = "StorageOptions";
 
     [Required]
     public string Provider { get; set; } = "CloudflareR2";

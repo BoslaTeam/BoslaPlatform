@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using BoslaPlatform.Domain.Common;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Events.Videos;
@@ -47,6 +48,20 @@ namespace BoslaPlatform.Domain.Models.Video
         public string? VersionId { get; private set; }
         public string? ETag { get; private set; }
         public DateTime? LastUploadAttemptUtc { get; private set; }
+
+        // Reconciliation retry tracking
+        public int RetryCount { get; private set; }
+        public DateTime? LastRetryAtUtc { get; private set; }
+        public DateTime? NextRetryAtUtc { get; private set; }
+        public RecordingFailureCategory? FailureCategory { get; private set; }
+
+        // Retention policy (architecture stub — deletion not yet implemented)
+        public DateTime? ExpiresAtUtc { get; private set; }
+        public DateTime? DeletedAtUtc { get; private set; }
+
+        // Optimistic concurrency token (prevents double-upload race conditions)
+        [Timestamp]
+        public byte[]? RowVersion { get; private set; }
 
         public Appointment? Appointment { get; private set; }
         private readonly List<ScreenRecording> _recordings = [];
@@ -438,6 +453,61 @@ namespace BoslaPlatform.Domain.Models.Video
         public void MarkUploadCancelled()
         {
             UploadStatus = Cancelled;
+        }
+
+        // ----------------------------------------------------------------
+        // Reconciliation & retry methods
+        // Called exclusively by RecordingReconciliationService.
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Advances the retry state with exponential backoff.
+        /// Only call when the failure is classified as retriable.
+        /// </summary>
+        public void MarkRetryScheduled(DateTime nextRetryAtUtc, RecordingFailureCategory? category = null)
+        {
+            UploadStatus = Retrying;
+            RetryCount++;
+            LastRetryAtUtc = DateTime.UtcNow;
+            NextRetryAtUtc = nextRetryAtUtc;
+            if (category.HasValue)
+                FailureCategory = category;
+        }
+
+        /// <summary>
+        /// Sets the failure category without changing upload status.
+        /// Used when classifying a failure before deciding retry eligibility.
+        /// </summary>
+        public void SetFailureCategory(RecordingFailureCategory category)
+        {
+            FailureCategory = category;
+        }
+
+        // ----------------------------------------------------------------
+        // Retention policy stubs
+        // Architecture prepared. Actual deletion not yet implemented.
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Sets the expiry timestamp for future scheduled cleanup.
+        /// Does NOT delete the recording — see future RetentionCleanupService.
+        /// </summary>
+        public void MarkExpired()
+        {
+            ExpiresAtUtc = DateTime.UtcNow;
+        }
+
+        /// <summary>
+        /// Soft-deletes the recording by recording the deletion timestamp.
+        /// The physical file in object storage is NOT removed by this call.
+        /// </summary>
+        public Result MarkSoftDeleted()
+        {
+            if (DeletedAtUtc.HasValue)
+                return Error.Conflict("Recording.AlreadyDeleted", "Recording is already marked as deleted.");
+
+            DeletedAtUtc = DateTime.UtcNow;
+            return Result.Success();
         }
 
         /// <summary>

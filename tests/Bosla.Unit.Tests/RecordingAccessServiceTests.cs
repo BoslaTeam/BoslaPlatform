@@ -58,10 +58,18 @@ public class RecordingAccessServiceTests : IDisposable
         _context.VideoSessions.Add(_session);
         _context.SaveChanges();
 
+        var auditMock = Mock.Of<IRecordingAuditService>();
+        var metricsMock = new NoOpRecordingMetrics();
+        var settingsMock = new Mock<IRecordingStorageSettings>();
+        settingsMock.Setup(s => s.PresignedUrlExpirationMinutes).Returns(15);
+
         _service = new RecordingAccessService(
             _context,
             _storageMock.Object,
             _cache,
+            auditMock,
+            metricsMock,
+            settingsMock.Object,
             loggerMock);
     }
 
@@ -144,10 +152,18 @@ public class RecordingAccessServiceTests : IDisposable
     public async Task Not_uploaded_session_returns_not_found()
     {
         var context = CreateSecondContext();
+        var auditMock = Mock.Of<IRecordingAuditService>();
+        var metricsMock = new NoOpRecordingMetrics();
+        var settingsMock = new Mock<IRecordingStorageSettings>();
+        settingsMock.Setup(s => s.PresignedUrlExpirationMinutes).Returns(15);
+
         var service = new RecordingAccessService(
             context,
             _storageMock.Object,
             _cache,
+            auditMock,
+            metricsMock,
+            settingsMock.Object,
             Mock.Of<ILogger<RecordingAccessService>>());
 
         var unUploadedResult = VideoSession.Create(
