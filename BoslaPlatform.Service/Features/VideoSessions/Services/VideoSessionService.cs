@@ -549,7 +549,7 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
                     videoSessionId,
                     new RecordingInfoDto
                     {
-                        Status = RecordingStatus.Completed.ToString(),
+                        Status = RecordingStatus.Completed,
                         IsRecording = false,
                         CanStartRecording = false,
                         CanStopRecording = false
@@ -583,12 +583,13 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             var dto = _mapper.Map<RecordingInfoDto>(session.CurrentRecording)
                 ?? new RecordingInfoDto();
 
-            dto.Status = session.RecordingStatus?.ToString();
+            dto.Status = session.RecordingStatus;
             dto.StartedAtUtc = session.RecordingStartedAtUtc;
             dto.CompletedAtUtc = session.RecordingCompletedAt;
             dto.IsRecording = session.IsRecording;
             dto.CurrentRecordingId = session.CurrentRecordingId;
             dto.Url ??= session.RecordingUrl;
+            dto.RecordingFailureReason = session.RecordingFailureReason;
 
             dto.CanStartRecording = isSpecialist
                 && session.Status == VideoSessionStatus.Active

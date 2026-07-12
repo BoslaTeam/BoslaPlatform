@@ -27,6 +27,7 @@ namespace BoslaPlatform.Domain.Models.Video
         public string? AgoraRecordingSid { get; private set; }
         public string? RecordingUrl { get; private set; }
         public DateTime? RecordingCompletedAt { get; private set; }
+        public string? RecordingFailureReason { get; private set; }
 
         public Appointment? Appointment { get; private set; }
         private readonly List<ScreenRecording> _recordings = [];
@@ -318,6 +319,12 @@ namespace BoslaPlatform.Domain.Models.Video
                     null,
                     null));
 
+            AddDomainEvent(
+                new RecordingUploadRequestedEvent(
+                    Id,
+                    AgoraRecordingId,
+                    AgoraRecordingSid));
+
             return Result.Success();
         }
 
@@ -334,6 +341,7 @@ namespace BoslaPlatform.Domain.Models.Video
             CurrentRecording = null;
             CurrentRecordingId = null;
             RecordingStatus = Enums.RecordingStatus.Failed;
+            RecordingFailureReason = reason;
 
             AddDomainEvent(
                 new RecordingFailedEvent(

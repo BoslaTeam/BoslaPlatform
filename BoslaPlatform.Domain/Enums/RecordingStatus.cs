@@ -1,5 +1,8 @@
-﻿namespace BoslaPlatform.Domain.Enums
+﻿using System.Text.Json.Serialization;
+
+namespace BoslaPlatform.Domain.Enums
 {
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum RecordingStatus
     {
         Processing,
@@ -10,6 +13,10 @@
         Completed,
         Recording,
         Starting,
-        Stopping
+        Stopping,
+        Idle,
+        Uploading,
+        Uploaded,
+        Cancelled
     }
 }

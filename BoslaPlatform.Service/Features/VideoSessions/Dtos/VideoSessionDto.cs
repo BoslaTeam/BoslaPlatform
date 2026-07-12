@@ -50,6 +50,18 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Dtos
         public RecordingInfoDto? Recording { get; set; }
 
         /// <summary>
+        /// The Agora cloud recording resource ID (resourceId from Acquire).
+        /// Present when a recording has been started.
+        /// </summary>
+        public string? AgoraRecordingId { get; set; }
+
+        /// <summary>
+        /// The Agora cloud recording SID (sid from Start).
+        /// Present when a recording has been started.
+        /// </summary>
+        public string? AgoraRecordingSid { get; set; }
+
+        /// <summary>
         /// The UTC timestamp when the appointment ends.
         /// </summary>
         public DateTime? AppointmentEndTime { get; set; }

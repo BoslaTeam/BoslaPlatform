@@ -54,7 +54,7 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Mapping
 
             var dto = new RecordingInfoDto
             {
-                Status = session.RecordingStatus?.ToString(),
+                Status = session.RecordingStatus,
                 StartedAtUtc = session.RecordingStartedAtUtc,
                 CompletedAtUtc = session.RecordingCompletedAt,
                 IsRecording = session.IsRecording,

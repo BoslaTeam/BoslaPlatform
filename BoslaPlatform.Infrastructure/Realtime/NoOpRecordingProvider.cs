@@ -1,4 +1,5 @@
 using BoslaPlatform.Application.Interfaces.Video;
+using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Shared;
 
 namespace BoslaPlatform.Infrastructure.Realtime
@@ -6,6 +7,25 @@ namespace BoslaPlatform.Infrastructure.Realtime
     internal sealed class NoOpRecordingProvider : IRecordingProvider
     {
         public string Name => "NoOp";
+
+        public Task<Result<AcquireResult>> AcquireAsync(
+            string channelName,
+            CancellationToken ct = default)
+        {
+            return Task.FromResult(
+                Result<AcquireResult>.Success(
+                    new AcquireResult("noop-resource-id")));
+        }
+
+        public Task<Result<QueryResult>> QueryAsync(
+            string providerRecordingId,
+            string sid,
+            CancellationToken ct = default)
+        {
+            return Task.FromResult(
+                Result<QueryResult>.Success(
+                    new QueryResult(RecordingStatus.Completed, providerRecordingId, sid)));
+        }
 
         public Task<Result<StartRecordingResult>> StartRecordingAsync(
             string channelName,

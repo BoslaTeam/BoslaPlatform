@@ -27,6 +27,10 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
             builder.Property(v => v.RecordingStartedAtUtc)
                 .IsRequired(false);
 
+            builder.Property(v => v.RecordingFailureReason)
+                .HasMaxLength(500)
+                .IsRequired(false);
+
             builder.Property(v => v.CurrentRecordingId)
                 .IsRequired(false);
 

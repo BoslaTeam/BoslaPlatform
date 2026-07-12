@@ -128,6 +128,11 @@ public static class DependencyInjection
             .AddTransientHttpErrorPolicy(builder =>
                 builder.WaitAndRetryAsync(
                     retryCount > 0 ? retryCount : 2,
+                    retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))))
+            .AddPolicyHandler(Policy<HttpResponseMessage>
+                .HandleResult(msg => msg.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                .WaitAndRetryAsync(
+                    retryCount > 0 ? retryCount : 2,
                     retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
 
             // Agora Cloud Recording — health check (validates configuration without calling Agora APIs)

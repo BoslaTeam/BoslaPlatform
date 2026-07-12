@@ -151,9 +151,28 @@ namespace BoslaPlatform.Infrastructure.Recording.Providers.Agora.Services
             return result;
         }
 
-        internal Task<Result<JsonDocument>> QueryAsync(string resourceId, string sid, CancellationToken ct = default)
+        internal async Task<Result<JsonDocument>> QueryAsync(string resourceId, string sid, CancellationToken ct = default)
         {
-            throw new NotImplementedException();
+            if (string.IsNullOrWhiteSpace(resourceId))
+                return Error.Validation("Agora.Query.MissingResourceId", "ResourceId is required for Query.");
+            if (string.IsNullOrWhiteSpace(sid))
+                return Error.Validation("Agora.Query.MissingSid", "SID is required for Query.");
+
+            var url = BuildQueryEndpoint(resourceId, sid);
+
+            _logger.LogInformation("Query started for resourceId={ResourceId}, sid={Sid}", resourceId, sid);
+
+            var result = await SendAsync(HttpMethod.Get, url, null, ct);
+
+            if (result.IsError)
+            {
+                _logger.LogWarning("Query failed for resourceId={ResourceId}, sid={Sid}", resourceId, sid);
+                return result;
+            }
+
+            _logger.LogInformation("Query completed for resourceId={ResourceId}, sid={Sid}", resourceId, sid);
+
+            return result;
         }
 
         internal async Task ReleaseAsync(string resourceId, string channelName, string uid, CancellationToken ct = default)

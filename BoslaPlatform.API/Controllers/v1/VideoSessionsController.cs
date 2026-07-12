@@ -18,10 +18,14 @@ namespace BoslaPlatform.API.Controllers.v1
     public class VideoSessionsController : ControllerBase
     {
         private readonly IVideoSessionService _videoSessionService;
+        private readonly IRecordingProvider _recordingProvider;
 
-        public VideoSessionsController(IVideoSessionService videoSessionService)
+        public VideoSessionsController(
+            IVideoSessionService videoSessionService,
+            IRecordingProvider recordingProvider)
         {
             _videoSessionService = videoSessionService;
+            _recordingProvider = recordingProvider;
         }
 
         /// <summary>
@@ -361,6 +365,48 @@ namespace BoslaPlatform.API.Controllers.v1
                     return Results.Ok(response);
                 },
                 errors => errors.ToProblem());
+        }
+
+        [HttpGet("{id:guid}/recording/agora-status")]
+        [ProducesResponseType(typeof(ApiResponse<QueryResult>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [EndpointName("QueryAgoraRecordingStatus")]
+        [EndpointSummary("Queries Agora Cloud Recording status for the session.")]
+        [EndpointDescription("Calls the Agora Query API to get the current cloud recording status for this session's active recording.")]
+        [Tags("Communication")]
+        public async Task<IResult> QueryRecordingStatus(
+            Guid id,
+            CancellationToken ct)
+        {
+            var sessionResult = await _videoSessionService
+                .GetByIdAsync(id, ct);
+
+            return await sessionResult.Match(
+                async session =>
+                {
+                    if (string.IsNullOrWhiteSpace(session.AgoraRecordingId) ||
+                        string.IsNullOrWhiteSpace(session.AgoraRecordingSid))
+                    {
+                        var error = Shared.Error.NotFound(
+                            "Recording.NotStarted",
+                            "No active recording found for this session. Start a recording first.");
+                        return new[] { error }.ToProblem();
+                    }
+
+                    var queryResult = await _recordingProvider.QueryAsync(
+                        session.AgoraRecordingId, session.AgoraRecordingSid, ct);
+
+                    return queryResult.Match(
+                        value =>
+                        {
+                            var response = ApiResponse<QueryResult>
+                                .SuccessResponse(value, "Recording status retrieved from Agora.");
+                            return Results.Ok(response);
+                        },
+                        errors => errors.ToProblem());
+                },
+                errors => Task.FromResult(errors.ToProblem()));
         }
     }
 }
