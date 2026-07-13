@@ -167,9 +167,17 @@ public static class DependencyInjection
         services.AddHostedService<AutoCancelUnpaidAppointmentsService>();
         services.AddScoped<INotificationSender, SignalRNotificationSender>();
 
-        // TODO: Uncomment once tested
-        // services.AddHostedService<ReminderBackgroundService>();
-        services.AddScoped<IEmailService, EmailService>();
+        services.AddHostedService<ReminderBackgroundService>();
+
+        var emailProvider = configuration.GetSection("EmailSettings")["Provider"]?.Trim().ToLowerInvariant();
+        if (emailProvider == "sendgrid")
+        {
+            services.AddScoped<IEmailService, SendGridEmailService>();
+        }
+        else
+        {
+            services.AddScoped<IEmailService, EmailService>();
+        }
         // SignalR: use camelCase JSON so Angular handlers receive the expected
         // property names (userId, isOnline, lastSeen) instead of PascalCase.
         services.AddSignalR()
