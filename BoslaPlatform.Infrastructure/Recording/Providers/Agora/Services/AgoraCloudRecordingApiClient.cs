@@ -1,13 +1,15 @@
-using System.Diagnostics;
-using System.Text;
-using System.Text.Json;
+using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Infrastructure.Recording.Providers.Agora.Configuration;
 using BoslaPlatform.Infrastructure.Recording.Providers.Agora.Models.Requests;
 using BoslaPlatform.Infrastructure.Recording.Providers.Agora.Utilities;
 using BoslaPlatform.Infrastructure.Settings;
+using BoslaPlatform.Infrastructure.Storage.Configuration;
 using BoslaPlatform.Shared;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Diagnostics;
+using System.Text;
+using System.Text.Json;
 
 namespace BoslaPlatform.Infrastructure.Recording.Providers.Agora.Services
 {
@@ -20,6 +22,7 @@ namespace BoslaPlatform.Infrastructure.Recording.Providers.Agora.Services
         public AgoraCloudRecordingApiClient(
             HttpClient http,
             IOptions<AgoraSettings> options,
+            IOptions<StorageOptions> storageOptions,
             ILogger<AgoraCloudRecordingApiClient> logger)
         {
             _http = http ?? throw new ArgumentNullException(nameof(http));
@@ -211,13 +214,13 @@ namespace BoslaPlatform.Infrastructure.Recording.Providers.Agora.Services
             AgoraCloudRecordingEndpoints.BuildAcquireEndpoint(_settings.CloudRecordingBaseUrl, _settings.AppId);
 
         private string BuildStartEndpoint(string resourceId) =>
-            AgoraCloudRecordingEndpoints.BuildStartEndpoint(_settings.CloudRecordingBaseUrl, _settings.AppId, resourceId);
+            AgoraCloudRecordingEndpoints.BuildStartEndpoint(_settings.CloudRecordingBaseUrl, _settings.AppId, resourceId, _settings.RecordingMode.ToApiValue());
 
         private string BuildStopEndpoint(string resourceId, string sid) =>
-            AgoraCloudRecordingEndpoints.BuildStopEndpoint(_settings.CloudRecordingBaseUrl, _settings.AppId, resourceId, sid);
+            AgoraCloudRecordingEndpoints.BuildStopEndpoint(_settings.CloudRecordingBaseUrl, _settings.AppId, resourceId, sid, _settings.RecordingMode.ToApiValue());
 
         private string BuildQueryEndpoint(string resourceId, string sid) =>
-            AgoraCloudRecordingEndpoints.BuildQueryEndpoint(_settings.CloudRecordingBaseUrl, _settings.AppId, resourceId, sid);
+            AgoraCloudRecordingEndpoints.BuildQueryEndpoint(_settings.CloudRecordingBaseUrl, _settings.AppId, resourceId, sid, _settings.RecordingMode.ToApiValue());
 
         private string BuildReleaseEndpoint(string resourceId) =>
             AgoraCloudRecordingEndpoints.BuildReleaseEndpoint(_settings.CloudRecordingBaseUrl, _settings.AppId, resourceId);
@@ -235,6 +238,7 @@ namespace BoslaPlatform.Infrastructure.Recording.Providers.Agora.Services
             if (body is not null)
             {
                 var json = JsonSerializer.Serialize(body, RecordingJsonDefaults.Options);
+                _logger.LogInformation("Agora Request Body:\n{Body}",json);
                 request.Content = new StringContent(json, Encoding.UTF8, "application/json");
             }
 

@@ -42,6 +42,21 @@ The recording system follows a **three-phase orchestration** pattern that keeps 
          Agora REST API (cloud)
 ```
 
+## Agora REST API Integration
+
+The integration strictly follows the Agora Cloud Recording REST API documentation. A crucial component of the URL path for Start, Stop, and Query actions is the `mode` segment:
+
+**Endpoint Structure:**
+- **Acquire:** `/v1/apps/{appId}/cloud_recording/acquire`
+- **Start:** `/v1/apps/{appId}/cloud_recording/resourceid/{resourceId}/mode/{mode}/start`
+- **Stop:** `/v1/apps/{appId}/cloud_recording/resourceid/{resourceId}/sid/{sid}/mode/{mode}/stop`
+- **Query:** `/v1/apps/{appId}/cloud_recording/resourceid/{resourceId}/sid/{sid}/mode/{mode}/query`
+
+**Recording Modes (`RecordingMode` Enum):**
+- **Mix (`mix`)**: Default. Mixes audio and video of all channel users into a single file.
+- **Individual (`individual`)**: Records audio and video of each user in separate files.
+- **Web (`web`)**: Records the content of a web page.
+
 ## Recording Lifecycle State Machine
 
 ```
@@ -134,6 +149,7 @@ Failure path:
 | `StorageAccessKey` / `StorageSecretKey` | Storage credentials |
 | `TimeoutSeconds` | HTTP client timeout (default 30) |
 | `RetryCount` | Polly retry count for transient errors (default 2) |
+| `RecordingMode` | The Agora recording mode to use (`Mix` by default, `Individual`, `Web`) |
 
 ## Error Handling
 

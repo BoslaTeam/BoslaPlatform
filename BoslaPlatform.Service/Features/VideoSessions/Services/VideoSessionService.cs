@@ -279,8 +279,8 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
 
             var appointment = sessionResult.Value.Appointment!;
 
-            if (appointment.Status != AppointmentStatus.Paid)
-                return Error.Validation("Appointment.NotPaid", "The appointment must be paid before starting the video session.");
+            //if (appointment.Status != AppointmentStatus.Paid)
+            //    return Error.Validation("Appointment.NotPaid", "The appointment must be paid before starting the video session.");
 
             var result = sessionResult.Value.Start();
             if (result.IsError) return result.Errors;

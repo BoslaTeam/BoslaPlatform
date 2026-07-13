@@ -14,19 +14,19 @@ namespace BoslaPlatform.Infrastructure.Recording.Providers.Agora.Configuration
             return $"{baseUrl.TrimEnd('/')}{V1Path}/{appId}/cloud_recording/{AcquireSegment}";
         }
 
-        public static string BuildStartEndpoint(string baseUrl, string appId, string resourceId)
+        public static string BuildStartEndpoint(string baseUrl, string appId, string resourceId, string mode)
         {
-            return $"{baseUrl.TrimEnd('/')}{V1Path}/{appId}/cloud_recording/resourceid/{resourceId}/{StartSegment}";
+            return $"{baseUrl.TrimEnd('/')}{V1Path}/{appId}/cloud_recording/resourceid/{resourceId}/mode/{mode}/{StartSegment}";
         }
 
-        public static string BuildStopEndpoint(string baseUrl, string appId, string resourceId, string sid)
+        public static string BuildStopEndpoint(string baseUrl, string appId, string resourceId, string sid, string mode)
         {
-            return $"{baseUrl.TrimEnd('/')}{V1Path}/{appId}/cloud_recording/resourceid/{resourceId}/sid/{sid}/{StopSegment}";
+            return $"{baseUrl.TrimEnd('/')}{V1Path}/{appId}/cloud_recording/resourceid/{resourceId}/sid/{sid}/mode/{mode}/{StopSegment}";
         }
 
-        public static string BuildQueryEndpoint(string baseUrl, string appId, string resourceId, string sid)
+        public static string BuildQueryEndpoint(string baseUrl, string appId, string resourceId, string sid, string mode)
         {
-            return $"{baseUrl.TrimEnd('/')}{V1Path}/{appId}/cloud_recording/resourceid/{resourceId}/sid/{sid}/{QuerySegment}";
+            return $"{baseUrl.TrimEnd('/')}{V1Path}/{appId}/cloud_recording/resourceid/{resourceId}/sid/{sid}/mode/{mode}/{QuerySegment}";
         }
 
         public static string BuildReleaseEndpoint(string baseUrl, string appId, string resourceId)

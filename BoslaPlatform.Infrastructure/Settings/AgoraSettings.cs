@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using BoslaPlatform.Domain.Enums;
 
 namespace BoslaPlatform.Infrastructure.Settings
 {
@@ -68,6 +69,7 @@ namespace BoslaPlatform.Infrastructure.Settings
         public int RetryCount { get; set; } = 3;
 
         // Cloud Recording defaults
+        public RecordingMode RecordingMode { get; set; } = RecordingMode.Mix;
         public int RecordingMaxIdleTime { get; set; } = 30;
         public int RecordingStreamTypes { get; set; } = 2;
 
