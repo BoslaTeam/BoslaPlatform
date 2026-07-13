@@ -1,16 +1,16 @@
+using Amazon;
+using Amazon.S3;
 using BoslaPlatform.Application.Features.RecordingAccess.Services;
-using BoslaPlatform.Application.Features.RecordingTransfer.Services;
 using BoslaPlatform.Application.Interfaces.Storage;
-using BoslaPlatform.Application.Interfaces.Video;
 using BoslaPlatform.Application.Settings;
-using BoslaPlatform.Infrastructure.BackgroundJobs;
-using BoslaPlatform.Infrastructure.Recording.Providers.Agora.Services;
+using BoslaPlatform.Infrastructure.Settings;
 using BoslaPlatform.Infrastructure.Storage.Cloudflare;
 using BoslaPlatform.Infrastructure.Storage.Configuration;
 using BoslaPlatform.Infrastructure.Storage.HealthChecks;
+using BoslaPlatform.Infrastructure.Storage.S3;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Polly;
+using Microsoft.Extensions.Options;
 
 namespace BoslaPlatform.Infrastructure.Storage;
 
@@ -20,7 +20,7 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // ── Storage provider ───────────────────────────────────────────────
+        // ── Generic storage provider (for non-recording features) ──────────
         services.Configure<StorageOptions>(
             configuration.GetSection(StorageOptions.SectionName));
 
@@ -34,19 +34,23 @@ public static class DependencyInjection
                 break;
         }
 
-        // ── Recording pipeline ─────────────────────────────────────────────
-        services.AddScoped<RecordingTransferService>();
-        services.AddScoped<IFileDownloader, HttpClientFileDownloader>();
-        services.AddScoped<IAgoraRecordingDownloader, AgoraRecordingDownloader>();
-        services.AddScoped<IRecordingStorageSettings, RecordingStorageSettings>();
-
-        services.AddHttpClient(AgoraRecordingDownloader.HttpClientName, client =>
+        // ── Recording storage (Amazon S3 via Agora Cloud Recording) ────────
+        // The S3 client reads storage credentials from AgoraSettings, which
+        // are configured by Agora's Cloud Recording feature.
+        services.AddScoped<IAmazonS3>(sp =>
+        {
+            var agoraSettings = sp.GetRequiredService<IOptions<AgoraSettings>>().Value;
+            var config = new AmazonS3Config
             {
-                client.Timeout = TimeSpan.FromMinutes(10);
-            })
-            .AddTransientHttpErrorPolicy(builder => builder.WaitAndRetryAsync(
-                retryCount: 3,
-                sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
+                RegionEndpoint = RegionEndpoint.USEast1
+            };
+            return new AmazonS3Client(
+                agoraSettings.StorageAccessKey,
+                agoraSettings.StorageSecretKey,
+                config);
+        });
+        services.AddScoped<IRecordingStorage, AmazonS3RecordingStorage>();
+        services.AddScoped<IRecordingStorageSettings, RecordingStorageSettings>();
 
         // ── Access & cache ─────────────────────────────────────────────────
         services.AddSingleton<PresignedUrlCache>();
@@ -64,16 +68,8 @@ public static class DependencyInjection
         // ── Audit logging ──────────────────────────────────────────────────
         services.AddScoped<IRecordingAuditService, RecordingAuditService>();
 
-        // ── Integrity verification ─────────────────────────────────────────
-        services.AddScoped<RecordingIntegrityVerifier>();
-
         // ── Concurrency lock (process-level + EF RowVersion) ───────────────
         services.AddSingleton<IRecordingLock, OptimisticRecordingLock>();
-
-        // ── Reconciliation background service ──────────────────────────────
-        services.Configure<RecordingReconciliationOptions>(
-            configuration.GetSection(RecordingReconciliationOptions.SectionName));
-        services.AddHostedService<RecordingReconciliationService>();
 
         // ── Retention options (architecture stub — no deletion yet) ────────
         services.Configure<RecordingRetentionOptions>(

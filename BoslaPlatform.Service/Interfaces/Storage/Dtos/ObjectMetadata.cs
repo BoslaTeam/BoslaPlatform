@@ -1,4 +1,4 @@
-namespace BoslaPlatform.Application.Features.RecordingTransfer.Dtos;
+namespace BoslaPlatform.Application.Interfaces.Storage.Dtos;
 
 public sealed record ObjectMetadata(
     string BucketName,

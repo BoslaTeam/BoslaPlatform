@@ -4,8 +4,6 @@ using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Events.Videos;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Shared;
-using static BoslaPlatform.Domain.Enums.UploadStatus;
-using static BoslaPlatform.Domain.Enums.StorageProvider;
 
 namespace BoslaPlatform.Domain.Models.Video
 {
@@ -22,44 +20,33 @@ namespace BoslaPlatform.Domain.Models.Video
         // Recording state (aggregate root owns current recording lifecycle)
         public RecordingStatus? RecordingStatus { get; private set; }
         public DateTime? RecordingStartedAtUtc { get; private set; }
+        public DateTime? RecordingCompletedAt { get; private set; }
+        public string? RecordingFailureReason { get; private set; }
         public Guid? CurrentRecordingId { get; private set; }
         public ScreenRecording? CurrentRecording { get; private set; }
 
-        // Provider-level recording details (kept for backward compat)
+        // Provider-level recording identifiers (Agora Cloud Recording)
         public string? AgoraRecordingId { get; private set; }
         public string? AgoraRecordingSid { get; private set; }
-        public string? RecordingUrl { get; private set; }
-        public DateTime? RecordingCompletedAt { get; private set; }
-        public string? RecordingFailureReason { get; private set; }
 
-        // Upload tracking
-        public UploadStatus UploadStatus { get; private set; }
-        public DateTime? UploadedAtUtc { get; private set; }
+        // Recording file URL from Agora provider (S3 object path)
+        public string? RecordingUrl { get; private set; }
+
+        // Amazon S3 recording metadata (populated after Agora uploads to S3)
         public StorageProvider? StorageProvider { get; private set; }
         public string? BucketName { get; private set; }
         public string? ObjectKey { get; private set; }
         public string? ContentType { get; private set; }
         public long? ContentLength { get; private set; }
-        public int UploadAttempts { get; private set; }
-        public string? LastUploadError { get; private set; }
-
-        // Upload integrity & metadata
-        public string? ChecksumSha256 { get; private set; }
-        public string? VersionId { get; private set; }
+        public int? DurationSeconds { get; private set; }
         public string? ETag { get; private set; }
-        public DateTime? LastUploadAttemptUtc { get; private set; }
-
-        // Reconciliation retry tracking
-        public int RetryCount { get; private set; }
-        public DateTime? LastRetryAtUtc { get; private set; }
-        public DateTime? NextRetryAtUtc { get; private set; }
-        public RecordingFailureCategory? FailureCategory { get; private set; }
+        public DateTime? S3UploadedAtUtc { get; private set; }
 
         // Retention policy (architecture stub — deletion not yet implemented)
         public DateTime? ExpiresAtUtc { get; private set; }
         public DateTime? DeletedAtUtc { get; private set; }
 
-        // Optimistic concurrency token (prevents double-upload race conditions)
+        // Optimistic concurrency token
         [Timestamp]
         public byte[]? RowVersion { get; private set; }
 
@@ -71,10 +58,11 @@ namespace BoslaPlatform.Domain.Models.Video
         public IReadOnlyCollection<VideoSessionParticipant> Participants
             => _participants.AsReadOnly();
 
-        public bool IsUploadPendingOrRetrying
-            => UploadStatus is Pending or Uploading or Retrying;
-
         public bool IsRecording => RecordingStatus is Domain.Enums.RecordingStatus.Recording;
+
+        public bool IsUploadedToS3
+            => !string.IsNullOrWhiteSpace(ObjectKey)
+                && !string.IsNullOrWhiteSpace(BucketName);
 
         // Navigation
         private readonly List<VideoSessionParticipant> _participants = [];
@@ -243,19 +231,12 @@ namespace BoslaPlatform.Domain.Models.Video
             return Result.Success();
         }
 
-        public bool IsUploaded
-            => UploadStatus == Uploaded
-                && !string.IsNullOrWhiteSpace(ObjectKey)
-                && !string.IsNullOrWhiteSpace(BucketName);
-
         public void SetRecording(
             string recordingId,
-            string recordingSid,
-            string recordingUrl)
+            string recordingSid)
         {
             AgoraRecordingId = recordingId;
             AgoraRecordingSid = recordingSid;
-            RecordingUrl = recordingUrl;
         }
 
         // ----------------------------------------------------------------
@@ -357,15 +338,9 @@ namespace BoslaPlatform.Domain.Models.Video
             AddDomainEvent(
                 new RecordingCompletedEvent(
                     Id,
-                    RecordingUrl ?? string.Empty,
+                    string.Empty,
                     null,
                     null));
-
-            AddDomainEvent(
-                new RecordingUploadRequestedEvent(
-                    Id,
-                    AgoraRecordingId,
-                    AgoraRecordingSid));
 
             return Result.Success();
         }
@@ -399,88 +374,31 @@ namespace BoslaPlatform.Domain.Models.Video
         // ----------------------------------------------------------------
 
         // ----------------------------------------------------------------
-        // Upload lifecycle methods
-        // Called by RecordingTransferService (Application layer).
+        // Recording upload lifecycle
+        // Called after Agora Cloud Recording uploads to Amazon S3.
         // ----------------------------------------------------------------
 
-        public void MarkUploadPending()
-        {
-            UploadStatus = Pending;
-            UploadAttempts++;
-        }
-
-        public void MarkUploading()
-        {
-            UploadStatus = Uploading;
-        }
-
-        public void MarkUploadSucceeded(
+        /// <summary>
+        /// Persists the Amazon S3 metadata for a completed recording.
+        /// Called after Agora confirms the recording file is available in S3.
+        /// </summary>
+        public void SetS3RecordingMetadata(
             StorageProvider storageProvider,
             string bucketName,
             string objectKey,
             string contentType,
             long contentLength,
-            string? checksumSha256 = null,
-            string? versionId = null,
+            int? durationSeconds = null,
             string? etag = null)
         {
-            UploadStatus = Uploaded;
             StorageProvider = storageProvider;
             BucketName = bucketName;
             ObjectKey = objectKey;
             ContentType = contentType;
             ContentLength = contentLength;
-            UploadedAtUtc = DateTime.UtcNow;
-            ChecksumSha256 = checksumSha256;
-            VersionId = versionId;
+            DurationSeconds = durationSeconds;
             ETag = etag;
-            LastUploadAttemptUtc = DateTime.UtcNow;
-            LastUploadError = null;
-        }
-
-        public void MarkUploadFailed(string error)
-        {
-            UploadStatus = Failed;
-            LastUploadError = error;
-            LastUploadAttemptUtc = DateTime.UtcNow;
-        }
-
-        public void MarkUploadRetrying()
-        {
-            UploadStatus = Retrying;
-        }
-
-        public void MarkUploadCancelled()
-        {
-            UploadStatus = Cancelled;
-        }
-
-        // ----------------------------------------------------------------
-        // Reconciliation & retry methods
-        // Called exclusively by RecordingReconciliationService.
-        // ----------------------------------------------------------------
-
-        /// <summary>
-        /// Advances the retry state with exponential backoff.
-        /// Only call when the failure is classified as retriable.
-        /// </summary>
-        public void MarkRetryScheduled(DateTime nextRetryAtUtc, RecordingFailureCategory? category = null)
-        {
-            UploadStatus = Retrying;
-            RetryCount++;
-            LastRetryAtUtc = DateTime.UtcNow;
-            NextRetryAtUtc = nextRetryAtUtc;
-            if (category.HasValue)
-                FailureCategory = category;
-        }
-
-        /// <summary>
-        /// Sets the failure category without changing upload status.
-        /// Used when classifying a failure before deciding retry eligibility.
-        /// </summary>
-        public void SetFailureCategory(RecordingFailureCategory category)
-        {
-            FailureCategory = category;
+            S3UploadedAtUtc = DateTime.UtcNow;
         }
 
         // ----------------------------------------------------------------

@@ -1,6 +1,5 @@
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Models.Video;
-using static BoslaPlatform.Domain.Enums.UploadStatus;
 using static BoslaPlatform.Domain.Enums.StorageProvider;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -16,7 +15,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
             builder.Property(v => v.AgoraChannelName).HasMaxLength(100).IsRequired();
             builder.Property(v => v.AgoraAppId).HasMaxLength(100).IsRequired();
             builder.Property(v => v.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
-            builder.Property(v => v.AgoraRecordingId).HasMaxLength(200);
+            builder.Property(v => v.AgoraRecordingId).HasMaxLength(512);
             builder.Property(v => v.AgoraRecordingSid).HasMaxLength(200);
             builder.Property(v => v.RecordingUrl)
                 .HasMaxLength(2000);
@@ -61,12 +60,6 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
                 .FindNavigation(nameof(VideoSession.Recordings))!
                 .SetPropertyAccessMode(PropertyAccessMode.Field);
 
-            builder.Property(v => v.UploadStatus)
-                .HasConversion<string>()
-                .HasMaxLength(20)
-                .HasDefaultValue(UploadStatus.Pending)
-                .IsRequired();
-
             builder.Property(v => v.StorageProvider)
                 .HasConversion<string>()
                 .HasMaxLength(30)
@@ -87,55 +80,19 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
             builder.Property(v => v.ContentLength)
                 .IsRequired(false);
 
-            builder.Property(v => v.UploadAttempts)
-                .HasDefaultValue(0)
-                .IsRequired();
-
-            builder.Property(v => v.LastUploadError)
-                .HasMaxLength(1000)
-                .IsRequired(false);
-
-            builder.Property(v => v.UploadedAtUtc)
-                .IsRequired(false);
-
-            builder.Property(v => v.ChecksumSha256)
-                .HasMaxLength(64)
-                .IsRequired(false);
-
-            builder.Property(v => v.VersionId)
-                .HasMaxLength(100)
+            builder.Property(v => v.DurationSeconds)
                 .IsRequired(false);
 
             builder.Property(v => v.ETag)
                 .HasMaxLength(200)
                 .IsRequired(false);
 
-            builder.Property(v => v.LastUploadAttemptUtc)
+            builder.Property(v => v.S3UploadedAtUtc)
                 .IsRequired(false);
 
             builder.HasIndex(v => v.AgoraChannelName).IsUnique();
             builder.HasIndex(v => v.AppointmentId)
                 .IsUnique();
-
-            // Reconciliation query: efficiently find Pending/Retrying sessions due for retry
-            builder.HasIndex(v => new { v.UploadStatus, v.NextRetryAtUtc })
-                .HasDatabaseName("IX_VideoSessions_UploadStatus_NextRetryAtUtc");
-
-            // Retention / soft-delete new columns
-            builder.Property(v => v.RetryCount)
-                .HasDefaultValue(0)
-                .IsRequired();
-
-            builder.Property(v => v.LastRetryAtUtc)
-                .IsRequired(false);
-
-            builder.Property(v => v.NextRetryAtUtc)
-                .IsRequired(false);
-
-            builder.Property(v => v.FailureCategory)
-                .HasConversion<string>()
-                .HasMaxLength(30)
-                .IsRequired(false);
 
             builder.Property(v => v.ExpiresAtUtc)
                 .IsRequired(false);

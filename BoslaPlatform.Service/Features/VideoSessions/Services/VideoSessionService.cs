@@ -4,6 +4,7 @@ using BoslaPlatform.Application.Features.VideoSessions.Interfaces;
 using BoslaPlatform.Application.Features.VideoSessions.Responses;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Persistence;
+using BoslaPlatform.Application.Interfaces.Storage;
 using BoslaPlatform.Application.Interfaces.Video;
 using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Enums;
@@ -23,6 +24,7 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
         private readonly IAgoraTokenService _agoraTokenService;
         private readonly IRecordingProvider _recordingProvider;
         private readonly IVideoSessionLifecycleService _lifecycleService;
+        private readonly IRecordingStorageSettings _recordingStorageSettings;
         private readonly IMapper _mapper;
         private readonly ILogger<VideoSessionService> _logger;
 
@@ -32,6 +34,7 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             IAgoraTokenService agoraTokenService,
             IRecordingProvider recordingProvider,
             IVideoSessionLifecycleService lifecycleService,
+            IRecordingStorageSettings recordingStorageSettings,
             IMapper mapper,
             ILogger<VideoSessionService> logger)
         {
@@ -40,6 +43,7 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             _agoraTokenService = agoraTokenService;
             _recordingProvider = recordingProvider;
             _lifecycleService = lifecycleService;
+            _recordingStorageSettings = recordingStorageSettings;
             _mapper = mapper;
             _logger = logger;
         }
@@ -400,11 +404,30 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
                 return providerResult.Errors;
             }
 
+
+
             // --------------------------------------------------------------
             // Phase 3: Persist provider identifiers (short SQL transaction)
             // --------------------------------------------------------------
             var providerData = providerResult.Value;
+            _logger.LogInformation(
+"ResourceId = {ResourceId}",
+providerData.ProviderRecordingId);
 
+            _logger.LogInformation(
+                "ResourceId Length = {Length}",
+                providerData.ProviderRecordingId?.Length ?? 0);
+
+            _logger.LogInformation(
+                "SID = {Sid}",
+                providerData.ProviderMetadata);
+
+            _logger.LogInformation(
+                "SID Length = {Length}",
+                providerData.ProviderMetadata?.Length ?? 0);
+
+            _logger.LogInformation("Provider recording started successfully for session {SessionId}",
+                videoSessionId);
             _logger.LogInformation("Provider recording started successfully for session {SessionId}",
                 videoSessionId);
 
@@ -416,10 +439,21 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
 
                 session.SetRecording(
                     providerData.ProviderRecordingId,
-                    providerData.ProviderMetadata ?? string.Empty,
-                    string.Empty);
+                    providerData.ProviderMetadata ?? string.Empty);
 
-                await _context.SaveChangesAsync(ct);
+                try
+                {
+                    await _context.SaveChangesAsync(ct);
+                }
+                catch (DbUpdateException ex)
+                {
+                    _logger.LogError(ex, "Save failed");
+
+                    if (ex.InnerException != null)
+                        _logger.LogError("Inner: {Inner}", ex.InnerException);
+
+                    throw;
+                }
                 await tx2.CommitAsync(ct);
             }
 
@@ -539,6 +573,25 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
 
                 if (stopResult.IsError)
                     return stopResult.Errors;
+
+                // Persist S3 recording metadata from Agora's stop response
+                // stopData.FileUrl is the S3 object key returned by Agora
+                // stopData.Files contains individual recording file segments
+                var s3ObjectKey = stopData.Files?.FirstOrDefault()?.ObjectKey
+                    ?? stopData.FileUrl;
+
+                if (!string.IsNullOrWhiteSpace(s3ObjectKey))
+                {
+                    session.SetS3RecordingMetadata(
+                        Domain.Enums.StorageProvider.AmazonS3,
+                        _recordingStorageSettings.RecordingBucketName,
+                        s3ObjectKey,
+                        contentType: recording.Url?.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) == true
+                            ? "video/mp4"
+                            : "application/octet-stream",
+                        contentLength: stopData.FileSizeBytes,
+                        durationSeconds: stopData.DurationSeconds > 0 ? stopData.DurationSeconds : null);
+                }
 
                 await _context.SaveChangesAsync(ct);
                 await tx2.CommitAsync(ct);

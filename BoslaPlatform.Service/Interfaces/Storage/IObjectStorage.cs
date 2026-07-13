@@ -1,4 +1,4 @@
-using BoslaPlatform.Application.Features.RecordingTransfer.Dtos;
+using BoslaPlatform.Application.Interfaces.Storage.Dtos;
 using BoslaPlatform.Shared;
 
 namespace BoslaPlatform.Application.Interfaces.Storage

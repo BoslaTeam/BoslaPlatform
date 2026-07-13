@@ -1,8 +1,8 @@
 using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
-using BoslaPlatform.Application.Features.RecordingTransfer.Dtos;
 using BoslaPlatform.Application.Interfaces.Storage;
+using BoslaPlatform.Application.Interfaces.Storage.Dtos;
 using BoslaPlatform.Infrastructure.Storage.Configuration;
 using BoslaPlatform.Shared;
 using Microsoft.Extensions.Logging;

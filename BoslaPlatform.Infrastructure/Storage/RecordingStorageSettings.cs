@@ -1,31 +1,24 @@
 using BoslaPlatform.Application.Interfaces.Storage;
-using BoslaPlatform.Domain.Enums;
-using BoslaPlatform.Infrastructure.Storage.Configuration;
+using BoslaPlatform.Infrastructure.Settings;
 using Microsoft.Extensions.Options;
 
 namespace BoslaPlatform.Infrastructure.Storage;
 
+/// <summary>
+/// Recording storage settings read from AgoraSettings.
+/// Agora Cloud Recording uploads directly to Amazon S3, so the S3 bucket
+/// and access configuration are managed inside AgoraSettings.
+/// </summary>
 public sealed class RecordingStorageSettings : IRecordingStorageSettings
 {
-    private readonly StorageOptions _options;
+    private readonly AgoraSettings _settings;
 
-    public RecordingStorageSettings(IOptions<StorageOptions> options)
+    public RecordingStorageSettings(IOptions<AgoraSettings> options)
     {
-        _options = options.Value;
+        _settings = options.Value;
     }
 
-    public string BucketName => _options.BucketName;
+    public string RecordingBucketName => _settings.StorageBucket;
 
-    public StorageProvider Provider => Enum.TryParse<StorageProvider>(
-        _options.Provider,
-        ignoreCase: true,
-        out var provider)
-            ? provider
-            : StorageProvider.CloudflareR2;
-
-    public int MaxRetryAttempts => Math.Max(1, _options.MaxRetryAttempts);
-
-    public int RetryBaseDelaySeconds => Math.Max(1, _options.RetryBaseDelaySeconds);
-
-    public int PresignedUrlExpirationMinutes => Math.Max(1, _options.PresignedUrlExpirationMinutes);
+    public int PresignedUrlExpirationMinutes => 15;
 }

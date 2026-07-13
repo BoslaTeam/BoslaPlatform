@@ -11,7 +11,7 @@ namespace BoslaPlatform.Application.Features.RecordingAccess.Services;
 public sealed class RecordingAccessService : IRecordingAccessService
 {
     private readonly IAppDbContext _context;
-    private readonly IObjectStorage _objectStorage;
+    private readonly IRecordingStorage _recordingStorage;
     private readonly PresignedUrlCache _urlCache;
     private readonly IRecordingAuditService _audit;
     private readonly IRecordingMetrics _metrics;
@@ -20,7 +20,7 @@ public sealed class RecordingAccessService : IRecordingAccessService
 
     public RecordingAccessService(
         IAppDbContext context,
-        IObjectStorage objectStorage,
+        IRecordingStorage recordingStorage,
         PresignedUrlCache urlCache,
         IRecordingAuditService audit,
         IRecordingMetrics metrics,
@@ -28,7 +28,7 @@ public sealed class RecordingAccessService : IRecordingAccessService
         ILogger<RecordingAccessService> logger)
     {
         _context = context;
-        _objectStorage = objectStorage;
+        _recordingStorage = recordingStorage;
         _urlCache = urlCache;
         _audit = audit;
         _metrics = metrics;
@@ -63,13 +63,11 @@ public sealed class RecordingAccessService : IRecordingAccessService
                 "Recording not found.");
         }
 
-        if (session.UploadStatus != UploadStatus.Uploaded
-            || string.IsNullOrWhiteSpace(session.ObjectKey)
-            || string.IsNullOrWhiteSpace(session.BucketName))
+        if (!session.IsUploadedToS3)
         {
             _logger.LogWarning(
-                "Watch URL requested for session {SessionId} with status {Status} by user {UserId}",
-                sessionId, session.UploadStatus, userId);
+                "Watch URL requested for session {SessionId} — recording not available in S3 by user {UserId}",
+                sessionId, userId);
 
             return Error.NotFound(
                 "Recording.NotFound",
@@ -119,10 +117,10 @@ public sealed class RecordingAccessService : IRecordingAccessService
                 session.ContentType ?? "application/octet-stream",
                 session.ContentLength,
                 GetFileName(session.ObjectKey),
-                null);
+                session.DurationSeconds);
         }
 
-        var urlResult = await _objectStorage.GeneratePresignedUrlAsync(
+        var urlResult = await _recordingStorage.GeneratePresignedUrlAsync(
             session.BucketName,
             session.ObjectKey,
             expirationTime,
@@ -149,7 +147,6 @@ public sealed class RecordingAccessService : IRecordingAccessService
             "Watch URL generated for session {SessionId}, objectKey={ObjectKey}, storageProvider={Provider}, expiresAt={ExpiresAt}",
             sessionId, session.ObjectKey, session.StorageProvider, expiresAt);
 
-        // Fire-and-forget audit log — never blocks the response.
         await _audit.LogAsync(sessionId, userId, RecordingAuditAction.Viewed, ct);
 
         return new RecordingWatchResponse(
@@ -158,7 +155,7 @@ public sealed class RecordingAccessService : IRecordingAccessService
             session.ContentType ?? "application/octet-stream",
             session.ContentLength,
             GetFileName(session.ObjectKey),
-            null);
+            session.DurationSeconds);
     }
 
     public async Task<Result<RecordingDownloadContext>> GetDownloadStreamAsync(
@@ -181,13 +178,11 @@ public sealed class RecordingAccessService : IRecordingAccessService
             return Error.NotFound("Recording.NotFound", "Recording not found.");
         }
 
-        if (session.UploadStatus != UploadStatus.Uploaded
-            || string.IsNullOrWhiteSpace(session.ObjectKey)
-            || string.IsNullOrWhiteSpace(session.BucketName))
+        if (!session.IsUploadedToS3)
         {
             _logger.LogWarning(
-                "Download requested for session {SessionId} with upload status {Status}",
-                sessionId, session.UploadStatus);
+                "Download requested for session {SessionId} — recording not available in S3",
+                sessionId);
 
             return Error.NotFound("Recording.NotFound", "Recording not found.");
         }
@@ -219,7 +214,7 @@ public sealed class RecordingAccessService : IRecordingAccessService
                 "You do not have permission to download this recording.");
         }
 
-        var streamResult = await _objectStorage.OpenReadStreamAsync(
+        var streamResult = await _recordingStorage.OpenReadStreamAsync(
             session.BucketName,
             session.ObjectKey,
             ct);
@@ -227,7 +222,7 @@ public sealed class RecordingAccessService : IRecordingAccessService
         if (streamResult.IsError)
         {
             _logger.LogError(
-                "Failed to open storage stream for session {SessionId}, bucket={Bucket}, key={ObjectKey}: {Error}",
+                "Failed to open S3 stream for session {SessionId}, bucket={Bucket}, key={ObjectKey}: {Error}",
                 sessionId, session.BucketName, session.ObjectKey,
                 string.Join("; ", streamResult.Errors.Select(e => e.Description)));
 
@@ -242,13 +237,12 @@ public sealed class RecordingAccessService : IRecordingAccessService
             "Download stream opened for session {SessionId}, objectKey={ObjectKey}, contentLength={ContentLength}",
             sessionId, session.ObjectKey, session.ContentLength);
 
-        // Fire-and-forget audit log.
         await _audit.LogAsync(sessionId, userId, RecordingAuditAction.Downloaded, ct);
 
         return new RecordingDownloadContext(
-            streamResult.Value.Content,
+            streamResult.Value,
             session.ContentType ?? "application/octet-stream",
-            session.ContentLength ?? streamResult.Value.ContentLength,
+            session.ContentLength ?? 0,
             fileName);
     }
 

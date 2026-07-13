@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.Text;
 using BoslaPlatform.API.Common.Extensions;
 using BoslaPlatform.API.Common.Responses;
-using BoslaPlatform.Application.Features.RecordingTransfer.Dtos;
+using BoslaPlatform.Application.Interfaces.Storage.Dtos;
 using BoslaPlatform.Application.Interfaces.Storage;
 using BoslaPlatform.Infrastructure.Storage.Configuration;
 using BoslaPlatform.Shared;
