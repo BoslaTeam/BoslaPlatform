@@ -43,7 +43,7 @@ public sealed class AutoCancelUnpaidAppointmentsService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<IAppDbContext>();
 
-        var deadline = DateTimeOffset.UtcNow.AddHours(-1);
+        var deadline = DateTimeOffset.UtcNow.AddHours(-6);
 
         var expired = await context.Set<Appointment>()
             .Include(a => a.StatusHistory)
@@ -57,7 +57,7 @@ public sealed class AutoCancelUnpaidAppointmentsService : BackgroundService
         {
             try
             {
-                appointment.Cancel(Guid.Empty, "Auto-cancelled: payment deadline of 1 hour exceeded.");
+                appointment.Cancel(Guid.Empty, "Auto-cancelled: payment deadline of 6 hours exceeded.");
                 _logger.LogInformation("Auto-cancelled appointment {AppointmentId}", appointment.Id);
             }
             catch (Exception ex)
