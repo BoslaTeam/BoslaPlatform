@@ -369,7 +369,7 @@ namespace BoslaPlatform.Application.Services
 
             if (payment is null) return Error.NotFound("Payment.NotFound", "No payment found for this appointment.");
 
-            payment.Complete(paymentIntentId, "Card");
+            payment.CompleteAndHold(paymentIntentId, "Card");
 
             var result = appointment.MarkAsPaid();
             if (result.IsError) return result.Errors;

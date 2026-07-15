@@ -4,12 +4,14 @@ using BoslaPlatform.API.Common.Extensions;
 using BoslaPlatform.Application.Features.Admin.DTOs;
 using BoslaPlatform.Application.Features.Admin.Requests;
 using BoslaPlatform.Application.Features.Admin.Services;
+using BoslaPlatform.Application.Features.Payments.Dtos;
 using BoslaPlatform.Application.Features.Portfolio.DTOs;
 using BoslaPlatform.Application.Features.Portfolio.Requests;
 using BoslaPlatform.Application.Features.Portfolio.Services;
 using BoslaPlatform.Application.Interfaces.AI;
 using BoslaPlatform.Application.Features.Lookup.Response;
 using BoslaPlatform.Application.Interfaces.Authentication;
+using BoslaPlatform.Application.Interfaces.Payments;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Shared;
 using Microsoft.AspNetCore.Authorization;
@@ -24,7 +26,7 @@ namespace BoslaPlatform.API.Controllers.v1;
 [Route("api/v{version:apiVersion}/admin")]
 [Authorize(Roles = nameof(UserRole.Admin))]
 public class AdminController(
-    IAdminService adminService, IEmbeddingAdminService embeddingAdmin, IUser currentUser, IPortfolioService portfolioService) : ControllerBase
+    IAdminService adminService, IEmbeddingAdminService embeddingAdmin, IUser currentUser, IPortfolioService portfolioService, IComplaintService complaintService) : ControllerBase
 {
     [HttpGet("users")]
     [ProducesResponseType(typeof(ApiResponse<BoslaPlatform.Shared.PaginatedList<UserDto>>), StatusCodes.Status200OK)]
@@ -410,6 +412,40 @@ public class AdminController(
         var result = await adminService.RefundPaymentAsync(id, request.Reason, ct);
         if (result.IsSuccess)
             return Results.Ok(ApiResponse.SuccessResponse("Payment refunded."));
+        return result.Errors.ToProblem();
+    }
+
+    // ── Disputes / Complaints ──
+
+    [HttpGet("payments/disputes")]
+    [ProducesResponseType(typeof(ApiResponse<List<ComplaintDto>>), StatusCodes.Status200OK)]
+    public async Task<IResult> ListDisputes(CancellationToken ct = default)
+    {
+        var result = await complaintService.GetPendingComplaintsAsync(ct);
+        return result.Match(
+            value => Results.Ok(ApiResponse<List<ComplaintDto>>.SuccessResponse(value)),
+            errors => errors.ToProblem());
+    }
+
+    [HttpGet("payments/disputes/{id:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<ComplaintDetailDto>), StatusCodes.Status200OK)]
+    public async Task<IResult> GetDisputeDetail(Guid id, CancellationToken ct = default)
+    {
+        var result = await complaintService.GetComplaintByIdAsync(id, ct);
+        return result.Match(
+            value => Results.Ok(ApiResponse<ComplaintDetailDto>.SuccessResponse(value)),
+            errors => errors.ToProblem());
+    }
+
+    [HttpPost("payments/disputes/{id:guid}/resolve")]
+    public async Task<IResult> ResolveDispute(Guid id, [FromBody] ResolveDisputeRequest request, CancellationToken ct = default)
+    {
+        if (!currentUser.Id.HasValue)
+            return Results.Unauthorized();
+
+        var result = await complaintService.ResolveDisputeAsync(id, currentUser.Id.Value, request, ct);
+        if (result.IsSuccess)
+            return Results.Ok(ApiResponse.SuccessResponse("Dispute resolved."));
         return result.Errors.ToProblem();
     }
 

@@ -2,6 +2,7 @@ using BoslaPlatform.API.Common.Extensions;
 using BoslaPlatform.API.Common.Responses;
 using BoslaPlatform.Application.Features.Payments.Dtos;
 using BoslaPlatform.Application.Features.Payments.Requests;
+using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Payments;
 using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Application.Settings;
@@ -18,16 +19,22 @@ namespace BoslaPlatform.API.Controllers.v1
     public class PaymentsController : ControllerBase
     {
         private readonly IPaymentService _paymentService;
+        private readonly IComplaintService _complaintService;
         private readonly IAppDbContext _context;
+        private readonly IUser _currentUser;
         private readonly StripeSettings _stripeSettings;
 
         public PaymentsController(
             IPaymentService paymentService,
+            IComplaintService complaintService,
             IAppDbContext context,
+            IUser currentUser,
             IOptions<StripeSettings> stripeSettings)
         {
             _paymentService = paymentService;
+            _complaintService = complaintService;
             _context = context;
+            _currentUser = currentUser;
             _stripeSettings = stripeSettings.Value;
         }
 
@@ -65,6 +72,31 @@ namespace BoslaPlatform.API.Controllers.v1
             var result = await _paymentService.GetMyPaymentsAsync(HttpContext.RequestAborted);
             if (result.IsError) return BadRequest(result.ToApiResponse<IReadOnlyList<PaymentResponseDto>>());
             return Ok(result.ToApiResponse<IReadOnlyList<PaymentResponseDto>>());
+        }
+
+        [HttpPost("{id:guid}/dispute")]
+        public async Task<IActionResult> FileDispute(Guid id, [FromBody] FileDisputeRequest request)
+        {
+            if (!_currentUser.IsAuthenticated || !_currentUser.Id.HasValue)
+                return Unauthorized();
+
+            request.PaymentId = id;
+            var result = await _complaintService.FileDisputeAsync(_currentUser.Id.Value, request, HttpContext.RequestAborted);
+            if (result.IsError)
+                return BadRequest(result.ToApiResponse<ComplaintDto>());
+            return Ok(result.ToApiResponse<ComplaintDto>());
+        }
+
+        [HttpGet("disputes/me")]
+        public async Task<IActionResult> GetMyDisputes()
+        {
+            if (!_currentUser.IsAuthenticated || !_currentUser.Id.HasValue)
+                return Unauthorized();
+
+            var result = await _complaintService.GetMyComplaintsAsync(_currentUser.Id.Value, HttpContext.RequestAborted);
+            if (result.IsError)
+                return BadRequest(result.ToApiResponse<List<ComplaintDto>>());
+            return Ok(result.ToApiResponse<List<ComplaintDto>>());
         }
 
         [HttpPost("webhook")]
@@ -121,7 +153,7 @@ namespace BoslaPlatform.API.Controllers.v1
                 return;
             }
 
-            payment.Complete(paymentIntent.Id, paymentIntent.PaymentMethodId ?? "Card");
+            payment.CompleteAndHold(paymentIntent.Id, paymentIntent.PaymentMethodId ?? "Card");
 
             var appointment = await _context.Appointments
                 .FirstOrDefaultAsync(a => a.Id == payment.AppointmentId);

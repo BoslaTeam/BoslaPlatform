@@ -1,4 +1,6 @@
-﻿using BoslaPlatform.Domain.Models.Booking;
+﻿using BoslaPlatform.Domain.Entities.Payments;
+using BoslaPlatform.Domain.Enums;
+using BoslaPlatform.Domain.Models.Booking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -19,10 +21,23 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
             builder.Property(p => p.SpecialistAmount).HasPrecision(10, 2);
             builder.Property(p => p.TaxAmount).HasPrecision(10, 2).HasDefaultValue(0m);
 
+            // Escrow properties
+            builder.Property(p => p.EscrowStatus)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired()
+                .HasDefaultValue(EscrowStatus.Held);
+            builder.Property(p => p.HeldUntil);
+            builder.Property(p => p.ReleasedAt);
+            builder.Property(p => p.DisputeReason).HasMaxLength(500);
+            builder.Property(p => p.DisputedAt);
+
             builder.HasOne(p => p.Appointment).WithOne(a => a.Payment)
                 .HasForeignKey<Payment>(p => p.AppointmentId).OnDelete(DeleteBehavior.Restrict);
 
             builder.HasIndex(p => p.AppointmentId).IsUnique();
+
+
         }
     }
 }

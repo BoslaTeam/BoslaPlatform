@@ -1,5 +1,6 @@
 using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Domain.Entities.Payments;
 using BoslaPlatform.Domain.Entities.Payouts;
 using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Entities.System;
@@ -28,6 +29,7 @@ namespace BoslaPlatform.Infrastructure.Data
         // Booking
         public DbSet<Appointment> Appointments => Set<Appointment>();
         public DbSet<Payment> Payments => Set<Payment>();
+        public DbSet<PaymentComplaint> PaymentComplaints => Set<PaymentComplaint>();
         public DbSet<Review> Reviews => Set<Review>();
         public DbSet<Availability> AvailabilitySlots => Set<Availability>();
         public DbSet<Reminder> Reminders => Set<Reminder>();

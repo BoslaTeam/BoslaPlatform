@@ -35,6 +35,7 @@ public static class DependencyInjection
 
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IPaymentGateway, StripePaymentGateway>();
+        services.AddScoped<IComplaintService, ComplaintService>();
 
         services.AddMemoryCache();
         services.AddSingleton<IOnlineUserTracker, OnlineUserTracker>();
