@@ -96,6 +96,12 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                 request.IntroVideoUrl,
                 request.BookingPolicy);
 
+            specialist.User.Title = request.Title;
+            specialist.User.Bio = request.Bio;
+            specialist.User.Country = request.Country;
+            specialist.User.Gender = request.Gender;
+            specialist.User.PreferredLanguage = request.PreferredLanguage;
+
             await context.SaveChangesAsync(ct);
 
             return MapToProfileDto(specialist);

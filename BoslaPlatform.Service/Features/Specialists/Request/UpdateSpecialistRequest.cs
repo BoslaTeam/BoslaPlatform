@@ -7,6 +7,11 @@ namespace BoslaPlatform.Application.Features.Specialists.Request
         ExperienceLevel ExperienceLevel,
         decimal HourlyRate,
         string? IntroVideoUrl,
-        string? BookingPolicy
+        string? BookingPolicy,
+        string? Title,
+        string? Bio,
+        string? Gender,
+        string? PreferredLanguage,
+        string? Country
     );
 }
