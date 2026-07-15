@@ -119,7 +119,13 @@ namespace BoslaPlatform.Application.Services
 
                     IsPaid = a.Payment != null
                         && a.Payment.Status == PaymentStatus.Completed,
-                    ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null
+                    ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null,
+                    PaymentId = a.Payment != null ? a.Payment.Id : (Guid?)null,
+                    EscrowStatus = a.Payment != null ? a.Payment.EscrowStatus : null,
+                    DisputeReason = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.Reason : null,
+                    DisputeAdminNotes = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.AdminNotes : null,
+                    ComplaintStatus = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.Status : null,
+                    DisputeDescription = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.Description : null
                 })
                 .FirstOrDefaultAsync(ct);
 
@@ -179,7 +185,13 @@ namespace BoslaPlatform.Application.Services
                     SessionPrice = a.SessionPrice,
                     IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed,
                     ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null,
-                    ConfirmedAt = a.ConfirmedAt
+                    ConfirmedAt = a.ConfirmedAt,
+                    PaymentId = a.Payment != null ? a.Payment.Id : (Guid?)null,
+                    EscrowStatus = a.Payment != null ? a.Payment.EscrowStatus : null,
+                    DisputeReason = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.Reason : null,
+                    DisputeAdminNotes = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.AdminNotes : null,
+                    ComplaintStatus = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.Status : null,
+                    DisputeDescription = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.Description : null
                 })
                 .ToListAsync(ct);
 
@@ -216,7 +228,12 @@ namespace BoslaPlatform.Application.Services
                     SessionPrice = a.SessionPrice,
                     IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed,
                     ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null,
-                    ConfirmedAt = a.ConfirmedAt
+                    ConfirmedAt = a.ConfirmedAt,
+                    EscrowStatus = a.Payment != null ? a.Payment.EscrowStatus : null,
+                    DisputeReason = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.Reason : null,
+                    DisputeAdminNotes = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.AdminNotes : null,
+                    ComplaintStatus = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.Status : null,
+                    DisputeDescription = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.Description : null
                 })
                 .ToListAsync(ct);
 
@@ -268,7 +285,13 @@ namespace BoslaPlatform.Application.Services
                     SessionPrice = a.SessionPrice,
                     IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed,
                     ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null,
-                    ConfirmedAt = a.ConfirmedAt
+                    ConfirmedAt = a.ConfirmedAt,
+                    PaymentId = a.Payment != null ? a.Payment.Id : (Guid?)null,
+                    EscrowStatus = a.Payment != null ? a.Payment.EscrowStatus : null,
+                    DisputeReason = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.Reason : null,
+                    DisputeAdminNotes = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.AdminNotes : null,
+                    ComplaintStatus = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.Status : null,
+                    DisputeDescription = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.Description : null
                 })
                 .ToListAsync(ct);
 
@@ -315,7 +338,13 @@ namespace BoslaPlatform.Application.Services
                     SessionPrice = a.SessionPrice,
                     IsPaid = a.Payment != null && a.Payment.Status == PaymentStatus.Completed,
                     ConversationId = a.Conversation != null ? a.Conversation.Id : (Guid?)null,
-                    ConfirmedAt = a.ConfirmedAt
+                    ConfirmedAt = a.ConfirmedAt,
+                    PaymentId = a.Payment != null ? a.Payment.Id : (Guid?)null,
+                    EscrowStatus = a.Payment != null ? a.Payment.EscrowStatus : null,
+                    DisputeReason = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.Reason : null,
+                    DisputeAdminNotes = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.AdminNotes : null,
+                    ComplaintStatus = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.Status : null,
+                    DisputeDescription = a.Payment != null && a.Payment.Complaint != null ? a.Payment.Complaint.Description : null
                 })
                 .ToListAsync(ct);
 
@@ -369,7 +398,7 @@ namespace BoslaPlatform.Application.Services
 
             if (payment is null) return Error.NotFound("Payment.NotFound", "No payment found for this appointment.");
 
-            payment.Complete(paymentIntentId, "Card");
+            payment.CompleteAndHold(paymentIntentId, "Card");
 
             var result = appointment.MarkAsPaid();
             if (result.IsError) return result.Errors;

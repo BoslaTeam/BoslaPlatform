@@ -1,4 +1,5 @@
 using BoslaPlatform.Domain.Entities;
+using BoslaPlatform.Domain.Entities.Payments;
 using BoslaPlatform.Domain.Entities.Payouts;
 using BoslaPlatform.Domain.Entities.Profile;
 using BoslaPlatform.Domain.Entities.System;
@@ -45,6 +46,7 @@ namespace BoslaPlatform.Application.Interfaces.Persistence
         DbSet<Appointment> Appointments { get; }
 
         DbSet<Payment> Payments { get; }
+        DbSet<PaymentComplaint> PaymentComplaints { get; }
         DbSet<BoslaPlatform.Domain.Models.Communication.Conversation> Conversations { get; }
         DbSet<ConversationParticipant> ConversationParticipants { get; }
         DbSet<Message> Messages { get; }

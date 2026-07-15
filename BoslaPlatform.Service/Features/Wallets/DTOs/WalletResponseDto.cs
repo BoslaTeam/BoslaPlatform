@@ -5,6 +5,8 @@ public class WalletResponseDto
     public Guid Id { get; set; }
     public decimal Balance { get; set; }
     public decimal HoldBalance { get; set; }
+    public decimal PendingReleaseBalance { get; set; }
+    public DateTime? NextReleaseDate { get; set; }
     public string Currency { get; set; } = "EGP";
     public List<TransactionDto> RecentTransactions { get; set; } = [];
 }

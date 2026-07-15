@@ -168,6 +168,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationSender, SignalRNotificationSender>();
 
         services.AddHostedService<ReminderBackgroundService>();
+        services.AddHostedService<EscrowReleaseJob>();
 
         var emailProvider = configuration.GetSection("EmailSettings")["Provider"]?.Trim().ToLowerInvariant();
         if (emailProvider == "sendgrid")

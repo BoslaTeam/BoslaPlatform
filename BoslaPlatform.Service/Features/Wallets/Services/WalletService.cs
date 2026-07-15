@@ -2,6 +2,7 @@ using BoslaPlatform.Application.Features.Wallets.DTOs;
 using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Application.Interfaces.Wallets;
 using BoslaPlatform.Domain.Entities.Payouts;
+using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Shared;
 using Dapper;
 using Microsoft.EntityFrameworkCore;
@@ -23,7 +24,23 @@ public class WalletService(IAppDbContext context) : IWalletService
             await context.SaveChangesAsync();
         }
 
-        return Result<WalletResponseDto>.Success(MapToDto(wallet));
+        // Calculate pending release from held payments
+        var pendingRelease = await context.Set<Payment>()
+            .Where(p => p.Appointment.SpecialistId == specialistId
+                     && p.EscrowStatus == Domain.Enums.EscrowStatus.Held)
+            .GroupBy(p => 1)
+            .Select(g => new
+            {
+                Total = g.Sum(p => p.SpecialistAmount),
+                NextRelease = g.Min(p => p.HeldUntil)
+            })
+            .FirstOrDefaultAsync();
+
+        var dto = MapToDto(wallet);
+        dto.PendingReleaseBalance = pendingRelease?.Total ?? 0;
+        dto.NextReleaseDate = pendingRelease?.NextRelease;
+
+        return Result<WalletResponseDto>.Success(dto);
     }
 
     public async Task<Result<List<TransactionDto>>> GetSpecialistTransactionsAsync(Guid specialistId, int page = 1, int pageSize = 20)

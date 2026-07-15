@@ -20,5 +20,12 @@ namespace BoslaPlatform.Application.Features.Appointments.DTOs
         public DateTimeOffset? ConfirmedAt { get; set; }
         public bool IsPaid { get; set; }
         public Guid? ConversationId { get; set; }
+
+        public Guid? PaymentId { get; set; }
+        public EscrowStatus? EscrowStatus { get; set; }
+        public string? DisputeReason { get; set; }
+        public string? DisputeAdminNotes { get; set; }
+        public ComplaintStatus? ComplaintStatus { get; set; }
+        public string? DisputeDescription { get; set; }
     }
 }
