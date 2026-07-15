@@ -127,6 +127,8 @@ namespace BoslaPlatform.Domain.Models.Booking
             Status = PaymentStatus.Refunded;
             EscrowStatus = EscrowStatus.Refunded;
             RefundReason = reason;
+
+            AddDomainEvent(new PaymentDisputeResolvedEvent(Id, AppointmentId, true, reason));
         }
 
         public void RejectDispute()

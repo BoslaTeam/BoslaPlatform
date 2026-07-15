@@ -33,6 +33,22 @@ public class Withdrawal : AuditableEntity
         return w;
     }
 
+    public static Withdrawal RequestDirect(Guid specialistId, decimal amount, string paymentMethod, string? paymentDetails)
+    {
+        var w = new Withdrawal
+        {
+            Id = Guid.NewGuid(),
+            SpecialistId = specialistId,
+            Amount = amount,
+            PaymentMethod = paymentMethod,
+            PaymentDetails = paymentDetails,
+            Status = WithdrawalStatus.Completed,
+            ProcessedAt = DateTime.UtcNow
+        };
+        w.AddDomainEvent(new WithdrawalCompletedEvent(w.Id, specialistId, amount));
+        return w;
+    }
+
     public void Approve(Guid adminId)
     {
         Status = WithdrawalStatus.Processing;

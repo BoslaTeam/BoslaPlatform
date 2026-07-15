@@ -36,7 +36,7 @@ public class WithdrawalService(
 
         const string sql = @"
             SELECT 
-                ISNULL(SUM(p.SpecialistAmount), 0) AS TotalEarnings,
+                ISNULL(SUM(CASE WHEN p.EscrowStatus NOT IN ('Refunded', 'Disputed') THEN p.SpecialistAmount ELSE 0 END), 0) AS TotalEarnings,
                 ISNULL(SUM(CASE WHEN p.EscrowStatus = 'Released' THEN p.SpecialistAmount ELSE 0 END), 0) AS ReleasedEarnings,
                 ISNULL(SUM(CASE WHEN p.EscrowStatus = 'Held' THEN p.SpecialistAmount ELSE 0 END), 0) AS HeldEarnings,
                 MIN(CASE WHEN p.EscrowStatus = 'Held' THEN p.HeldUntil ELSE NULL END) AS NextReleaseDate
@@ -48,10 +48,6 @@ public class WithdrawalService(
             FROM Withdrawals w
             WHERE w.SpecialistId = @Id AND w.Status = 'Completed';
 
-            SELECT ISNULL(SUM(w.Amount), 0) AS PendingWithdrawalAmount
-            FROM Withdrawals w
-            WHERE w.SpecialistId = @Id AND w.Status IN ('Pending', 'Processing');
-
             SELECT TOP 5
                 w.Id, w.Amount, w.Status, w.PaymentMethod, w.PaymentDetails, w.CreatedAtUtc AS RequestedAt, w.ProcessedAt, w.AdminNotes
             FROM Withdrawals w
@@ -62,19 +58,17 @@ public class WithdrawalService(
 
         var summary = await multi.ReadSingleAsync<dynamic>();
         var totalWithdrawn = await multi.ReadSingleAsync<dynamic>();
-        var pendingWithdrawals = await multi.ReadSingleAsync<dynamic>();
         var recent = (await multi.ReadAsync<WithdrawalDto>()).ToList();
 
         var releasedEarnings = (decimal)summary.ReleasedEarnings;
         var withdrawn = (decimal)totalWithdrawn.TotalWithdrawn;
-        var pendingWithdrawalAmount = (decimal)pendingWithdrawals.PendingWithdrawalAmount;
         DateTime? nextReleaseDate = summary.NextReleaseDate;
 
         return new WalletDto
         {
             TotalEarnings = (decimal)summary.TotalEarnings,
-            AvailableBalance = releasedEarnings - withdrawn - pendingWithdrawalAmount,
-            PendingBalance = pendingWithdrawalAmount,
+            AvailableBalance = releasedEarnings - withdrawn,
+            PendingBalance = 0,
             PendingReleaseBalance = (decimal)summary.HeldEarnings,
             NextReleaseDate = nextReleaseDate,
             TotalWithdrawn = withdrawn,
@@ -106,11 +100,7 @@ public class WithdrawalService(
             return Error.Validation("Amount.Insufficient",
                 $"Insufficient balance. Available: {walletDto.Value.AvailableBalance:C}");
 
-        var walletEntity = await GetOrCreateWalletAsync(specialistId);
-        if (!walletEntity.TryHold(request.Amount, $"سحب {request.Amount:C} — قيد الانتظار", "Withdrawal", null))
-            return Error.Validation("Amount.Insufficient", "Insufficient balance to hold for withdrawal.");
-
-        var withdrawal = Withdrawal.Request(specialistId, request.Amount, request.PaymentMethod, request.PaymentDetails);
+        var withdrawal = Withdrawal.RequestDirect(specialistId, request.Amount, request.PaymentMethod, request.PaymentDetails);
 
         context.Set<Withdrawal>().Add(withdrawal);
         await context.SaveChangesAsync();

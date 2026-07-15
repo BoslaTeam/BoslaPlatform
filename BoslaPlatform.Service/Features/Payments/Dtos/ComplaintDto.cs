@@ -18,6 +18,7 @@ public class ComplaintDetailDto
 {
     public Guid Id { get; set; }
     public Guid PaymentId { get; set; }
+    public Guid AppointmentId { get; set; }
     public Guid UserId { get; set; }
     public string UserName { get; set; } = string.Empty;
     public string? UserAvatarUrl { get; set; }
@@ -26,9 +27,27 @@ public class ComplaintDetailDto
     public ComplaintStatus Status { get; set; }
     public decimal Amount { get; set; }
     public string Currency { get; set; } = string.Empty;
+    public string? SpecialistName { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public string? AdminNotes { get; set; }
     public DateTime? ResolvedAt { get; set; }
+}
+
+public class ComplaintListItemDto
+{
+    public Guid Id { get; set; }
+    public Guid PaymentId { get; set; }
+    public Guid AppointmentId { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public ComplaintStatus Status { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    public string? AdminNotes { get; set; }
+    public DateTime? ResolvedAt { get; set; }
+    public string UserName { get; set; } = string.Empty;
+    public string? UserAvatarUrl { get; set; }
+    public decimal Amount { get; set; }
+    public string Currency { get; set; } = string.Empty;
 }
 
 public class FileDisputeRequest

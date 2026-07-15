@@ -22,6 +22,7 @@ public class ComplaintService : IComplaintService
     public async Task<Result<ComplaintDto>> FileDisputeAsync(Guid userId, FileDisputeRequest request, CancellationToken ct = default)
     {
         var payment = await _context.Payments
+            .Include(p => p.Appointment)
             .Include(p => p.Complaint)
             .FirstOrDefaultAsync(p => p.Id == request.PaymentId, ct);
 
@@ -59,6 +60,9 @@ public class ComplaintService : IComplaintService
     {
         var complaint = await _context.Set<PaymentComplaint>()
             .Include(c => c.Payment)
+                .ThenInclude(p => p.Appointment)
+                    .ThenInclude(a => a.Specialist)
+                        .ThenInclude(s => s.User)
             .Include(c => c.User)
             .FirstOrDefaultAsync(c => c.Id == id, ct);
 
@@ -69,6 +73,7 @@ public class ComplaintService : IComplaintService
         {
             Id = complaint.Id,
             PaymentId = complaint.PaymentId,
+            AppointmentId = complaint.Payment.AppointmentId,
             UserId = complaint.UserId,
             UserName = complaint.User.Name,
             UserAvatarUrl = complaint.User.ProfileImageUrl,
@@ -77,9 +82,66 @@ public class ComplaintService : IComplaintService
             Status = complaint.Status,
             Amount = complaint.Payment.Amount,
             Currency = complaint.Payment.Currency,
+            SpecialistName = complaint.Payment.Appointment.Specialist?.User?.Name,
             CreatedAtUtc = complaint.CreatedAtUtc.DateTime,
             AdminNotes = complaint.AdminNotes,
             ResolvedAt = complaint.ResolvedAt
+        };
+    }
+
+    public async Task<Result<List<ComplaintListItemDto>>> GetAllComplaintsAsync(ComplaintStatus? status = null, CancellationToken ct = default)
+    {
+        var query = _context.Set<PaymentComplaint>()
+            .Include(c => c.Payment)
+            .Include(c => c.User)
+            .AsQueryable();
+
+        if (status.HasValue)
+            query = query.Where(c => c.Status == status.Value);
+
+        var complaints = await query
+            .OrderByDescending(c => c.CreatedAtUtc)
+            .Select(c => new ComplaintListItemDto
+            {
+                Id = c.Id,
+                PaymentId = c.PaymentId,
+                AppointmentId = c.Payment.AppointmentId,
+                Reason = c.Reason,
+                Description = c.Description,
+                Status = c.Status,
+                CreatedAtUtc = c.CreatedAtUtc.DateTime,
+                AdminNotes = c.AdminNotes,
+                ResolvedAt = c.ResolvedAt,
+                UserName = c.User.Name,
+                UserAvatarUrl = c.User.ProfileImageUrl,
+                Amount = c.Payment.Amount,
+                Currency = c.Payment.Currency
+            })
+            .ToListAsync(ct);
+
+        return complaints;
+    }
+
+    public async Task<Result<ComplaintDto?>> GetComplaintByAppointmentAsync(Guid appointmentId, CancellationToken ct = default)
+    {
+        var payment = await _context.Payments
+            .Include(p => p.Complaint)
+            .FirstOrDefaultAsync(p => p.AppointmentId == appointmentId, ct);
+
+        if (payment?.Complaint is null)
+            return Result<ComplaintDto?>.Success(null);
+
+        var c = payment.Complaint;
+        return new ComplaintDto
+        {
+            Id = c.Id,
+            PaymentId = c.PaymentId,
+            Reason = c.Reason,
+            Description = c.Description,
+            Status = c.Status,
+            CreatedAtUtc = c.CreatedAtUtc.DateTime,
+            AdminNotes = c.AdminNotes,
+            ResolvedAt = c.ResolvedAt
         };
     }
 
@@ -156,6 +218,7 @@ public class ComplaintService : IComplaintService
                 await refundService.CreateAsync(options, cancellationToken: ct);
 
                 payment.RefundAfterDispute(request.AdminNotes);
+                payment.Appointment.Cancel(adminId, "تم إلغاء الحجز بعد الموافقة على استرجاع المبلغ.");
                 complaint.ResolveRefunded(adminId, request.AdminNotes);
             }
             catch (StripeException ex)

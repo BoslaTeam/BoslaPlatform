@@ -418,12 +418,12 @@ public class AdminController(
     // ── Disputes / Complaints ──
 
     [HttpGet("payments/disputes")]
-    [ProducesResponseType(typeof(ApiResponse<List<ComplaintDto>>), StatusCodes.Status200OK)]
-    public async Task<IResult> ListDisputes(CancellationToken ct = default)
+    [ProducesResponseType(typeof(ApiResponse<List<ComplaintListItemDto>>), StatusCodes.Status200OK)]
+    public async Task<IResult> ListDisputes([FromQuery] ComplaintStatus? status, CancellationToken ct = default)
     {
-        var result = await complaintService.GetPendingComplaintsAsync(ct);
+        var result = await complaintService.GetAllComplaintsAsync(status, ct);
         return result.Match(
-            value => Results.Ok(ApiResponse<List<ComplaintDto>>.SuccessResponse(value)),
+            value => Results.Ok(ApiResponse<List<ComplaintListItemDto>>.SuccessResponse(value)),
             errors => errors.ToProblem());
     }
 
