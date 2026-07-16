@@ -80,7 +80,7 @@ namespace BoslaPlatform.Infrastructure.Data
 
             await SeedDefaultUsersAsync();
 
-            await SeedLookupDataAsync();
+            //await SeedLookupDataAsync();
         }
 
         private async Task SeedRolesAsync()
