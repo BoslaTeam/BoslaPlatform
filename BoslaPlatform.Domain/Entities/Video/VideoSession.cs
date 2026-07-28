@@ -28,6 +28,7 @@ namespace BoslaPlatform.Domain.Models.Video
         // Provider-level recording identifiers (Agora Cloud Recording)
         public string? AgoraRecordingId { get; private set; }
         public string? AgoraRecordingSid { get; private set; }
+        public string? AgoraRecordingUid { get; private set; }
 
         // Recording file URL from Agora provider (S3 object path)
         public string? RecordingUrl { get; private set; }
@@ -136,18 +137,24 @@ namespace BoslaPlatform.Domain.Models.Video
             if (Status == VideoSessionStatus.Completed)
                 return Result.Success();
 
-            if (Status == VideoSessionStatus.Ended)
-                return Error.Validation(
-                    "VideoSession.AlreadyEnded",
-                    "Cannot complete an already ended session.");
+            // A session may already be Ended (e.g. the Agora ChannelDestroyed webhook
+            // fired when the last participant left) before the specialist's manual
+            // finish or the expiration service runs. Ended is a natural precursor to
+            // Completed — the session must still reach the Completed terminal state.
+            // Both completion paths (SpecialistEnded and AppointmentExpired) converge
+            // here so they produce an identical final state.
+            bool alreadyEnded = Status == VideoSessionStatus.Ended;
 
             if (IsRecording)
                 FailActiveRecording("Session completed while recording was active.");
 
             Status = VideoSessionStatus.Completed;
-            EndedAt = DateTime.UtcNow;
+            EndedAt ??= DateTime.UtcNow;
 
-            AddDomainEvent(new VideoSessionEndedEvent(Id, AppointmentId, EndedAt.Value));
+            // The ended event was already raised when the session transitioned to
+            // Ended; do not raise it again to avoid duplicate downstream handling.
+            if (!alreadyEnded)
+                AddDomainEvent(new VideoSessionEndedEvent(Id, AppointmentId, EndedAt.Value));
 
             return Result.Success();
         }
@@ -233,10 +240,15 @@ namespace BoslaPlatform.Domain.Models.Video
 
         public void SetRecording(
             string recordingId,
-            string recordingSid)
+            string recordingSid,
+            string? recordingUid = null)
         {
             AgoraRecordingId = recordingId;
             AgoraRecordingSid = recordingSid;
+            if (recordingUid is not null)
+            {
+                AgoraRecordingUid = recordingUid;
+            }
         }
 
         // ----------------------------------------------------------------
@@ -343,6 +355,80 @@ namespace BoslaPlatform.Domain.Models.Video
                     null));
 
             return Result.Success();
+        }
+
+        /// <summary>
+        /// Finalizes a recording whose S3 upload has been CONFIRMED (HeadObject
+        /// succeeded). Unlike <see cref="StopRecording"/> this does not require the
+        /// session to still be in the Recording state — it also promotes a recording
+        /// parked in PendingUpload once a later completion path confirms the upload.
+        /// Idempotent: a no-op once already Completed.
+        /// </summary>
+        public void CompleteRecordingVerified(
+            string objectKey,
+            long? fileSizeBytes,
+            int? durationSeconds)
+        {
+            if (RecordingStatus is Domain.Enums.RecordingStatus.Completed)
+                return;
+
+            RecordingUrl = objectKey;
+            RecordingStatus = Domain.Enums.RecordingStatus.Completed;
+            RecordingCompletedAt ??= DateTime.UtcNow;
+            CurrentRecording = null;
+            CurrentRecordingId = null;
+
+            AddDomainEvent(
+                new RecordingCompletedEvent(Id, objectKey, durationSeconds, fileSizeBytes));
+        }
+
+        /// <summary>
+        /// Provider Stop succeeded but the S3 upload has not been confirmed yet.
+        /// The recording is neither Completed nor Failed — it is parked as
+        /// PendingUpload so the async webhook / reconciliation can finalize it.
+        /// Identifiers and CurrentRecording are intentionally retained. Does NOT set
+        /// S3 metadata, so <see cref="IsUploadedToS3"/> stays false and the recording
+        /// is not yet watchable.
+        /// </summary>
+        public void MarkRecordingUploadPending()
+        {
+            // Never downgrade a recording that a concurrent path already finalized.
+            if (RecordingStatus is Domain.Enums.RecordingStatus.Completed)
+                return;
+
+            RecordingStatus = Domain.Enums.RecordingStatus.PendingUpload;
+            CurrentRecording?.MarkPendingUpload();
+        }
+
+        /// <summary>
+        /// Agora produced no file — nothing was captured to upload. Terminal failure.
+        /// </summary>
+        public void MarkRecordingUploadFailed(string? reason = null)
+        {
+            if (RecordingStatus is Domain.Enums.RecordingStatus.Completed)
+                return;
+
+            RecordingStatus = Domain.Enums.RecordingStatus.UploadFailed;
+            RecordingFailureReason = reason;
+            CurrentRecording?.MarkUploadFailed();
+
+            AddDomainEvent(new RecordingFailedEvent(Id, reason ?? "Recording upload failed."));
+        }
+
+        /// <summary>
+        /// The S3 object is missing/zero-length or verification errored persistently.
+        /// The recording must NOT be treated as Completed.
+        /// </summary>
+        public void MarkRecordingVerificationFailed(string? reason = null)
+        {
+            if (RecordingStatus is Domain.Enums.RecordingStatus.Completed)
+                return;
+
+            RecordingStatus = Domain.Enums.RecordingStatus.VerificationFailed;
+            RecordingFailureReason = reason;
+            CurrentRecording?.MarkVerificationFailed();
+
+            AddDomainEvent(new RecordingFailedEvent(Id, reason ?? "Recording S3 verification failed."));
         }
 
         public Result FailActiveRecording(string? reason = null)
@@ -573,8 +659,21 @@ namespace BoslaPlatform.Domain.Models.Video
             string channelName,
             DateTimeOffset occurredAtUtc)
         {
-            // Idempotent: if already Ended, this is a duplicate webhook delivery.
-            if (Status == VideoSessionStatus.Ended)
+            // Guard: channel_destroy only means "the session ended" if the session
+            // was genuinely Active (ChannelCreated already fired for a real
+            // participant). Agora emits channel_destroy for an empty-channel
+            // condition on its OWN infrastructure state, independent of ours — a
+            // client preview/connectivity-check connection, a stale or duplicate
+            // webhook delivery, or out-of-order delivery relative to ChannelCreated
+            // can all fire it while the session is still Waiting (nobody has
+            // actually joined yet, possibly for an appointment that hasn't even
+            // started). Treating that as Ended permanently blocks the real join
+            // later, since JoinAsync rejects Ended sessions before it even checks
+            // the appointment's time window. Only Active -> Ended is a genuine end;
+            // Waiting -> Ended, Ended -> Ended, and Completed -> Ended are all
+            // idempotent no-ops, mirroring the symmetric guard on ChannelCreated
+            // (which only fires Waiting -> Active).
+            if (Status != VideoSessionStatus.Active)
             {
                 return Result.Success();
             }

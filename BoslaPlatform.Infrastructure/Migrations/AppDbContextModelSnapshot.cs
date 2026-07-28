@@ -1759,6 +1759,10 @@ namespace BoslaPlatform.Infrastructure.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
 
+                    b.Property<string>("AgoraRecordingUid")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
@@ -1828,6 +1832,10 @@ namespace BoslaPlatform.Infrastructure.Migrations
                     b.Property<string>("AgoraRecordingSid")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("AgoraRecordingUid")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<Guid>("AppointmentId")
                         .HasColumnType("uniqueidentifier");

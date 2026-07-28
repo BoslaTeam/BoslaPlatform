@@ -3,6 +3,8 @@ using Amazon.S3;
 using BoslaPlatform.Application.Features.RecordingAccess.Services;
 using BoslaPlatform.Application.Interfaces.Storage;
 using BoslaPlatform.Application.Settings;
+using BoslaPlatform.Application.Observability;
+using BoslaPlatform.Infrastructure.Observability;
 using BoslaPlatform.Infrastructure.Settings;
 using BoslaPlatform.Infrastructure.Storage.Cloudflare;
 using BoslaPlatform.Infrastructure.Storage.Configuration;
@@ -11,6 +13,7 @@ using BoslaPlatform.Infrastructure.Storage.S3;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 
 namespace BoslaPlatform.Infrastructure.Storage;
 
@@ -42,7 +45,12 @@ public static class DependencyInjection
             var agoraSettings = sp.GetRequiredService<IOptions<AgoraSettings>>().Value;
             var config = new AmazonS3Config
             {
-                RegionEndpoint = RegionEndpoint.USEast1
+                // Must be the bucket's real region: presigned URLs signed for the
+                // wrong region are rejected, and GetObject fails outright.
+                RegionEndpoint = RegionEndpoint.GetBySystemName(
+                    string.IsNullOrWhiteSpace(agoraSettings.StorageRegionSystemName)
+                        ? "us-east-1"
+                        : agoraSettings.StorageRegionSystemName)
             };
             return new AmazonS3Client(
                 agoraSettings.StorageAccessKey,
@@ -58,6 +66,23 @@ public static class DependencyInjection
 
         // ── Metrics (no-op by default — swap for OTel implementation) ──────
         services.AddSingleton<IRecordingMetrics, NoOpRecordingMetrics>();
+
+        // ── Recording pipeline observability ───────────────────────────────
+        // Metrics/queue are singletons (one Meter, one queue per process); the log
+        // facade is scoped so it inherits the ambient request/correlation scope.
+        services.AddSingleton<RecordingTelemetryQueue>();
+        services.AddSingleton<RecordingPipelineMetrics>();
+        services.AddScoped<IRecordingPipelineLog, RecordingPipelineLog>();
+
+        // Persisted timeline store: a dedicated context on its own connection so
+        // telemetry survives the rollback of the domain transaction that emitted
+        // it, plus a background writer that drains the queue off the request path.
+        var recordingConnection = configuration.GetConnectionString("DefaultConnection");
+        services.AddDbContext<RecordingDiagnosticsDbContext>(options =>
+            options.UseSqlServer(recordingConnection, sql => sql.CommandTimeout(30)));
+        services.AddScoped<IRecordingTimelineStore, SqlRecordingTimelineStore>();
+        services.AddScoped<IRecordingDiagnosticsService, RecordingDiagnosticsService>();
+        services.AddHostedService<RecordingTelemetryWriter>();
 
         // ── Temporary file cleanup ─────────────────────────────────────────
         services.AddScoped<ITemporaryFileCleaner, DefaultTemporaryFileCleaner>();
@@ -82,7 +107,13 @@ public static class DependencyInjection
                 tags: ["storage", "readiness"])
             .AddCheck<StorageConfigurationHealthCheck>(
                 "storage-configuration",
-                tags: ["storage", "startup"]);
+                tags: ["storage", "startup"])
+            .AddCheck<RecordingStorageHealthCheck>(
+                "recording-storage",
+                tags: ["storage", "recording", "readiness"])
+            .AddCheck<Recording.HealthChecks.StuckRecordingsHealthCheck>(
+                "recording-pipeline-stuck",
+                tags: ["recording", "liveness"]);
 
         return services;
     }

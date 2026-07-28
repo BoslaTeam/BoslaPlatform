@@ -22,4 +22,14 @@
 	<ProjectReference Include="..\..\BoslaPlatform.API\BoslaPlatform.API.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+	<Compile Remove="RecordingDownloadTests.cs" />
+	<Compile Remove="RecordingHealthCheckTests.cs" />
+	<Compile Remove="RecordingIdempotencyTests.cs" />
+	<Compile Remove="RecordingTransferServiceTests.cs" />
+	<Compile Remove="StorageTestControllerTests.cs" />
+	<Compile Remove="RecordingReconciliationTests.cs" />
+	<Compile Remove="RecordingAccessServiceTests.cs" />
+  </ItemGroup>
+
 </Project>

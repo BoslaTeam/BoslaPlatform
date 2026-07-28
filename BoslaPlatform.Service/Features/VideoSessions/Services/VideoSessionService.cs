@@ -4,6 +4,7 @@ using BoslaPlatform.Application.Features.VideoSessions.Interfaces;
 using BoslaPlatform.Application.Features.VideoSessions.Responses;
 using BoslaPlatform.Application.Interfaces.Authentication;
 using BoslaPlatform.Application.Interfaces.Persistence;
+using BoslaPlatform.Application.Observability;
 using BoslaPlatform.Application.Interfaces.Storage;
 using BoslaPlatform.Application.Interfaces.Video;
 using BoslaPlatform.Domain.Entities.Profile;
@@ -24,9 +25,10 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
         private readonly IAgoraTokenService _agoraTokenService;
         private readonly IRecordingProvider _recordingProvider;
         private readonly IVideoSessionLifecycleService _lifecycleService;
-        private readonly IRecordingStorageSettings _recordingStorageSettings;
+        private readonly IRecordingCompletionService _completionService;
         private readonly IMapper _mapper;
         private readonly ILogger<VideoSessionService> _logger;
+        private readonly IRecordingPipelineLog _pipelineLog;
 
         public VideoSessionService(
             IAppDbContext context,
@@ -34,18 +36,20 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             IAgoraTokenService agoraTokenService,
             IRecordingProvider recordingProvider,
             IVideoSessionLifecycleService lifecycleService,
-            IRecordingStorageSettings recordingStorageSettings,
+            IRecordingCompletionService completionService,
             IMapper mapper,
-            ILogger<VideoSessionService> logger)
+            ILogger<VideoSessionService> logger,
+            IRecordingPipelineLog pipelineLog)
         {
             _context = context;
             _currentUser = currentUser;
             _agoraTokenService = agoraTokenService;
             _recordingProvider = recordingProvider;
             _lifecycleService = lifecycleService;
-            _recordingStorageSettings = recordingStorageSettings;
+            _completionService = completionService;
             _mapper = mapper;
             _logger = logger;
+            _pipelineLog = pipelineLog;
         }
 
         private Guid CurrentUserId => _currentUser.Id!.Value;
@@ -186,8 +190,8 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             var session = sessionResult.Value;
             var appointment = session.Appointment!;
 
-            if (session.Status == VideoSessionStatus.Completed)
-                return Error.Validation("VideoSession.Completed", "This video session has been completed and cannot be joined.");
+            if (session.Status is VideoSessionStatus.Completed or VideoSessionStatus.Ended)
+                return Error.Validation("VideoSession.Ended", "This video session has ended and cannot be joined.");
 
             if (appointment.Status != AppointmentStatus.Paid)
                 return Error.Validation("Appointment.NotPaid", "The appointment must be paid before joining the video session.");
@@ -310,10 +314,14 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             var specialistCheck = await ValidateAssignedSpecialistAsync(sessionResult.Value, ct, "end this session");
             if (specialistCheck.IsError) return specialistCheck.Errors;
 
-            var result = sessionResult.Value.End();
-            if (result.IsError) return result.Errors;
+            // "End Call" is a specialist action that ends the consultation. It must go
+            // through the single completion path (identical to Finish Consultation) so
+            // the session reaches Completed and recording/STT cleanup runs — rather than
+            // leaving it stuck in Ended with an orphaned Agora recording.
+            var lifecycleResult = await _lifecycleService.CompleteSessionAsync(
+                videoSessionId, VideoSessionCompletionReason.SpecialistEnded, ct);
 
-            await _context.SaveChangesAsync(ct);
+            if (lifecycleResult.IsError) return lifecycleResult.Errors;
 
             return Result<EndVideoSessionResponse>.Success(
                 new EndVideoSessionResponse(sessionResult.Value.Id, sessionResult.Value.EndedAt!.Value));
@@ -411,49 +419,25 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             // --------------------------------------------------------------
             var providerData = providerResult.Value;
             _logger.LogInformation(
-"ResourceId = {ResourceId}",
-providerData.ProviderRecordingId);
-
-            _logger.LogInformation(
-                "ResourceId Length = {Length}",
-                providerData.ProviderRecordingId?.Length ?? 0);
-
-            _logger.LogInformation(
-                "SID = {Sid}",
-                providerData.ProviderMetadata);
-
-            _logger.LogInformation(
-                "SID Length = {Length}",
-                providerData.ProviderMetadata?.Length ?? 0);
-
-            _logger.LogInformation("Provider recording started successfully for session {SessionId}",
-                videoSessionId);
-            _logger.LogInformation("Provider recording started successfully for session {SessionId}",
-                videoSessionId);
+                "Provider recording started successfully for session {SessionId}. ResourceId={ResourceId}, SID={Sid}, RecordingUid={RecordingUid}",
+                videoSessionId,
+                providerData.ProviderRecordingId,
+                providerData.ProviderRecordingSid,
+                providerData.RecordingUid);
 
             await using (var tx2 = await _context.BeginTransactionAsync(ct))
             {
                 recording.AttachAgoraRecording(
                     providerData.ProviderRecordingId,
-                    providerData.ProviderMetadata ?? string.Empty);
+                    providerData.ProviderRecordingSid,
+                    providerData.RecordingUid);
 
                 session.SetRecording(
                     providerData.ProviderRecordingId,
-                    providerData.ProviderMetadata ?? string.Empty);
+                    providerData.ProviderRecordingSid,
+                    providerData.RecordingUid);
 
-                try
-                {
-                    await _context.SaveChangesAsync(ct);
-                }
-                catch (DbUpdateException ex)
-                {
-                    _logger.LogError(ex, "Save failed");
-
-                    if (ex.InnerException != null)
-                        _logger.LogError("Inner: {Inner}", ex.InnerException);
-
-                    throw;
-                }
+                await _context.SaveChangesAsync(ct);
                 await tx2.CommitAsync(ct);
             }
 
@@ -477,132 +461,47 @@ providerData.ProviderRecordingId);
             _logger.LogInformation("Recording stop requested for session {SessionId}", videoSessionId);
 
             // --------------------------------------------------------------
-            // Phase 1: Domain validation + capture recording reference (short TX)
+            // Authorize the caller (assigned specialist) and confirm a recording is
+            // running. The Stop + upload verification + persistence all happen inside
+            // the shared IRecordingCompletionService — the single completion path.
             // --------------------------------------------------------------
-            ScreenRecording stoppedRecording;
+            var sessionResult = await LoadSessionReadOnlyAsync(videoSessionId, ct,
+                q => q.Include(x => x.Appointment));
 
-            await using (var tx1 = await _context.BeginTransactionAsync(ct))
+            if (sessionResult.IsError) return sessionResult.Errors;
+
+            var specialistCheck = await ValidateAssignedSpecialistAsync(sessionResult.Value, ct, "stop recording");
+            if (specialistCheck.IsError) return specialistCheck.Errors;
+
+            if (!sessionResult.Value.IsRecording)
             {
-                var sessionResult = await LoadSessionAsync(videoSessionId, ct,
-                    q => q.Include(x => x.Appointment),
-                    q => q.Include(x => x.CurrentRecording),
-                    q => q.Include(x => x.Recordings));
-
-                if (sessionResult.IsError) return sessionResult.Errors;
-                var session = sessionResult.Value;
-
-                var specialistCheck = await ValidateAssignedSpecialistAsync(session, ct, "stop recording");
-                if (specialistCheck.IsError) return specialistCheck.Errors;
-
-                if (!session.IsRecording)
-                {
-                    return Error.Validation(
-                        "VideoSession.NotRecording",
-                        "No active recording to stop.");
-                }
-
-                stoppedRecording = session.CurrentRecording
-                    ?? session.Recordings.OrderByDescending(r => r.CreatedAtUtc).FirstOrDefault()
-                    ?? throw new InvalidOperationException("Session has no recording to stop.");
-
-                // Capture the recording reference and commit TX1 so the provider
-                // call happens outside any SQL transaction.
-                await _context.SaveChangesAsync(ct);
-                await tx1.CommitAsync(ct);
+                return Error.Validation(
+                    "VideoSession.NotRecording",
+                    "No active recording to stop.");
             }
 
             // --------------------------------------------------------------
-            // Phase 2: External provider call (NO transaction)
+            // Single completion pipeline: Stop → verify upload → persist state.
             // --------------------------------------------------------------
-            _logger.LogInformation(
-                "Provider recording stop requested for session {SessionId}, resourceId={ResourceId}",
-                videoSessionId, stoppedRecording.AgoraRecordingId);
+            var completion = await _completionService.CompleteAsync(
+                videoSessionId, RecordingCompletionTrigger.ManualStop, hint: null, ct);
 
-            var providerResult = await _recordingProvider.StopRecordingAsync(
-                stoppedRecording.VideoSession!.AgoraChannelName,
-                stoppedRecording.AgoraRecordingId ?? string.Empty,
-                stoppedRecording.AgoraRecordingSid,
-                ct);
-
-            if (providerResult.IsError)
+            if (completion.IsError)
             {
                 _logger.LogWarning(
-                    "Provider recording stop failed for session {SessionId}. " +
-                    "Recording NOT marked as completed — state preserved for retry.",
-                    videoSessionId);
-                return providerResult.Errors;
+                    "Manual stop completion failed for session {SessionId}: {Error}",
+                    videoSessionId, completion.Errors[0].Description);
+                return completion.Errors;
             }
 
-            // --------------------------------------------------------------
-            // Phase 3: Persist final recording state (short TX)
-            // --------------------------------------------------------------
-            var stopData = providerResult.Value;
-
-            _logger.LogInformation(
-                "Provider recording stop succeeded for session {SessionId}",
-                videoSessionId);
-
-            await using (var tx2 = await _context.BeginTransactionAsync(ct))
-            {
-                // Reload session within the new transaction
-                var session = await _context.VideoSessions
-                    .Include(x => x.CurrentRecording)
-                    .FirstOrDefaultAsync(x => x.Id == videoSessionId, ct);
-
-                if (session is null)
-                {
-                    return Error.NotFound(
-                        "VideoSession.NotFound",
-                        "Video session was not found after stop.");
-                }
-
-                // Reload the recording entity within the new transaction
-                var recording = await _context.ScreenRecordings
-                    .FirstOrDefaultAsync(x => x.Id == stoppedRecording.Id, ct);
-
-                if (recording is null)
-                {
-                    return Error.NotFound(
-                        "ScreenRecording.NotFound",
-                        "Recording entity not found after stop.");
-                }
-
-                recording.Complete(stopData.FileUrl, stopData.FileSizeBytes, stopData.DurationSeconds);
-
-                var stopResult = session.StopRecording();
-
-                if (stopResult.IsError)
-                    return stopResult.Errors;
-
-                // Persist S3 recording metadata from Agora's stop response
-                // stopData.FileUrl is the S3 object key returned by Agora
-                // stopData.Files contains individual recording file segments
-                var s3ObjectKey = stopData.Files?.FirstOrDefault()?.ObjectKey
-                    ?? stopData.FileUrl;
-
-                if (!string.IsNullOrWhiteSpace(s3ObjectKey))
-                {
-                    session.SetS3RecordingMetadata(
-                        Domain.Enums.StorageProvider.AmazonS3,
-                        _recordingStorageSettings.RecordingBucketName,
-                        s3ObjectKey,
-                        contentType: recording.Url?.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) == true
-                            ? "video/mp4"
-                            : "application/octet-stream",
-                        contentLength: stopData.FileSizeBytes,
-                        durationSeconds: stopData.DurationSeconds > 0 ? stopData.DurationSeconds : null);
-                }
-
-                await _context.SaveChangesAsync(ct);
-                await tx2.CommitAsync(ct);
-            }
+            var finalStatus = completion.Value.FinalStatus;
 
             return Result<StopRecordingResponse>.Success(
                 new StopRecordingResponse(
                     videoSessionId,
                     new RecordingInfoDto
                     {
-                        Status = RecordingStatus.Completed,
+                        Status = finalStatus,
                         IsRecording = false,
                         CanStartRecording = false,
                         CanStopRecording = false

@@ -2,6 +2,8 @@ using BoslaPlatform.Application.Features.VideoSessions.Constants;
 using BoslaPlatform.Application.Features.VideoSessions.Interfaces;
 using BoslaPlatform.Application.Features.VideoSessions.Requests;
 using BoslaPlatform.Application.Interfaces.Persistence;
+using BoslaPlatform.Application.Interfaces.Video;
+using BoslaPlatform.Application.Observability;
 using BoslaPlatform.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -41,18 +43,26 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
     {
         private readonly IAppDbContext _context;
         private readonly ILogger<VideoSessionWebhookService> _logger;
+        private readonly IRecordingPipelineLog _pipelineLog;
+        private readonly IRecordingCompletionService _completionService;
 
         /// <summary>
         /// Initializes a new instance of <see cref="VideoSessionWebhookService"/>.
         /// </summary>
         /// <param name="context">The application database context.</param>
         /// <param name="logger">The structured logger.</param>
+        /// <param name="pipelineLog">The recording pipeline observability facade.</param>
+        /// <param name="completionService">The single recording-completion pipeline.</param>
         public VideoSessionWebhookService(
             IAppDbContext context,
-            ILogger<VideoSessionWebhookService> logger)
+            ILogger<VideoSessionWebhookService> logger,
+            IRecordingPipelineLog pipelineLog,
+            IRecordingCompletionService completionService)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _pipelineLog = pipelineLog ?? throw new ArgumentNullException(nameof(pipelineLog));
+            _completionService = completionService ?? throw new ArgumentNullException(nameof(completionService));
         }
 
         /// <inheritdoc />
@@ -77,6 +87,57 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             // Step 2: Route to the correct handler based on EventType.
             // Unknown event types are ignored gracefully — we never throw.
             // ------------------------------------------------------------------
+            // Cloud Recording reuses small eventType numbers that mean something
+            // else under the RTC product, so recording events are matched on the
+            // (productId, eventType) pair rather than the number alone.
+            if (request.ProductId == ProductIds.CloudRecording)
+            {
+                var webhookClock = System.Diagnostics.Stopwatch.StartNew();
+
+                // Resolve the recording so the webhook stage is stamped with the
+                // canonical correlation id, stitching it onto the same timeline as
+                // the provider-emitted Acquire/Start/Stop stages.
+                var recordingContext = await BuildRecordingContextAsync(
+                    request.Payload.ChannelName,
+                    request.Payload.Sid ?? request.Payload.Details?.Sid,
+                    request.Payload.Details?.ResourceId,
+                    ct);
+
+                // Every cloud-recording webhook is a pipeline observation, including
+                // the ones we do not act on — a stage missing from the timeline must
+                // mean Agora never sent it, never that we quietly dropped it.
+                _pipelineLog.Succeeded(
+                    RecordingStage.WebhookReceived,
+                    recordingContext,
+                    duration: webhookClock.Elapsed,
+                    extra: new Dictionary<string, object?>
+                    {
+                        ["eventType"] = request.EventType,
+                        ["productId"] = request.ProductId,
+                        ["noticeId"] = request.NoticeId
+                    });
+
+                return request.EventType switch
+                {
+                    AgoraEventTypes.RecordingStarted
+                        => await HandleRecordingStartedAsync(request, ct),
+
+                    // "uploaded"/"backuped" carry the final file list; session_exit
+                    // and recorder_leave mark the end of capture. All of them mean
+                    // the recording is finished from the platform's point of view.
+                    AgoraEventTypes.RecordingUploaded
+                    or AgoraEventTypes.RecordingBackedUp
+                    or AgoraEventTypes.SessionExit
+                    or AgoraEventTypes.RecorderLeave
+                        => await HandleRecordingStoppedAsync(request, ct),
+
+                    AgoraEventTypes.PlaylistGenerated
+                        => LogPlaylistGenerated(request),
+
+                    _ => HandleUnknownEvent(request)
+                };
+            }
+
             return request.EventType switch
             {
                 AgoraEventTypes.UserJoined
@@ -90,13 +151,6 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
 
                 AgoraEventTypes.ChannelDestroyed
                     => await HandleChannelDestroyedAsync(request, ct),
-
-                AgoraEventTypes.RecordingStarted
-                    => await HandleRecordingStartedAsync(request, ct),
-
-                AgoraEventTypes.RecordingStopped
-                or AgoraEventTypes.RecordingUploaded
-                    => await HandleRecordingStoppedAsync(request, ct),
 
                 // Any event type not in the list above is silently ignored.
                 // This is intentional — Agora may add new event types at any time.
@@ -336,56 +390,108 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
             AgoraWebhookRequest request,
             CancellationToken ct)
         {
-            var session = await ResolveSessionAsync(
-                request.Payload.ChannelName,
-                ct);
+            // Resolve only the session id from the channel — the shared completion
+            // pipeline does the rest. We do NOT mutate or persist recording state here;
+            // ALL completion, verification, and metadata persistence lives in one place.
+            var sessionId = await _context.VideoSessions
+                .AsNoTracking()
+                .Where(s => s.AgoraChannelName == request.Payload.ChannelName)
+                .Select(s => (Guid?)s.Id)
+                .FirstOrDefaultAsync(ct);
 
-            if (session is null)
+            if (sessionId is null)
             {
                 return LogSessionNotFound(
                     request.Payload.ChannelName,
-                    AgoraEventTypes.RecordingStopped);
+                    request.EventType);
             }
 
             var details = request.Payload.Details;
-            var fileUrl = details?.FileUrl;
-            var duration = details?.Duration;
-            var fileSize = details?.FileSize;
 
-            var result = session.ConfirmRecordingStopped(fileUrl, duration, fileSize);
+            // Map the event to the upload signal it carries: "uploaded" means the
+            // files are in our S3, "backuped" means still in Agora backup; recorder
+            // leave / session exit only mark the end of capture (upload unknown).
+            var uploadingStatusHint = request.EventType switch
+            {
+                AgoraEventTypes.RecordingUploaded => AgoraUploadingStatus.Uploaded,
+                AgoraEventTypes.RecordingBackedUp => AgoraUploadingStatus.Backuped,
+                _ => AgoraUploadingStatus.Unknown
+            };
 
-            if (result.IsError)
+            var completion = await _completionService.CompleteAsync(
+                sessionId.Value,
+                RecordingCompletionTrigger.WebhookConfirmed,
+                new RecordingProviderHint(
+                    ObjectKey: details?.FileUrl,
+                    UploadingStatus: uploadingStatusHint,
+                    DurationSeconds: details?.Duration,
+                    FileSizeBytes: details?.FileSize),
+                ct);
+
+            if (completion.IsError)
             {
                 _logger.LogWarning(
-                    "[AgoraWebhook] RecordingStopped | Aggregate rejected: {Error} | Channel={Channel}",
-                    result.Errors[0].Description,
-                    request.Payload.ChannelName);
-                return result;
+                    "[AgoraWebhook] RecordingStopped | Completion failed | Channel={Channel} | {Error}",
+                    request.Payload.ChannelName,
+                    completion.Errors[0].Description);
+                return completion.Errors;
             }
-
-            var recording = session.CurrentRecording
-                ?? session.Recordings
-                    .OrderByDescending(recording => recording.CreatedAtUtc)
-                    .FirstOrDefault();
-
-            if (recording is not null
-                && fileUrl is not null
-                && recording.Status != BoslaPlatform.Domain.Enums.RecordingStatus.Failed)
-            {
-                recording.Complete(
-                    fileUrl,
-                    fileSize,
-                    duration);
-            }
-
-            await _context.SaveChangesAsync(ct);
 
             _logger.LogInformation(
-                "[AgoraWebhook] RecordingStopped | Confirmed | Channel={Channel} | FileUrl={FileUrl} | Duration={Duration}s | RecordingStatus={Status}",
+                "[AgoraWebhook] RecordingStopped | Completed via shared pipeline | Channel={Channel} | EventType={EventType} | FinalStatus={Status} | Verification={Verification}",
                 request.Payload.ChannelName,
-                fileUrl ?? "(none)",
-                duration,
-                session.RecordingStatus);
+                request.EventType,
+                completion.Value.FinalStatus,
+                completion.Value.VerificationOutcome);
+
+            return Result.Success();
+        }
+
+        /// <summary>
+        /// Resolves a recording's canonical correlation id and identifiers from a
+        /// channel name, so a webhook (which only knows channel + SID) lands on the
+        /// same timeline as the stages that knew our recording id.
+        /// </summary>
+        private async Task<RecordingLogContext> BuildRecordingContextAsync(
+            string channelName,
+            string? sid,
+            string? resourceId,
+            CancellationToken ct)
+        {
+            var match = await _context.VideoSessions
+                .AsNoTracking()
+                .Where(s => s.AgoraChannelName == channelName)
+                .Select(s => new
+                {
+                    s.Id,
+                    s.AppointmentId,
+                    RecordingId = s.CurrentRecordingId
+                })
+                .FirstOrDefaultAsync(ct);
+
+            return new RecordingLogContext
+            {
+                ChannelName = channelName,
+                Sid = sid,
+                ResourceId = resourceId,
+                SessionId = match?.Id,
+                AppointmentId = match?.AppointmentId,
+                RecordingId = match?.RecordingId
+            };
+        }
+
+        /// <summary>
+        /// The M3U8 playlist only appears once the recorder is actually receiving
+        /// media, which makes this the earliest positive proof that the recording
+        /// is capturing something. Logged as a lifecycle marker; no state change.
+        /// </summary>
+        private Result LogPlaylistGenerated(AgoraWebhookRequest request)
+        {
+            _logger.LogInformation(
+                "[AgoraWebhook] PlaylistGenerated | Media is being captured | Channel={Channel} | Sid={Sid} | NoticeId={NoticeId}",
+                request.Payload.ChannelName,
+                request.Payload.Sid ?? request.Payload.Details?.Sid ?? "(none)",
+                request.NoticeId);
 
             return Result.Success();
         }

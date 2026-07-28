@@ -7,6 +7,7 @@ using BoslaPlatform.Infrastructure.Recording.Providers.Agora.Services;
 using BoslaPlatform.Infrastructure.Settings;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using BoslaPlatform.Application.Observability;
 using Moq;
 using Moq.Protected;
 using Xunit;
@@ -75,12 +76,14 @@ public class AgoraRecordingProviderIntegrationTests
         var client = new AgoraCloudRecordingApiClient(
             httpClient,
             Options.Create(CreateValidSettings()),
+            Options.Create(new BoslaPlatform.Infrastructure.Storage.Configuration.StorageOptions()),
             Mock.Of<ILogger<AgoraCloudRecordingApiClient>>());
 
         return new AgoraRecordingProvider(
             client,
             Options.Create(CreateValidSettings()),
-            Mock.Of<ILogger<AgoraRecordingProvider>>());
+            Mock.Of<ILogger<AgoraRecordingProvider>>(),
+                Mock.Of<IRecordingPipelineLog>());
     }
 
     // ──────────────────────────────────────────────
@@ -166,7 +169,8 @@ public class AgoraRecordingProviderIntegrationTests
 
         Assert.False(result.IsError);
         Assert.Equal("resource-1", result.Value.ProviderRecordingId);
-        Assert.Equal("sid-1", result.Value.ProviderMetadata);
+        Assert.Equal("sid-1", result.Value.ProviderRecordingSid);
+        Assert.NotEmpty(result.Value.RecordingUid);
     }
 
     [Fact]
@@ -292,7 +296,7 @@ public class AgoraRecordingProviderIntegrationTests
         var handler = CreateMockHandler(HttpStatusCode.OK, agoraResponse);
         var provider = CreateProvider(handler.Object);
 
-        var result = await provider.StopRecordingAsync("channel-test", "resource-1", "sid-1");
+        var result = await provider.StopRecordingAsync("channel-test", "resource-1", "sid-1", "123456789");
 
         Assert.False(result.IsError);
         Assert.NotNull(result.Value.Files);
@@ -397,12 +401,14 @@ public class AgoraRecordingProviderIntegrationTests
         var client = new AgoraCloudRecordingApiClient(
             new HttpClient(new Mock<HttpMessageHandler>().Object),
             Options.Create(settings),
+            Options.Create(new BoslaPlatform.Infrastructure.Storage.Configuration.StorageOptions()),
             Mock.Of<ILogger<AgoraCloudRecordingApiClient>>());
 
         var provider = new AgoraRecordingProvider(
             client,
             Options.Create(settings),
-            Mock.Of<ILogger<AgoraRecordingProvider>>());
+            Mock.Of<ILogger<AgoraRecordingProvider>>(),
+                Mock.Of<IRecordingPipelineLog>());
 
         var result = await provider.AcquireAsync("channel-test");
 

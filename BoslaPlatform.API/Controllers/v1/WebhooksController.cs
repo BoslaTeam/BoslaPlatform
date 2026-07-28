@@ -87,9 +87,14 @@ namespace BoslaPlatform.API.Controllers.v1
         /// - eventType 104: User left the channel
         /// - eventType 110: Channel created (first user joined)
         /// - eventType 111: Channel destroyed (last user left)
-        /// - eventType 1001: Cloud recording started
-        /// - eventType 1003: Cloud recording stopped
-        /// - eventType 1004: Cloud recording uploaded
+        ///
+        /// Cloud Recording events (productId 3 — matched on productId + eventType):
+        /// - eventType 4:  M3U8 playlist generated (media is being captured)
+        /// - eventType 11: Session exit
+        /// - eventType 31: Files uploaded to third-party storage
+        /// - eventType 32: Files uploaded, at least one to Agora Cloud Backup
+        /// - eventType 40: Recorder started
+        /// - eventType 41: Recorder left the channel
         /// - Any other eventType: Gracefully ignored
         ///
         /// Security: Requests without a valid Agora-Signature-V2 header are rejected with 401.
@@ -193,6 +198,20 @@ namespace BoslaPlatform.API.Controllers.v1
             // SECURITY GATE: No business logic executes if this fails.
             // The verifier also enforces the replay window internally.
             // ------------------------------------------------------------------
+            // Capture the payload verbatim BEFORE routing. Agora's event codes and
+            // payload shape are the source of truth for our routing logic, and
+            // guessing them from documentation has already produced one production
+            // bug. The raw body is the only artifact that settles it.
+            // ------------------------------------------------------------------
+            _logger.LogInformation(
+                "[AgoraWebhook] RAW | ProductId={ProductId} | EventType={EventType} | NoticeId={NoticeId} | " +
+                "Headers={Headers} | Body={Body}",
+                webhookRequest.ProductId,
+                webhookRequest.EventType,
+                webhookRequest.NoticeId,
+                string.Join(",", Request.Headers.Keys),
+                Encoding.UTF8.GetString(rawBody));
+
             _logger.LogInformation(
                 "[AgoraWebhook] Verifying signature | NoticeId={NoticeId} | EventType={EventType} | Ts={Ts}",
                 webhookRequest.NoticeId,

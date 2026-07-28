@@ -1,4 +1,4 @@
-﻿using BoslaPlatform.Domain.Enums;
+using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Models.Video;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -23,6 +23,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
             builder.Property(sr => sr.StorageProvider).HasConversion<string>().HasMaxLength(20).IsRequired();
             builder.Property(sr => sr.AgoraRecordingId).HasMaxLength(512);
             builder.Property(sr => sr.AgoraRecordingSid).HasMaxLength(128);
+            builder.Property(sr => sr.AgoraRecordingUid).HasMaxLength(128);
             builder.HasOne(sr => sr.VideoSession)
                     .WithMany(v => v.Recordings)
                     .HasForeignKey(sr => sr.VideoSessionId)

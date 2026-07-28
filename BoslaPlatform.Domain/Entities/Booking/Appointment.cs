@@ -169,9 +169,9 @@ namespace BoslaPlatform.Domain.Models.Booking
         }
         public Result CanStartVideoSession(DateTimeOffset currentTime)
         {
-            var allowedStart = Start.AddMinutes(-15);
+            var allowedStart = Start.AddMinutes(-10);
 
-            var allowedEnd = Start.AddMinutes(15);
+            var allowedEnd = Start.AddMinutes(10);
 
             if (currentTime < allowedStart)
             {

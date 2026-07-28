@@ -396,6 +396,23 @@ namespace BoslaPlatform.API.Controllers.v1
                 errors => errors.ToProblem());
         }
 
+        // Resolves a specialist profile from the owning user's id. The chat/conversation
+        // page knows participants only by UserId, so it calls this to open a specialist's
+        // profile (the counterpart of GET users/{id} for the specialist-clicks-user direction).
+        [HttpGet("by-user/{userId:guid}")]
+        [AllowAnonymous]
+        public async Task<IResult> GetSpecialistByUserId(Guid userId, CancellationToken ct)
+        {
+            var result = await specialistService
+                .GetSpecialistByUserIdAsync(userId, ct);
+
+            return result.Match(
+                value => Results.Ok(
+                    ApiResponse<SpecialistDetailsResponse>
+                        .SuccessResponse(value)),
+                errors => errors.ToProblem());
+        }
+
 
         [HttpGet("{id:guid}/availability")]
         [AllowAnonymous]

@@ -1,4 +1,4 @@
-﻿using BoslaPlatform.Domain.Common;
+using BoslaPlatform.Domain.Common;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Domain.Models.Booking;
 using BoslaPlatform.Shared;
@@ -19,6 +19,7 @@ namespace BoslaPlatform.Domain.Models.Video
         public RecordingStorageProvider StorageProvider { get; private set; }
         public string? AgoraRecordingId { get; private set; }
         public string? AgoraRecordingSid { get; private set; }
+        public string? AgoraRecordingUid { get; private set; }
         public Guid VideoSessionId { get; private set; }
         public VideoSession? VideoSession { get; private set; }
 
@@ -52,12 +53,38 @@ namespace BoslaPlatform.Domain.Models.Video
             Status = RecordingStatus.Failed;
         }
 
+        /// <summary>
+        /// Stop succeeded but S3 upload is not yet confirmed. The recording is not
+        /// Completed and not Failed — an async path (webhook/reconcile) will finalize it.
+        /// </summary>
+        public void MarkPendingUpload()
+        {
+            Status = RecordingStatus.PendingUpload;
+        }
+
+        /// <summary>Agora captured/uploaded nothing — there is no file to verify.</summary>
+        public void MarkUploadFailed()
+        {
+            Status = RecordingStatus.UploadFailed;
+        }
+
+        /// <summary>The S3 object is missing/zero-length or verification errored.</summary>
+        public void MarkVerificationFailed()
+        {
+            Status = RecordingStatus.VerificationFailed;
+        }
+
         public void AttachAgoraRecording(
             string recordingId,
-            string recordingSid)
+            string recordingSid,
+            string? recordingUid = null)
         {
             AgoraRecordingId = recordingId;
             AgoraRecordingSid = recordingSid;
+            if (recordingUid is not null)
+            {
+                AgoraRecordingUid = recordingUid;
+            }
         }
     }
 }

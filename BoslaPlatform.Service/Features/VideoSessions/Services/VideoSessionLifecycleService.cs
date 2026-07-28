@@ -11,18 +11,18 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
     public class VideoSessionLifecycleService : IVideoSessionLifecycleService
     {
         private readonly IAppDbContext _context;
-        private readonly IRecordingProvider _recordingProvider;
+        private readonly IRecordingCompletionService _completionService;
         private readonly ISTTProvider _sttProvider;
         private readonly ILogger<VideoSessionLifecycleService> _logger;
 
         public VideoSessionLifecycleService(
             IAppDbContext context,
-            IRecordingProvider recordingProvider,
+            IRecordingCompletionService completionService,
             ISTTProvider sttProvider,
             ILogger<VideoSessionLifecycleService> logger)
         {
             _context = context;
-            _recordingProvider = recordingProvider;
+            _completionService = completionService;
             _sttProvider = sttProvider;
             _logger = logger;
         }
@@ -39,11 +39,14 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
                 return Error.NotFound("VideoSession.NotFound", "Video session was not found.");
 
             _logger.LogInformation(
-                "Completing session {SessionId} with reason {Reason}",
-                session.Id, reason);
+                "CompleteSessionAsync start | SessionId={SessionId} | Status={Status} | Reason={Reason} | UtcNow={UtcNow}",
+                session.Id, session.Status, reason,
+                DateTimeOffset.UtcNow.ToString("O"));
 
-            bool hadActiveRecording = session.IsRecording;
-
+            // Domain now allows Ended -> Completed (the ChannelDestroyed webhook may
+            // have already moved the session to Ended). Both the manual finish and the
+            // automatic expiration paths converge on Complete() for an identical final
+            // state — so a genuine failure here is a real error, not a race workaround.
             var completeResult = session.Complete();
             if (completeResult.IsError)
             {
@@ -53,50 +56,92 @@ namespace BoslaPlatform.Application.Features.VideoSessions.Services
                 return completeResult;
             }
 
-            await _context.SaveChangesAsync(ct);
+            try
+            {
+                await _context.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Manual finish (specialist) and automatic expiration can collide on the
+                // same row near the appointment's natural end. The losing writer must not
+                // surface a 500 — treat an already-terminal session as an idempotent
+                // success. The winning writer performs recording/STT cleanup.
+                var current = await _context.VideoSessions
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == sessionId, ct);
+
+                if (current is not null
+                    && current.Status is VideoSessionStatus.Completed or VideoSessionStatus.Ended)
+                {
+                    _logger.LogInformation(
+                        "CompleteSessionAsync | SessionId={SessionId} already terminal ({Status}) after " +
+                        "concurrent completion; treating as idempotent success. Reason={Reason}",
+                        sessionId, current.Status, reason);
+                    return Result.Success();
+                }
+
+                throw;
+            }
 
             _logger.LogInformation(
-                "Session {SessionId} completed successfully (reason: {Reason})",
-                session.Id, reason);
+                "Session {SessionId} persisted as {Status} (reason: {Reason})",
+                session.Id, session.Status, reason);
 
-            // TODO: Emit session completion metrics
-            //   - CompletedSessions counter (tagged by reason)
-            //   - ExpiredSessions counter (when reason == AppointmentExpired)
-            //   - AverageCompletionDuration histogram
-            //   - RecordingStopFailureCount (when recording stop fails)
-            //   - SttStopFailureCount (when STT stop fails)
-
-            if (hadActiveRecording && !string.IsNullOrEmpty(session.AgoraRecordingId))
+            // --------------------------------------------------------------
+            // Best-effort cleanup: Recording + STT
+            // The session is already persisted as Completed above. Nothing in this
+            // block may prevent completion — every failure, whether returned as a
+            // Result error OR thrown as an exception by the provider stack, is
+            // swallowed and logged so the caller always sees success.
+            // --------------------------------------------------------------
+            try
             {
-                _logger.LogInformation(
-                    "Stopping recording for completed session {SessionId}", session.Id);
+                // Finish the recording through the SINGLE completion pipeline so an
+                // auto-completed session (expiration / channel destroyed / End) runs
+                // the identical Stop → verify upload → HeadObject → persist flow as a
+                // manual Stop. The service is idempotent, so a recording already
+                // finalized via the command path is a no-op here (no redundant stop).
+                if (!string.IsNullOrEmpty(session.AgoraRecordingId)
+                    && session.RecordingStatus != RecordingStatus.Completed)
+                {
+                    _logger.LogInformation(
+                        "Completing recording for session {SessionId} via shared pipeline (reason {Reason}).",
+                        session.Id, reason);
 
-                var stopResult = await _recordingProvider.StopRecordingAsync(
-                    session.AgoraChannelName,
-                    session.AgoraRecordingId,
-                    session.AgoraRecordingSid,
-                    ct);
+                    var completion = await _completionService.CompleteAsync(
+                        session.Id, RecordingCompletionTrigger.SessionEnded, hint: null, ct);
 
-                if (stopResult.IsError)
+                    if (completion.IsError)
+                    {
+                        _logger.LogWarning(
+                            "Best-effort recording completion failed for session {SessionId}: {ErrorCode} - {ErrorMessage}",
+                            session.Id, completion.Errors[0].Code, completion.Errors[0].Description);
+                    }
+                }
+
+                var sttResult = await _sttProvider.StopSTTAsync(
+                    session.AgoraChannelName, ct);
+
+                if (sttResult.IsError)
                 {
                     _logger.LogWarning(
-                        "Failed to stop recording for session {SessionId}: {ErrorCode} - {ErrorMessage}",
-                        session.Id, stopResult.Errors[0].Code, stopResult.Errors[0].Description);
+                        "Best-effort STT stop failed for session {SessionId}: {ErrorCode} - {ErrorMessage}",
+                        session.Id, sttResult.Errors[0].Code, sttResult.Errors[0].Description);
                 }
+            }
+            catch (Exception ex)
+            {
+                // Never let a best-effort cleanup failure turn a completed session into
+                // a failed API call. The session state is already persisted.
+                _logger.LogWarning(ex,
+                    "Best-effort recording/STT cleanup threw for session {SessionId}; " +
+                    "session remains Completed. Reason={Reason}",
+                    session.Id, reason);
             }
 
             _logger.LogInformation(
-                "Stopping STT for completed session {SessionId}", session.Id);
-
-            var sttResult = await _sttProvider.StopSTTAsync(
-                session.AgoraChannelName, ct);
-
-            if (sttResult.IsError)
-            {
-                _logger.LogWarning(
-                    "Failed to stop STT for session {SessionId}: {ErrorCode} - {ErrorMessage}",
-                    session.Id, sttResult.Errors[0].Code, sttResult.Errors[0].Description);
-            }
+                "CompleteSessionAsync done | SessionId={SessionId} | Status={Status}",
+                session.Id, session.Status);
 
             return Result.Success();
         }

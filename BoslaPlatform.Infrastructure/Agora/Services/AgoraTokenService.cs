@@ -127,8 +127,10 @@ namespace BoslaPlatform.Infrastructure.Agora.Services
             var expiresAt = DateTimeOffset.UtcNow
                 .AddMinutes(_settings.TokenExpirationMinutes);
 
-            var privilegeExpiredTs =
-                (uint)expiresAt.ToUnixTimeSeconds();
+            // AccessToken2 takes tokenExpire/privilegeExpire as a DURATION IN SECONDS
+            // FROM NOW, not an absolute Unix timestamp. expiresAt above is still the
+            // real wall-clock expiry reported back to the client.
+            var expireSeconds = (uint)Math.Max(1, _settings.TokenExpirationMinutes) * 60u;
 
             var token = RtcTokenBuilder2.buildTokenWithUid(
                 _settings.AppId,
@@ -136,8 +138,8 @@ namespace BoslaPlatform.Infrastructure.Agora.Services
                 videoSession.AgoraChannelName,
                 uid,
                 RtcTokenBuilder2.Role.RolePublisher,
-                privilegeExpiredTs,
-                privilegeExpiredTs);
+                expireSeconds,
+                expireSeconds);
 
             var role = isSpecialist
                 ? VideoParticipantRole.Host

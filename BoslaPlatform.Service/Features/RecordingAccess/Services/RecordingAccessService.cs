@@ -1,6 +1,7 @@
 using BoslaPlatform.Application.Features.RecordingAccess.Dtos;
 using BoslaPlatform.Application.Interfaces.Persistence;
 using BoslaPlatform.Application.Interfaces.Storage;
+using BoslaPlatform.Application.Observability;
 using BoslaPlatform.Domain.Enums;
 using BoslaPlatform.Shared;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,7 @@ public sealed class RecordingAccessService : IRecordingAccessService
     private readonly IRecordingMetrics _metrics;
     private readonly IRecordingStorageSettings _storageSettings;
     private readonly ILogger<RecordingAccessService> _logger;
+    private readonly IRecordingPipelineLog _pipelineLog;
 
     public RecordingAccessService(
         IAppDbContext context,
@@ -25,7 +27,8 @@ public sealed class RecordingAccessService : IRecordingAccessService
         IRecordingAuditService audit,
         IRecordingMetrics metrics,
         IRecordingStorageSettings storageSettings,
-        ILogger<RecordingAccessService> logger)
+        ILogger<RecordingAccessService> logger,
+        IRecordingPipelineLog pipelineLog)
     {
         _context = context;
         _recordingStorage = recordingStorage;
@@ -34,6 +37,7 @@ public sealed class RecordingAccessService : IRecordingAccessService
         _metrics = metrics;
         _storageSettings = storageSettings;
         _logger = logger;
+        _pipelineLog = pipelineLog;
     }
 
     public async Task<Result<RecordingWatchResponse>> GetWatchUrlAsync(
@@ -120,14 +124,33 @@ public sealed class RecordingAccessService : IRecordingAccessService
                 session.DurationSeconds);
         }
 
+        // Stamp the recording id so playback lands on the same canonical timeline
+        // as the earlier stages, even though this is a separate, much-later request.
+        var presignedContext = new RecordingLogContext
+        {
+            SessionId = sessionId,
+            AppointmentId = session.AppointmentId,
+            RecordingId = session.CurrentRecordingId,
+            ChannelName = session.AgoraChannelName
+        };
+
+        _pipelineLog.Started(RecordingStage.PresignedUrlGenerated, presignedContext);
+        var urlClock = System.Diagnostics.Stopwatch.StartNew();
+
         var urlResult = await _recordingStorage.GeneratePresignedUrlAsync(
             session.BucketName,
             session.ObjectKey,
             expirationTime,
             ct);
+        urlClock.Stop();
 
         if (urlResult.IsError)
         {
+            _pipelineLog.Failed(
+                RecordingStage.PresignedUrlGenerated, presignedContext,
+                urlResult.Errors[0].Code, urlResult.Errors[0].Description,
+                duration: urlClock.Elapsed);
+
             _logger.LogError(
                 "Failed to generate presigned URL for session {SessionId}, bucket={Bucket}, key={ObjectKey}: {Error}",
                 sessionId, session.BucketName, session.ObjectKey,
@@ -142,6 +165,15 @@ public sealed class RecordingAccessService : IRecordingAccessService
         _urlCache.Set(cacheKey, urlResult.Value, expiresAt);
 
         _metrics.RecordPresignedUrlGenerated();
+
+        _pipelineLog.Succeeded(
+            RecordingStage.PresignedUrlGenerated, presignedContext, urlClock.Elapsed,
+            new Dictionary<string, object?>
+            {
+                ["bucket"] = session.BucketName,
+                ["objectKey"] = session.ObjectKey,
+                ["expiresAtUtc"] = expiresAt
+            });
 
         _logger.LogInformation(
             "Watch URL generated for session {SessionId}, objectKey={ObjectKey}, storageProvider={Provider}, expiresAt={ExpiresAt}",

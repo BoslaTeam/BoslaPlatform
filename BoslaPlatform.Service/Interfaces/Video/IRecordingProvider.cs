@@ -27,7 +27,8 @@ namespace BoslaPlatform.Application.Interfaces.Video
         Task<Result<StopRecordingResult>> StopRecordingAsync(
             string channelName,
             string providerRecordingId,
-            string? providerMetadata = null,
+            string providerRecordingSid,
+            string recordingUid,
             CancellationToken ct = default);
 
         Task<Result<RecordingStatusResult>> GetStatusAsync(
@@ -42,16 +43,35 @@ namespace BoslaPlatform.Application.Interfaces.Video
         string ResourceId,
         string Sid,
         IReadOnlyList<RecordingFileInfo>? Files = null,
-        RecordingSummary? Summary = null);
+        RecordingSummary? Summary = null,
+        AgoraUploadingStatus UploadingStatus = AgoraUploadingStatus.Unknown);
 
-    public sealed record StartRecordingResult(string ProviderRecordingId, string? ProviderMetadata = null);
+    public sealed record StartRecordingResult(
+        string ProviderRecordingId,
+        string ProviderRecordingSid,
+        string RecordingUid);
 
     public sealed record StopRecordingResult(
         string FileUrl,
         int DurationSeconds,
         long FileSizeBytes,
         IReadOnlyList<RecordingFileInfo>? Files = null,
-        RecordingSummary? Summary = null);
+        RecordingSummary? Summary = null,
+        AgoraUploadingStatus UploadingStatus = AgoraUploadingStatus.Unknown);
+
+    /// <summary>
+    /// Agora's <c>serverResponse.uploadingStatus</c> from Stop/Query. Only
+    /// <see cref="Uploaded"/> means every file reached the configured S3 bucket;
+    /// <see cref="Backuped"/> means at least one file is still in Agora's backup
+    /// storage and will be transferred to S3 later, so it is NOT yet complete.
+    /// </summary>
+    public enum AgoraUploadingStatus
+    {
+        Unknown = 0,
+        Uploaded,
+        Backuped,
+        Backuping
+    }
 
     public sealed record RecordingStatusResult(string Status, string? FileUrl);
 

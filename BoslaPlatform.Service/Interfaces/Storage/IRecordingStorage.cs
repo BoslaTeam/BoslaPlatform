@@ -30,4 +30,26 @@ public interface IRecordingStorage
         string bucketName,
         string objectKey,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Issues an S3 HeadObject to confirm the recording actually exists in the
+    /// bucket and to read its authoritative metadata (size, type, ETag, ...).
+    /// This is the ground-truth check the pipeline uses before marking a recording
+    /// Completed — Agora reporting "uploaded" is never trusted on its own.
+    /// Returns a NotFound error ("S3.ObjectNotFound") when the object is absent.
+    /// </summary>
+    Task<Result<RecordingObjectMetadata>> HeadObjectAsync(
+        string bucketName,
+        string objectKey,
+        CancellationToken ct = default);
 }
+
+/// <summary>
+/// Authoritative object metadata returned by an S3 HeadObject call.
+/// </summary>
+public sealed record RecordingObjectMetadata(
+    long ContentLength,
+    string? ContentType,
+    string? ETag,
+    DateTime? LastModifiedUtc,
+    string? StorageClass);

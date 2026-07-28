@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace BoslaPlatform.Infrastructure.Data
 {
@@ -101,6 +102,41 @@ namespace BoslaPlatform.Infrastructure.Data
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+            ApplyUtcDateTimeConvention(modelBuilder);
+        }
+
+        /// <summary>
+        /// Ensures every <see cref="DateTime"/> value round-trips as UTC. SQL Server
+        /// 'datetime2' does not persist <see cref="DateTimeKind"/>, so values read back
+        /// are Kind=Unspecified and would be serialized without a trailing 'Z' — causing
+        /// clients to interpret server UTC timestamps as local time. This convention
+        /// marks every DateTime as UTC on read and normalizes to UTC on write, honoring
+        /// the platform's "UTC everywhere" rule. It changes no column type, so no
+        /// migration is required. (Appointment start/end use DateTimeOffset and are
+        /// unaffected.)
+        /// </summary>
+        private static void ApplyUtcDateTimeConvention(ModelBuilder modelBuilder)
+        {
+            var utcConverter = new ValueConverter<DateTime, DateTime>(
+                v => v.Kind == DateTimeKind.Local ? v.ToUniversalTime() : DateTime.SpecifyKind(v, DateTimeKind.Utc),
+                v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+            var nullableUtcConverter = new ValueConverter<DateTime?, DateTime?>(
+                v => v.HasValue
+                    ? (v.Value.Kind == DateTimeKind.Local ? v.Value.ToUniversalTime() : DateTime.SpecifyKind(v.Value, DateTimeKind.Utc))
+                    : v,
+                v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v);
+
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                foreach (var property in entityType.GetProperties())
+                {
+                    if (property.ClrType == typeof(DateTime))
+                        property.SetValueConverter(utcConverter);
+                    else if (property.ClrType == typeof(DateTime?))
+                        property.SetValueConverter(nullableUtcConverter);
+                }
+            }
         }
 
         public IServiceProvider? GetInfrastructureServiceProvider() => _serviceProvider;

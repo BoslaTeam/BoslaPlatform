@@ -1008,7 +1008,19 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
         }
 
 
-        public async Task<Result<SpecialistDetailsResponse>> GetSpecialistByIdAsync(Guid specialistId, CancellationToken ct)
+        // Looks up an approved specialist profile by the specialist's own id.
+        public Task<Result<SpecialistDetailsResponse>> GetSpecialistByIdAsync(Guid specialistId, CancellationToken ct)
+            => GetSpecialistDetailsAsync(x => x.Id == specialistId, ct);
+
+        // Looks up an approved specialist profile by the owning user's id. Used from the
+        // chat/conversation page, where participants are known only by UserId — clicking a
+        // specialist's name there previously hit GET specialists/{id} with a UserId and 404'd.
+        public Task<Result<SpecialistDetailsResponse>> GetSpecialistByUserIdAsync(Guid userId, CancellationToken ct)
+            => GetSpecialistDetailsAsync(x => x.UserId == userId, ct);
+
+        private async Task<Result<SpecialistDetailsResponse>> GetSpecialistDetailsAsync(
+            System.Linq.Expressions.Expression<Func<Specialist, bool>> match,
+            CancellationToken ct)
         {
             var specialist = await context.Specialists
                 .AsNoTracking()
@@ -1022,10 +1034,8 @@ namespace BoslaPlatform.Application.Features.Specialists.Services
                     .ThenInclude(se => se.Expertise)
                 .Include(x => x.Experiences)
                 .Include(x => x.Verification)
-                .FirstOrDefaultAsync(
-                    x => x.Id == specialistId &&
-                         x.Verification != null && x.Verification.Status == VerificationStatus.Approved,
-                    ct);
+                .Where(x => x.Verification != null && x.Verification.Status == VerificationStatus.Approved)
+                .FirstOrDefaultAsync(match, ct);
 
             if (specialist is null)
             {

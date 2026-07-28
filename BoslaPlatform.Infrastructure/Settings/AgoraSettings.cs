@@ -73,9 +73,32 @@ namespace BoslaPlatform.Infrastructure.Settings
         public int RecordingMaxIdleTime { get; set; } = 30;
         public int RecordingStreamTypes { get; set; } = 2;
 
+        /// <summary>
+        /// Channel profile the recorder joins with: 0 = communication, 1 = live broadcast.
+        /// This MUST match the profile the web/mobile clients use when they create their
+        /// Agora client (`mode: "rtc"` → 0, `mode: "live"` → 1). A mismatch lets the
+        /// recorder join without ever receiving the participants' streams.
+        /// </summary>
+        public int RecordingChannelType { get; set; }
+
         // Cloud Recording Storage
         public int StorageVendor { get; set; }
+
+        /// <summary>
+        /// Bucket region, expressed as Agora's region code for the configured
+        /// <see cref="StorageVendor"/> (for vendor 1 / Amazon S3: 0 = us-east-1,
+        /// 21 = eu-north-1, …). Agora rejects the upload when this does not match
+        /// the bucket's real region.
+        /// </summary>
         public int StorageRegion { get; set; }
+
+        /// <summary>
+        /// The same bucket region as an AWS system name ("eu-north-1"), used by our
+        /// own <c>IAmazonS3</c> client when it reads the recordings back. Kept
+        /// alongside <see cref="StorageRegion"/> because Agora's numeric codes and
+        /// the AWS SDK's region names are two different vocabularies for one fact.
+        /// </summary>
+        public string StorageRegionSystemName { get; set; } = "us-east-1";
         public string StorageBucket { get; set; } = string.Empty;
         public string StorageAccessKey { get; set; } = string.Empty;
         public string StorageSecretKey { get; set; } = string.Empty;

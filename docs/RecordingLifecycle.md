@@ -101,6 +101,23 @@ Failure path:
   Processing/Recording ──► Failed (with RecordingFailureReason)
 ```
 
+## Aggregate Boundaries
+
+The recording system enforces a strict separation of concerns between two aggregates:
+
+| Aggregate | Owns | Purpose |
+|-----------|------|---------|
+| `VideoSession` | `Status`, `StartedAt`, `CompletedAt`, `AgoraRecordingId`, `AgoraRecordingSid`, `AgoraRecordingUid`, `RecordingStatus`, `RecordingFailureReason` | Recording lifecycle state — when and how a recording is happening |
+| `ScreenRecording` | `Url`, `FileName`, `FileSizeBytes`, `DurationSeconds`, `BucketName`, `ContentType`, `ETag`, `S3UploadedAtUtc`, `StorageProvider`, `AccessControl` | File metadata — what was produced by the recording |
+
+**Key rules:**
+- `VideoSession.IsUploadedToS3` delegates to `CurrentRecording?.IsUploadedToS3`
+- `VideoSession.ConfirmRecordingStopped` no longer sets file URL — that is the `ScreenRecording`'s responsibility
+- `ScreenRecording.SetS3Metadata(bucket, key, contentType, contentLength, etag?)` is the single entry point for recording file metadata
+- Agora identifiers (`RecordingId`, `Sid`, `Uid`) exist only on `VideoSession` — they describe the provider session, not the recording output
+
+This prevents data duplication and ensures each aggregate has a single, well-defined reason to change.
+
 ## Key Records
 
 | Record | Fields | Source |
@@ -159,3 +176,66 @@ Failure path:
 - **Server errors**: Returned as `Error.Unexpected("Agora.ServerError")` — Polly retries, then fails
 - **Provider call failures in StartRecordingAsync**: Compensation transaction fails the recording
 - **Provider call failures in StopRecordingAsync**: Recording NOT marked as completed — state preserved for retry
+
+## Agora Recording Identifiers
+
+The Agora Cloud Recording API utilizes three distinct identifiers, which serve different purposes throughout the recording lifecycle. It is critical that these are not confused or substituted:
+
+1. **`RecordingUid` (Numeric UID)**:
+   - A unique numeric identifier generated **before** Acquire.
+   - Generated using `GenerateRecordingUid()` (must fit within standard 32-bit unsigned integer range for Agora compatibility).
+   - **Important**: Must remain identical across `Acquire`, `Start`, and `Stop`. It is never regenerated or replaced by the SID or ResourceId.
+2. **`ResourceId`**:
+   - The resource allocation ID returned by the Agora `/acquire` endpoint.
+   - Used to reference the allocated cloud recording resource in subsequent API calls.
+3. **`SID` (Session ID)**:
+   - The session execution ID returned by the Agora `/start` endpoint.
+   - Used to reference the active recording instance.
+
+### Identifier Relationship
+$$\text{ResourceId} \neq \text{SID} \neq \text{RecordingUid}$$
+
+---
+
+## Identifier Lifecycle flow
+
+The sequence of API calls and state tracking follows this strict lifecycle:
+
+```
+Generate UID
+     │
+     ▼
+Build Token(uid) ──► RTC token for the recording client (see below)
+     │
+     ▼
+Acquire(uid) ──► Allocates ResourceId
+     │
+     ▼
+Start(uid, token) ──► Starts session with ResourceId and returns SID
+     │
+     ▼
+Persist(uid) ──► Persists ResourceId, SID, and RecordingUid to DB
+     │
+     ▼
+Stop(uid)    ──► Stops recording using ResourceId, SID, and the persisted RecordingUid
+```
+
+## Recording Client Token (secure channels)
+
+The channel is secured with an **App Certificate** (`AgoraSettings.AppCertificate`),
+so every client that joins — **including the cloud recording client** — must present a
+valid RTC token. The recording client joins with the generated `RecordingUid`, so the
+token must be built for that exact uid.
+
+`AgoraRecordingProvider.BuildRecordingToken()` generates it with
+`RtcTokenBuilder2.buildTokenWithUid(AppId, AppCertificate, channelName, uid, ...)` —
+the same builder used by `AgoraTokenService` for participants — and passes it in the
+Start payload as `clientRequest.recordingConfig.token`. When `AppCertificate` is empty
+(App ID-only channels) the token is `null` and omitted from the payload.
+
+> **Failure symptom if this is missing:** Acquire / Start / Stop all return success
+> (they authenticate with `CustomerId`/`CustomerSecret`, independent of joining the
+> channel), but the recording client is silently rejected at channel join, captures no
+> media, and **nothing is uploaded to S3** — the stop response has no `fileList` and the
+> bucket stays empty. Watch the `"Recording stopped ... fileCount="` log line: `0` means
+> the client never joined.

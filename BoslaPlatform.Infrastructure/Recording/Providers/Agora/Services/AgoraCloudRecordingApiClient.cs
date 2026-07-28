@@ -13,7 +13,7 @@ using System.Text.Json;
 
 namespace BoslaPlatform.Infrastructure.Recording.Providers.Agora.Services
 {
-    internal sealed class AgoraCloudRecordingApiClient
+    internal sealed partial class AgoraCloudRecordingApiClient
     {
         private readonly HttpClient _http;
         private readonly AgoraSettings _settings;
@@ -138,9 +138,7 @@ namespace BoslaPlatform.Infrastructure.Recording.Providers.Agora.Services
                 return Error.Validation("Agora.Stop.MissingRequest", "Stop request body is required.");
 
             var url = BuildStopEndpoint(resourceId, sid);
-
             _logger.LogInformation("Stop started for channel {ChannelName}", request.Cname);
-
             var result = await SendAsync(HttpMethod.Post, url, request, ct);
 
             if (result.IsError)
@@ -238,7 +236,7 @@ namespace BoslaPlatform.Infrastructure.Recording.Providers.Agora.Services
             if (body is not null)
             {
                 var json = JsonSerializer.Serialize(body, RecordingJsonDefaults.Options);
-                _logger.LogInformation("Agora Request Body:\n{Body}",json);
+                _logger.LogInformation("Agora request body for {Method} {Url}:\n{Body}", method, url, Redact(json));
                 request.Content = new StringContent(json, Encoding.UTF8, "application/json");
             }
 
@@ -272,11 +270,40 @@ namespace BoslaPlatform.Infrastructure.Recording.Providers.Agora.Services
                 return MapError((int)response.StatusCode, errorBody);
             }
 
-            var contentStream = await response.Content.ReadAsStreamAsync(ct);
-            var document = await JsonDocument.ParseAsync(contentStream, cancellationToken: ct);
+            // Read the success body as a string first: Agora reports "recorded
+            // nothing" as a 200 with an empty fileList, so the body is the only
+            // evidence of what actually happened and must be logged verbatim.
+            var responseBody = await response.Content.ReadAsStringAsync(ct);
+
+            _logger.LogInformation(
+                "Agora response body for {Method} {Url}:\n{Body}", method, url, responseBody);
+
+            JsonDocument document;
+            try
+            {
+                document = JsonDocument.Parse(responseBody);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "Agora returned a non-JSON body for {Method} {Url}", method, url);
+                return Error.Unexpected("Agora.InvalidResponseBody", ex.Message);
+            }
 
             return Result<JsonDocument>.Success(document);
         }
+
+        /// <summary>
+        /// Masks the S3 credentials inside a start payload. The storage keys travel
+        /// in the request body, so logging it raw writes long-lived AWS credentials
+        /// into the application log.
+        /// </summary>
+        private static string Redact(string json) =>
+            SecretPropertyPattern().Replace(json, @"$1""***""");
+
+        [System.Text.RegularExpressions.GeneratedRegex(
+            @"(""(?:accessKey|secretKey|token)""\s*:\s*)""[^""]*""",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+        private static partial System.Text.RegularExpressions.Regex SecretPropertyPattern();
 
         private static Error MapError(int statusCode, string errorBody)
         {

@@ -33,13 +33,14 @@ namespace BoslaPlatform.Infrastructure.Realtime
         {
             return Task.FromResult(
                 Result<StartRecordingResult>.Success(
-                    new StartRecordingResult("noop-sid")));
+                    new StartRecordingResult("noop-resource-id", "noop-sid", "123456789")));
         }
 
         public Task<Result<StopRecordingResult>> StopRecordingAsync(
             string channelName,
             string providerRecordingId,
-            string? providerMetadata = null,
+            string providerRecordingSid,
+            string recordingUid,
             CancellationToken ct = default)
         {
             return Task.FromResult(

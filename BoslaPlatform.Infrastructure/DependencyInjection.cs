@@ -106,6 +106,16 @@ public static class DependencyInjection
             services.AddScoped<IVideoNotifier, SignalRVideoNotifier>();
             services.AddScoped<IRecordingProvider, AgoraRecordingProvider>();
             services.AddScoped<ISTTProvider, NoOpSTTProvider>();
+
+            // Upload verification (Stop → Query poll → S3 HeadObject) so a recording
+            // only becomes Completed once the file is confirmed present in S3.
+            services.AddScoped<IRecordingUploadVerifier, RecordingUploadVerifier>();
+            services.Configure<RecordingUploadVerificationOptions>(
+                configuration.GetSection(RecordingUploadVerificationOptions.SectionName));
+
+            // THE single recording-completion pipeline — every completion path
+            // (manual Stop, expiration, End, and the Agora webhooks) routes through it.
+            services.AddScoped<IRecordingCompletionService, RecordingCompletionService>();
             services.AddScoped<IAgoraTokenService, AgoraTokenService>();
 
             services.AddHostedService<VideoSessionExpirationService>();

@@ -20,6 +20,13 @@ namespace BoslaPlatform.Infrastructure.Recording.Providers.Agora.Models.Requests
 
     internal sealed record RecordingConfig
     {
+        /// <summary>
+        /// RTC token the cloud-recording client uses to join the channel.
+        /// Required when the channel is secured with an App Certificate;
+        /// null (omitted from the payload) for App ID-only channels.
+        /// </summary>
+        public string? Token { get; init; }
+
         public int MaxIdleTime { get; init; } = 30;
 
         public int StreamTypes { get; init; } = 2;
@@ -29,6 +36,19 @@ namespace BoslaPlatform.Infrastructure.Recording.Providers.Agora.Models.Requests
         public int VideoStreamType { get; init; }
 
         public int SubscribeUidGroup { get; init; }
+
+        /// <summary>
+        /// UIDs whose audio the recorder subscribes to. Agora subscribes to
+        /// nothing unless this is set, so an unset list means the recorder joins,
+        /// captures no media, and is torn down once MaxIdleTime elapses.
+        /// "#allstream#" subscribes to every publisher in the channel.
+        /// </summary>
+        public string[]? SubscribeAudioUids { get; init; }
+
+        /// <summary>
+        /// UIDs whose video the recorder subscribes to. See <see cref="SubscribeAudioUids"/>.
+        /// </summary>
+        public string[]? SubscribeVideoUids { get; init; }
     }
 
     internal sealed record RecordingFileConfig

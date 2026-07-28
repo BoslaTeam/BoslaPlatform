@@ -8,6 +8,7 @@ using BoslaPlatform.Application.Features.VideoSessions.Requests;
 using BoslaPlatform.Application.Features.VideoSessions.Responses;
 using BoslaPlatform.Application.Interfaces.Storage;
 using BoslaPlatform.Application.Interfaces.Video;
+using BoslaPlatform.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -527,6 +528,21 @@ namespace BoslaPlatform.API.Controllers.v1
                         return new[] { error }.ToProblem();
                     }
 
+                    // Agora's Query API only serves an in-flight recording: once the
+                    // recording stops the resource/sid pair is gone and Query answers
+                    // 404. The identifiers stay on the session as history, so polling
+                    // after a stop would surface a misleading 404. When the session is
+                    // no longer recording, answer from our own state instead.
+                    if (session.Recording?.IsRecording != true)
+                    {
+                        return Results.Ok(ApiResponse<QueryResult>.SuccessResponse(
+                            new QueryResult(
+                                session.Recording?.Status ?? RecordingStatus.Idle,
+                                session.AgoraRecordingId,
+                                session.AgoraRecordingSid),
+                            "Recording is no longer active; status reported from session state."));
+                    }
+
                     var queryResult = await _recordingProvider.QueryAsync(
                         session.AgoraRecordingId, session.AgoraRecordingSid, ct);
 
@@ -537,7 +553,24 @@ namespace BoslaPlatform.API.Controllers.v1
                                 .SuccessResponse(value, "Recording status retrieved from Agora.");
                             return Results.Ok(response);
                         },
-                        errors => errors.ToProblem());
+                        errors =>
+                        {
+                            // 404 while we still believe we are recording means Agora
+                            // already tore the recording down (idle timeout, channel
+                            // destroyed). Report it as a terminal status rather than
+                            // an error the specialist has to interpret.
+                            if (errors.Any(e => e.Code == "Agora.NotFound"))
+                            {
+                                return Results.Ok(ApiResponse<QueryResult>.SuccessResponse(
+                                    new QueryResult(
+                                        RecordingStatus.Completed,
+                                        session.AgoraRecordingId,
+                                        session.AgoraRecordingSid),
+                                    "Recording is no longer available on Agora; it has already ended."));
+                            }
+
+                            return errors.ToProblem();
+                        });
                 },
                 errors => Task.FromResult(errors.ToProblem()));
         }

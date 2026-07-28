@@ -17,6 +17,7 @@ namespace BoslaPlatform.Infrastructure.Data.Configurations
             builder.Property(v => v.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
             builder.Property(v => v.AgoraRecordingId).HasMaxLength(512);
             builder.Property(v => v.AgoraRecordingSid).HasMaxLength(200);
+            builder.Property(v => v.AgoraRecordingUid).HasMaxLength(128);
             builder.Property(v => v.RecordingUrl)
                 .HasMaxLength(2000);
 
